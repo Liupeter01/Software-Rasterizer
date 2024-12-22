@@ -1,7 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.15)
 
-include(FetchContent)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -25,14 +23,14 @@ project(
   VERSION 0.0.1
   LANGUAGES CXX)
 
- file(GLOB_RECURSE source_file CONFIGURE_DEPENDS src/*.cpp src/*.cc src/*.c)
-file(GLOB_RECURSE header_file CONFIGURE_DEPENDS include/*.hpp include/*.h)
+find_package(OpenCV REQUIRED)
 
-add_executable(Software-Rasterizer ${source_file} ${header_file} )
+file(GLOB_RECURSE source_file CONFIGURE_DEPENDS src/*.cpp src/*.cc src/*.c)
+file(GLOB_RECURSE header_file CONFIGURE_DEPENDS include/*.hpp include/*.h )
 
-#target_link_libraries(
-# Software-Rasterizer 
- # PUBLIC)
+add_executable(Software-Rasterizer ${source_file} ${header_file})
+target_include_directories(Software-Rasterizer PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBS})
 
 target_compile_definitions(
   Software-Rasterizer PUBLIC -DCONFIG_HOME=\"${CMAKE_CURRENT_SOURCE_DIR}/\")
