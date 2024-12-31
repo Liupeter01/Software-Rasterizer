@@ -23,7 +23,7 @@ project(
   VERSION 0.0.1
   LANGUAGES CXX)
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
 
 file(GLOB_RECURSE source_file CONFIGURE_DEPENDS src/*.cpp src/*.cc src/*.c)
 file(GLOB_RECURSE header_file CONFIGURE_DEPENDS include/*.hpp include/*.h )
@@ -31,9 +31,9 @@ file(GLOB_RECURSE header_file CONFIGURE_DEPENDS include/*.hpp include/*.h )
 add_subdirectory(eigen)
 
 add_executable(Software-Rasterizer ${source_file} ${header_file})
-target_include_directories(Software-Rasterizer PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_include_directories(Software-Rasterizer PUBLIC  include ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(Software-Rasterizer PUBLIC 
-${OpenCV_LIBS}
+${OpenCV_LIBRARIES}
 eigen
 )
 
