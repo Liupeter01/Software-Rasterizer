@@ -1,42 +1,43 @@
-#include<cmath>
+#include <Triangle.hpp>
+#include <Render.hpp>
+#include <Eigen/Eigen>
 #include <iostream>
-#include<Eigen/Core>
-#include<Eigen/Dense>
 #include <opencv2/opencv.hpp>
 
-int main() {
-          std::cout << "Example of cpp \n";
-          float a = 1.0, b = 2.0;
-          std::cout << a << std::endl;
-          std::cout << a / b << std::endl;
-          std::cout << std::sqrt(b) << std::endl;
-          std::cout << std::acos(-1) << std::endl;
-          std::cout << std::sin(30.0 / 180.0 * acos(-1)) << std::endl;
+int main()
+{
+          SoftRasterizer::RenderingPipeline render(800, 600);
 
-          // Example of vector
-          std::cout << "Example of vector \n";
-          // vector definition
-          Eigen::Vector3f v(1.0f, 2.0f, 3.0f);
-          Eigen::Vector3f w(1.0f, 0.0f, 0.0f);
-          // vector output
-          std::cout << "Example of output \n";
-          std::cout << v << std::endl;
-          // vector add
-          std::cout << "Example of add \n";
-          std::cout << v + w << std::endl;
-          // vector scalar multiply
-          std::cout << "Example of scalar multiply \n";
-          std::cout << v * 3.0f << std::endl;
-          std::cout << 2.0f * v << std::endl;
+          /*set up all vertices*/
+          std::vector<Eigen::Vector3f> pos{
+                  {0.f, 0.5f, 0.f},
+                  {-0.5f, -0.5f, 0.f},
+                  {0.5f, -0.5f, 0.f}
+          };
+          render.loadVertices(pos);
 
-          // Example of matrix
-          std::cout << "Example of matrix \n";
-          // matrix definition
-          Eigen::Matrix3f i, j;
-          i << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0;
-          j << 2.0, 3.0, 1.0, 4.0, 6.0, 5.0, 9.0, 7.0, 8.0;
-          // matrix output
-          std::cout << "Example of output \n";
-          std::cout << i << std::endl;
+          /*set up all shading param(colours)*/
+          std::vector<Eigen::Vector3f> color{
+                  {1.0f, 0.f, 0.f},
+                  {0.f, 1.0f, 0.f},
+                  {0.f, 0.f, 1.0f}
+          };
+          render.loadColours(color);
+
+          /*set up all indices(faces)*/
+          std::vector<Eigen::Vector3i> ind {{0, 1, 2}};
+          render.loadIndices(ind);
+
+          int key = 0;
+          int frame_count = 0;
+          while (key != 27) {
+                    /*clear both shading and depth!*/
+                    render.clear(SoftRasterizer::Buffers::Color | SoftRasterizer::Buffers::Depth);
+
+                    /*draw lines*/
+                    render.display(SoftRasterizer::Primitive::LINES);
+
+                    key = cv::waitKey(10);
+          }
           return 0;
 }
