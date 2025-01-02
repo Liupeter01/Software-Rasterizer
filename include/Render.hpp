@@ -33,7 +33,9 @@ protected:
   /*draw graphics*/
   void draw(Primitive type);
 
-  const Eigen::Matrix4f& getScreenSpaceTransform() const { return m_screenSpaceTransform; }
+  const Eigen::Matrix4f &getScreenSpaceTransform() const {
+    return m_screenSpaceTransform;
+  }
 
 public:
   void clear(SoftRasterizer::Buffers flags);

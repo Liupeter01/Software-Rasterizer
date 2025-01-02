@@ -1,14 +1,14 @@
 #include <Eigen/Eigen>
 #include <Render.hpp>
-#include <Triangle.hpp>
 #include <Tools.hpp>
+#include <Triangle.hpp>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
 int main() {
-          int key = 0;
-          int frame_count = 0;
-          float degree = 0.0f;
+  int key = 0;
+  int frame_count = 0;
+  float degree = 0.0f;
 
   SoftRasterizer::RenderingPipeline render(1000, 1000);
 
@@ -33,42 +33,38 @@ int main() {
 
     /*Rotations*/
     auto rotations = SoftRasterizer::Tools::calculateRotationMatrix(
-              /*axis=*/Eigen::Vector3f(0, 0, 1),
-              /*degree=+ for Counterclockwise;- for Clockwise*/degree
-    );
+        /*axis=*/Eigen::Vector3f(0, 0, 1),
+        /*degree=+ for Counterclockwise;- for Clockwise*/ degree);
 
     /*Model Matrix*/
     auto model = SoftRasterizer::Tools::calculateModelMatrix(
-              /*transform=*/Eigen::Vector3f(0.0f, 0.0f, 0.f),
-              /*rotations=*/rotations,
-              /*scale=*/Eigen::Vector3f(1.f, 1.f, 1.f)
-    );
+        /*transform=*/Eigen::Vector3f(0.0f, 0.0f, 0.f),
+        /*rotations=*/rotations,
+        /*scale=*/Eigen::Vector3f(1.f, 1.f, 1.f));
 
     /*View Matrix*/
     auto view = SoftRasterizer::Tools::calculateViewMatrix(
-              /*eye=*/Eigen::Vector3f(0.0f, 0.0f, 0.9f),
-              /*center=*/Eigen::Vector3f(0.0f, 0.0f, 0.0f),
-              /*up=*/Eigen::Vector3f(0.0f, 1.0f, 0.0f)
-    );
+        /*eye=*/Eigen::Vector3f(0.0f, 0.0f, 0.9f),
+        /*center=*/Eigen::Vector3f(0.0f, 0.0f, 0.0f),
+        /*up=*/Eigen::Vector3f(0.0f, 1.0f, 0.0f));
 
     /*draw lines*/
     render.setModelMatrix(model);
     render.setViewMatrix(view);
-    //render.setProjectionMatrix();
+    // render.setProjectionMatrix();
     render.display(SoftRasterizer::Primitive::LINES);
 
     key = cv::waitKey(1);
-    if (key == 'a' || key =='A') {
-              degree -= 10.0f;
-    }
-    else if (key == 'd' || key == 'D') {
-              degree += 10.0f;
+    if (key == 'a' || key == 'A') {
+      degree -= 10.0f;
+    } else if (key == 'd' || key == 'D') {
+      degree += 10.0f;
     }
 
     /*reset the degree*/
     auto delta = degree - 360.f;
     if (delta >= -0.00000001f && delta <= 0.00000001f) {
-              degree = 0.0f;
+      degree = 0.0f;
     }
   }
   return 0;
