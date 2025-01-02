@@ -33,6 +33,8 @@ protected:
   /*draw graphics*/
   void draw(Primitive type);
 
+  const Eigen::Matrix4f& getScreenSpaceTransform() const { return m_screenSpaceTransform; }
+
 public:
   void clear(SoftRasterizer::Buffers flags);
 
@@ -102,6 +104,9 @@ private:
   Eigen::Matrix4f m_model;
   Eigen::Matrix4f m_view;
   Eigen::Matrix4f m_projection;
+
+  /*Transform normalized coordinates into screen space coordinates*/
+  Eigen::Matrix4f m_screenSpaceTransform;
 
   std::vector<Eigen::Vector3f> m_frameBuffer;
 

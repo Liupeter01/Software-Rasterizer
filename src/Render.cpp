@@ -24,6 +24,34 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
   m_view = view;
   m_projection = projection;
 
+  /*Transform normalized coordinates into screen space coordinates*/
+  Eigen::Matrix4f translate, scale, aspect, flipy;
+  translate <<
+            1, 0, 0, 1,
+            0, 1, 0, 1,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
+
+  scale <<
+            m_width / 2, 0, 0, 0,
+            0, m_height / 2, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
+
+  aspect <<
+            1, 0, 0, 0,
+            0, 1.0f / m_aspectRatio, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
+
+  flipy <<
+            1, 0, 0, 0,
+            0, -1, 0, m_height,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
+
+  m_screenSpaceTransform = flipy * aspect * scale * translate;
+
   /*resize std::vector of framebuffer and z-Buffer*/
   m_frameBuffer.resize(width * height);
   m_zBuffer.resize(width * height);
@@ -40,29 +68,21 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       /*create a triangle class*/
       SoftRasterizer::Triangle triangle;
 
-      Eigen::Vector3f A = m_vertices[face[0]];
-      Eigen::Vector3f B = m_vertices[face[1]];
-      Eigen::Vector3f C = m_vertices[face[2]];
-
-      // X,Y
-      A[0] = (A[0] + 1.0f) * m_width / 2.0f; // X
-      A[1] = (m_height - (A[1] + 1.0f) * m_height / 2.0f) *
-             (1.0f / m_aspectRatio); // Y
-
-      // X,Y
-      B[0] = (B[0] + 1.0f) * m_width / 2.0f; // X
-      B[1] = (m_height - (B[1] + 1.0f) * m_height / 2.0f) *
-             (1.0f / m_aspectRatio); // Y
-
-      // X,Y
-      C[0] = (C[0] + 1.0f) * m_width / 2.0f; // X
-      C[1] = (m_height - (C[1] + 1.0f) * m_height / 2.0f) *
-             (1.0f / m_aspectRatio); // Y
+      /*Vertex(4) NDC Transform to Vec(3)*/
+      //A[0] = (A[0] + 1.0f) * m_width / 2.0f; // X
+      //A[1] = (m_height - (A[1] + 1.0f) * m_height / 2.0f) * (1.0f / m_aspectRatio); // Y
+      //B[0] = (B[0] + 1.0f) * m_width / 2.0f; // X
+      //B[1] = (m_height - (B[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio); // Y
+      //C[0] = (C[0] + 1.0f) * m_width / 2.0f; // X
+      //C[1] = (m_height - (C[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio); // Y
+      Eigen::Vector3f A = Tools::to_vec3(m_screenSpaceTransform * Tools::to_vec4(m_vertices[face[0]], 1.0f));
+      Eigen::Vector3f B = Tools::to_vec3(m_screenSpaceTransform * Tools::to_vec4(m_vertices[face[1]], 1.0f));
+      Eigen::Vector3f C = Tools::to_vec3(m_screenSpaceTransform * Tools::to_vec4(m_vertices[face[2]], 1.0f));
 
       A[2] = B[2] = C[2] = 1; // Z-Depth
 
-      spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", A.x(),
-                   A.y(), B.x(), B.y(), C.x(), C.y());
+      //spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", A.x(),
+      //             A.y(), B.x(), B.y(), C.x(), C.y());
 
       triangle.setVertex({A, B, C});
 
@@ -87,39 +107,25 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       /*create a triangle class*/
       SoftRasterizer::Triangle triangle;
 
-      /*Vertex(4) MVP Transform to Vec(3)*/
+      /*Vertex(4) MVP and NDC Transform to Vec(3)*/
       Eigen::Vector4f vec4_a =
-          mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[0]]);
+                m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[0]]);
       Eigen::Vector4f vec4_b =
-          mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[1]]);
+                m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[1]]);
       Eigen::Vector4f vec4_c =
-          mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[2]]);
+                m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[2]]);
 
       Eigen::Vector3f mvp_a = SoftRasterizer::Tools::to_vec3(vec4_a);
       Eigen::Vector3f mvp_b = SoftRasterizer::Tools::to_vec3(vec4_b);
       Eigen::Vector3f mvp_c = SoftRasterizer::Tools::to_vec3(vec4_c);
-
-      // X,Y, Z-Depth
-      mvp_a[0] = (mvp_a[0] + 1.0f) * m_width / 2.0f; // X
-      mvp_a[1] =
-          (mvp_a[1] + 1.0f) * m_height / 2.0f * (1.0f / m_aspectRatio); // Y
+     
+      //Z-Depth
       mvp_a[2] = mvp_a[2] * scale + offset; // Z-Depth
-
-      // X,Y, Z-Depth
-      mvp_b[0] = (mvp_b[0] + 1.0f) * m_width / 2.0f; // X
-      mvp_b[1] =
-          (mvp_b[1] + 1.0f) * m_height / 2.0f * (1.0f / m_aspectRatio); // Y
       mvp_b[2] = mvp_b[2] * scale + offset; // Z-Depth
-
-      // X,Y, Z-Depth
-      mvp_c[0] = (mvp_c[0] + 1.0f) * m_width / 2.0f; // X
-      mvp_c[1] =
-          (mvp_c[1] + 1.0f) * m_height / 2.0f * (1.0f / m_aspectRatio); // Y
       mvp_c[2] = mvp_c[2] * scale + offset; // Z-Depth
 
       triangle.setVertex({mvp_a, mvp_b, mvp_c});
-      triangle.setColor(
-          {m_colours[face[0]], m_colours[face[1]], m_colours[face[2]]});
+      triangle.setColor({ m_colours[face[0]], m_colours[face[1]], m_colours[face[2]] });
 
       /*draw lines first*/
       rasterizeWireframe(triangle);
