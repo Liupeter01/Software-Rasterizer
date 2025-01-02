@@ -1,6 +1,7 @@
 #include <Render.hpp>
 #include <Tools.hpp>
 #include <opencv2/opencv.hpp>
+#include <spdlog/spdlog.h>
 
 SoftRasterizer::RenderingPipeline::RenderingPipeline()
     : RenderingPipeline(800, 600) {}
@@ -44,17 +45,24 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       Eigen::Vector3f C = m_vertices[face[2]];
 
       // X,Y
-      A[0] = (A[0] + 1.0f) * m_width / 2.0f;                  // X
-      A[1] = (A[1] + 1.0f) * m_height / 2.0f * m_aspectRatio; // Y
+      A[0] = (A[0] + 1.0f) * m_width / 2.0f; // X
+      A[1] = (m_height - (A[1] + 1.0f) * m_height / 2.0f) *
+             (1.0f / m_aspectRatio); // Y
 
       // X,Y
-      B[0] = (B[0] + 1.0f) * m_width / 2.0f;                  // X
-      B[1] = (B[1] + 1.0f) * m_height / 2.0f * m_aspectRatio; // Y
+      B[0] = (B[0] + 1.0f) * m_width / 2.0f; // X
+      B[1] = (m_height - (B[1] + 1.0f) * m_height / 2.0f) *
+             (1.0f / m_aspectRatio); // Y
 
       // X,Y
-      C[0] = (C[0] + 1.0f) * m_width / 2.0f;                  // X
-      C[1] = (C[1] + 1.0f) * m_height / 2.0f * m_aspectRatio; // Y
-      A[2] = B[2] = C[2] = 1;                                 // Z-Depth
+      C[0] = (C[0] + 1.0f) * m_width / 2.0f; // X
+      C[1] = (m_height - (C[1] + 1.0f) * m_height / 2.0f) *
+             (1.0f / m_aspectRatio); // Y
+
+      A[2] = B[2] = C[2] = 1; // Z-Depth
+
+      spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", A.x(),
+                   A.y(), B.x(), B.y(), C.x(), C.y());
 
       triangle.setVertex({A, B, C});
 
@@ -92,19 +100,22 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       Eigen::Vector3f mvp_c = SoftRasterizer::Tools::to_vec3(vec4_c);
 
       // X,Y, Z-Depth
-      mvp_a[0] = (mvp_a[0] + 1.0f) * m_width / 2.0f;                  // X
-      mvp_a[1] = (mvp_a[1] + 1.0f) * m_height / 2.0f * m_aspectRatio; // Y
-      mvp_a[2] = mvp_a[2] * scale + offset;                           // Z-Depth
+      mvp_a[0] = (mvp_a[0] + 1.0f) * m_width / 2.0f; // X
+      mvp_a[1] =
+          (mvp_a[1] + 1.0f) * m_height / 2.0f * (1.0f / m_aspectRatio); // Y
+      mvp_a[2] = mvp_a[2] * scale + offset; // Z-Depth
 
       // X,Y, Z-Depth
-      mvp_b[0] = (mvp_b[0] + 1.0f) * m_width / 2.0f;                  // X
-      mvp_b[1] = (mvp_b[1] + 1.0f) * m_height / 2.0f * m_aspectRatio; // Y
-      mvp_b[2] = mvp_b[2] * scale + offset;                           // Z-Depth
+      mvp_b[0] = (mvp_b[0] + 1.0f) * m_width / 2.0f; // X
+      mvp_b[1] =
+          (mvp_b[1] + 1.0f) * m_height / 2.0f * (1.0f / m_aspectRatio); // Y
+      mvp_b[2] = mvp_b[2] * scale + offset; // Z-Depth
 
       // X,Y, Z-Depth
-      mvp_c[0] = (mvp_c[0] + 1.0f) * m_width / 2.0f;                  // X
-      mvp_c[1] = (mvp_c[1] + 1.0f) * m_height / 2.0f * m_aspectRatio; // Y
-      mvp_c[2] = mvp_c[2] * scale + offset;                           // Z-Depth
+      mvp_c[0] = (mvp_c[0] + 1.0f) * m_width / 2.0f; // X
+      mvp_c[1] =
+          (mvp_c[1] + 1.0f) * m_height / 2.0f * (1.0f / m_aspectRatio); // Y
+      mvp_c[2] = mvp_c[2] * scale + offset; // Z-Depth
 
       triangle.setVertex({mvp_a, mvp_b, mvp_c});
       triangle.setColor(
@@ -139,9 +150,9 @@ void SoftRasterizer::RenderingPipeline::writePixel(
 
 void SoftRasterizer::RenderingPipeline::rasterizeWireframe(
     const SoftRasterizer::Triangle &triangle) {
-  drawLine(triangle.c(), triangle.a(), triangle.m_color[0]);
-  drawLine(triangle.c(), triangle.b(), triangle.m_color[1]);
-  drawLine(triangle.b(), triangle.a(), triangle.m_color[2]);
+  drawLine(triangle.b(), triangle.a(), triangle.m_color[0]);
+  drawLine(triangle.b(), triangle.c(), triangle.m_color[1]);
+  drawLine(triangle.a(), triangle.c(), triangle.m_color[2]);
 }
 
 /* Bresenham algorithm*/
@@ -150,21 +161,10 @@ void SoftRasterizer::RenderingPipeline::drawLine(const Eigen::Vector3f &p0,
                                                  const Eigen::Vector3f &color) {
   Eigen::Vector3f line_color = {255, 255, 255};
 
-  /*----------------------------------*
-  *  -   |
-         p0
-          | \
-          |   \
-     dy |     \
-          |       \
-          |         p1
-      -   |<-dx->|
-  *-----------------------------------*/
-
   auto x1 = p0.x();
   auto y1 = p0.y();
   auto x2 = p1.x();
-  auto y2 = p1.x();
+  auto y2 = p1.y();
 
   int x, y, dx, dy, dx1, dy1, px, py, xe, ye, i;
 
