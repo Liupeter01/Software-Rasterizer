@@ -20,9 +20,9 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
   m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
 
   /*init MVP*/
-  m_model = model;
-  m_view = view;
-  m_projection = projection;
+  setModelMatrix(model);
+  setViewMatrix(view);
+  setProjectionMatrix(projection);
 
   /*Transform normalized coordinates into screen space coordinates*/
   Eigen::Matrix4f translate, scale, aspect, flipy;
@@ -60,6 +60,15 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
 SoftRasterizer::RenderingPipeline::~RenderingPipeline() {}
 
 void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
+          // controls the stretching/compression of the range
+          float scale = (m_far - m_near) / 2.0f;
+
+          //  shifts the range
+          float offset = (m_far + m_near) / 2.0f;
+
+          /*MVP Matrix*/
+          Eigen::Matrix4f mvp = m_projection * m_view * m_model;
+
   /*only draw lines*/
   if (type == SoftRasterizer::Primitive::LINES) {
 
@@ -75,14 +84,14 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       //B[1] = (m_height - (B[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio); // Y
       //C[0] = (C[0] + 1.0f) * m_width / 2.0f; // X
       //C[1] = (m_height - (C[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio); // Y
-      Eigen::Vector3f A = Tools::to_vec3(m_screenSpaceTransform * Tools::to_vec4(m_vertices[face[0]], 1.0f));
-      Eigen::Vector3f B = Tools::to_vec3(m_screenSpaceTransform * Tools::to_vec4(m_vertices[face[1]], 1.0f));
-      Eigen::Vector3f C = Tools::to_vec3(m_screenSpaceTransform * Tools::to_vec4(m_vertices[face[2]], 1.0f));
+      Eigen::Vector3f A = Tools::to_vec3(m_screenSpaceTransform * mvp * Tools::to_vec4(m_vertices[face[0]], 1.0f));
+      Eigen::Vector3f B = Tools::to_vec3(m_screenSpaceTransform * mvp * Tools::to_vec4(m_vertices[face[1]], 1.0f));
+      Eigen::Vector3f C = Tools::to_vec3(m_screenSpaceTransform * mvp * Tools::to_vec4(m_vertices[face[2]], 1.0f));
 
       A[2] = B[2] = C[2] = 1; // Z-Depth
 
-      //spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", A.x(),
-      //             A.y(), B.x(), B.y(), C.x(), C.y());
+      spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", A.x(),
+                   A.y(), B.x(), B.y(), C.x(), C.y());
 
       triangle.setVertex({A, B, C});
 
@@ -94,30 +103,14 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
 
   } else if (type == SoftRasterizer::Primitive::TRIANGLES) {
 
-    // controls the stretching/compression of the range
-    float scale = (m_far - m_near) / 2.0f;
-
-    //  shifts the range
-    float offset = (m_far + m_near) / 2.0f;
-
-    /*MVP Matrix*/
-    Eigen::Matrix4f mvp = m_projection * m_view * m_model;
-
     for (const auto &face : m_faces) {
       /*create a triangle class*/
       SoftRasterizer::Triangle triangle;
 
       /*Vertex(4) MVP and NDC Transform to Vec(3)*/
-      Eigen::Vector4f vec4_a =
-                m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[0]]);
-      Eigen::Vector4f vec4_b =
-                m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[1]]);
-      Eigen::Vector4f vec4_c =
-                m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[2]]);
-
-      Eigen::Vector3f mvp_a = SoftRasterizer::Tools::to_vec3(vec4_a);
-      Eigen::Vector3f mvp_b = SoftRasterizer::Tools::to_vec3(vec4_b);
-      Eigen::Vector3f mvp_c = SoftRasterizer::Tools::to_vec3(vec4_c);
+      Eigen::Vector3f mvp_a = SoftRasterizer::Tools::to_vec3(m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[0]]));
+      Eigen::Vector3f mvp_b = SoftRasterizer::Tools::to_vec3(m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[1]]));
+      Eigen::Vector3f mvp_c = SoftRasterizer::Tools::to_vec3(m_screenSpaceTransform * mvp * SoftRasterizer::Tools::to_vec4(m_vertices[face[2]]));
      
       //Z-Depth
       mvp_a[2] = mvp_a[2] * scale + offset; // Z-Depth
@@ -130,7 +123,8 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       /*draw lines first*/
       rasterizeWireframe(triangle);
     }
-  } else {
+  } 
+  else {
     throw std::runtime_error("Drawing primitives other than triangle and line "
                              "is not implemented yet!");
   }
