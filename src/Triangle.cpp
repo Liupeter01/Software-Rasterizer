@@ -32,18 +32,17 @@ void SoftRasterizer::Triangle::setNormal(
 }
 
 void SoftRasterizer::Triangle::setColor(
-    std::initializer_list<Eigen::Vector3f> _color) {
+    std::initializer_list<Eigen::Vector3i> _color) {
   if (_color.size() != 3) {
     throw std::runtime_error("Invalid number of colors");
   }
   auto it = m_color.begin();
-  std::for_each(_color.begin(), _color.end(), [&it](const Eigen::Vector3f &c) {
-    if ((c[0] < 0.0) || (c[0] > 255.) || (c[1] < 0.0) || (c[1] > 255.) ||
-        (c[2] < 0.0) || (c[2] > 255.)) {
+  std::for_each(_color.begin(), _color.end(), [&it](const Eigen::Vector3i &c) {
+    if ((c[0] < 0) || (c[0] > 255) || (c[1] < 0) || (c[1] > 255) ||
+        (c[2] < 0) || (c[2] > 255)) {
       throw std::runtime_error("Invalid color values");
     }
-    (*it) = Eigen::Vector3f((float)c[0] / 255., (float)c[1] / 255.,
-                            (float)c[2] / 255.);
+    (*it) = c;
     std::advance(it, 1);
   });
 }
