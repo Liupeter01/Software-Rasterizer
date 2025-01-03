@@ -1,35 +1,27 @@
 #pragma once
 #ifndef _TOOLS_HPP_
 #define _TOOLS_HPP_
-#include <algorithm>
 #include <Eigen/Eigen>
+#include <algorithm>
 
 namespace SoftRasterizer {
 struct Tools {
   static constexpr float PI = 3.14159265358979323846f;
 
   // Base case: min with two arguments
-  template <typename T>
-  static T min(T a, T b) {
-            return (a < b) ? a : b;
-  }
+  template <typename T> static T min(T a, T b) { return (a < b) ? a : b; }
 
   // Recursive variadic template
-  template <typename T, typename... Args>
-  static T min(T first, Args... args) {
-            return std::min(first, min(args...)); // Recursively compare
+  template <typename T, typename... Args> static T min(T first, Args... args) {
+    return std::min(first, min(args...)); // Recursively compare
   }
 
   // Base case: max with two arguments
-  template <typename T>
-  static T max(T a, T b) {
-            return (a > b) ? a : b;
-  }
+  template <typename T> static T max(T a, T b) { return (a > b) ? a : b; }
 
   // Recursive variadic template
-  template <typename T, typename... Args>
-  static T max(T first, Args... args) {
-            return std::max(first, max(args...)); // Recursively compare
+  template <typename T, typename... Args> static T max(T first, Args... args) {
+    return std::max(first, max(args...)); // Recursively compare
   }
 
   // degree to radian

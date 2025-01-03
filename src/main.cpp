@@ -48,11 +48,11 @@ int main() {
         /*center=*/Eigen::Vector3f(0.0f, 0.0f, 0.0f),
         /*up=*/Eigen::Vector3f(0.0f, 1.0f, 0.0f));
 
-    //auto projection = SoftRasterizer::Tools::calculateProjectionMatrix(
-    //          /*fov=*/45.0f, 
-    //          /*aspect=*/1.0f, 
-    //          /*near=*/0.1f, 
-    //          /*far=*/10.0f
+    // auto projection = SoftRasterizer::Tools::calculateProjectionMatrix(
+    //           /*fov=*/45.0f,
+    //           /*aspect=*/1.0f,
+    //           /*near=*/0.1f,
+    //           /*far=*/10.0f
     //);
 
     /*draw lines*/
