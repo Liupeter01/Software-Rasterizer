@@ -35,10 +35,6 @@ protected:
   /*draw graphics*/
   void draw(Primitive type);
 
-  const Eigen::Matrix4f &getScreenSpaceTransform() const {
-    return m_screenSpaceTransform;
-  }
-
 public:
   void clear(SoftRasterizer::Buffers flags);
 
@@ -108,11 +104,13 @@ private:
   void rasterizeTriangle(const SoftRasterizer::Triangle& triangle);
 
   void writePixel(const Eigen::Vector3f &point, const Eigen::Vector3f &color);
+  void writePixel(const Eigen::Vector3f& point, const Eigen::Vector3i& color);
+
   bool writeZBuffer(const Eigen::Vector3f& point, const float depth);
 
   /*Bresenham algorithm*/
   void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,
-                const Eigen::Vector3f &color);
+                const Eigen::Vector3i &color);
 
 private:
   // near and far clipping planes
@@ -142,7 +140,7 @@ private:
   Eigen::Matrix4f m_projection;
 
   /*Transform normalized coordinates into screen space coordinates*/
-  Eigen::Matrix4f m_screenSpaceTransform;
+  Eigen::Matrix4f m_ndcToScreenMatrix;
 
   std::vector<Eigen::Vector3f> m_frameBuffer;
 

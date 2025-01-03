@@ -10,8 +10,8 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
     const std::size_t width, const std::size_t height,
     const Eigen::Matrix4f &model, const Eigen::Matrix4f &view,
     const Eigen::Matrix4f &projection)
-
     : m_width(width), m_height(height) {
+
   /*calculate ratio*/
   if (!height) {
     throw std::runtime_error("Height cannot be zero!");
@@ -27,14 +27,18 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
   /*Transform normalized coordinates into screen space coordinates*/
   Eigen::Matrix4f translate, scale, aspect, flipy;
   translate << 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1;
-
   scale << m_width / 2, 0, 0, 0, 0, m_height / 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
+  flipy << -1, 0, 0, m_width, 0, -1, 0, m_height, 0, 0, 1, 0, 0, 0, 0, 1;
 
-  aspect << 1, 0, 0, 0, 0, 1.0f / m_aspectRatio, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
+  if(-0.0000001f <= m_aspectRatio - 1.0f && m_aspectRatio - 1.0f <= 0.0000001f){
+            aspect = Eigen::Matrix4f::Identity();
+  }
+  else {
+            /*width maybe more/less than height*/
+            aspect << 1, 0, 0, 0, 0, m_aspectRatio, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
+  }
 
-  flipy << 1, 0, 0, 0, 0, -1, 0, m_height, 0, 0, 1, 0, 0, 0, 0, 1;
-
-  m_screenSpaceTransform = flipy * aspect * scale * translate;
+  m_ndcToScreenMatrix = flipy * aspect * scale * translate;
 
   /*resize std::vector of framebuffer and z-Buffer*/
   m_frameBuffer.resize(width * height);
@@ -86,13 +90,13 @@ SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       // // Y C[0] = (C[0] + 1.0f) * m_width / 2.0f; // X C[1] = (m_height -
       // (C[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio); // Y
       Eigen::Vector3f A =
-          Tools::to_vec3(m_screenSpaceTransform * mvp *
+          Tools::to_vec3(m_ndcToScreenMatrix * mvp *
                          Tools::to_vec4(m_vertices[face[0]], 1.0f));
       Eigen::Vector3f B =
-          Tools::to_vec3(m_screenSpaceTransform * mvp *
+          Tools::to_vec3(m_ndcToScreenMatrix * mvp *
                          Tools::to_vec4(m_vertices[face[1]], 1.0f));
       Eigen::Vector3f C =
-          Tools::to_vec3(m_screenSpaceTransform * mvp *
+          Tools::to_vec3(m_ndcToScreenMatrix * mvp *
                          Tools::to_vec4(m_vertices[face[2]], 1.0f));
 
       // Z-Depth
@@ -105,8 +109,11 @@ SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
 
       triangle.setVertex({A, B, C});
 
-      triangle.setColor(
-          {m_colours[face[0]], m_colours[face[1]], m_colours[face[2]]});
+      triangle.setColor({ 
+                Tools::normalizedToRGB(m_colours[face[0]].x(), m_colours[face[0]].y(), m_colours[face[0]].z()), 
+                Tools::normalizedToRGB(m_colours[face[1]].x(), m_colours[face[1]].y(), m_colours[face[1]].z()),
+                Tools::normalizedToRGB(m_colours[face[2]].x(), m_colours[face[2]].y(), m_colours[face[2]].z())
+       });
 
       rasterizeWireframe(triangle);
     }
@@ -119,13 +126,13 @@ SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
 
       /*Vertex(4) MVP and NDC Transform to Vec(3)*/
       Eigen::Vector3f mvp_a = SoftRasterizer::Tools::to_vec3(
-          m_screenSpaceTransform * mvp *
+          m_ndcToScreenMatrix * mvp *
           SoftRasterizer::Tools::to_vec4(m_vertices[face[0]]));
       Eigen::Vector3f mvp_b = SoftRasterizer::Tools::to_vec3(
-          m_screenSpaceTransform * mvp *
+                m_ndcToScreenMatrix * mvp *
           SoftRasterizer::Tools::to_vec4(m_vertices[face[1]]));
       Eigen::Vector3f mvp_c = SoftRasterizer::Tools::to_vec3(
-          m_screenSpaceTransform * mvp *
+                m_ndcToScreenMatrix * mvp *
           SoftRasterizer::Tools::to_vec4(m_vertices[face[2]]));
 
       // Z-Depth
@@ -137,8 +144,11 @@ SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
                 mvp_a.y(), mvp_b.x(), mvp_b.y(), mvp_c.x(), mvp_c.y());
 
       triangle.setVertex({mvp_a, mvp_b, mvp_c});
-      triangle.setColor(
-          {m_colours[face[0]], m_colours[face[1]], m_colours[face[2]]});
+      triangle.setColor({
+                Tools::normalizedToRGB(m_colours[face[0]].x(), m_colours[face[0]].y(), m_colours[face[0]].z()),
+                Tools::normalizedToRGB(m_colours[face[1]].x(), m_colours[face[1]].y(), m_colours[face[1]].z()),
+                Tools::normalizedToRGB(m_colours[face[2]].x(), m_colours[face[2]].y(), m_colours[face[2]].z())
+                });
 
       /*draw triangle*/
       rasterizeTriangle(triangle);
@@ -169,15 +179,25 @@ SoftRasterizer::RenderingPipeline::writePixel(
   }
 }
 
+void 
+SoftRasterizer::RenderingPipeline::writePixel(const Eigen::Vector3f& point, 
+                                                                           const Eigen::Vector3i& color){
+          writePixel(point, Eigen::Vector3f(
+                    static_cast<float>(color.x()),
+                    static_cast<float>(color.y()),
+                    static_cast<float>(color.z())
+          ));
+}
+
 bool
 SoftRasterizer::RenderingPipeline::writeZBuffer(const Eigen::Vector3f& point, 
                                                                                          const float depth){
           if (point.x() >= 0 && point.x() < m_width && point.y() >= 0 &&
                     point.y() < m_height) {
 
-                    auto &z_depth = m_zBuffer[static_cast<int>(point.x()) + static_cast<int>(point.y()) * m_width];
-                    if (depth < z_depth) {
-                              z_depth = depth;
+                    auto cur_depth = m_zBuffer[static_cast<int>(point.x()) + static_cast<int>(point.y()) * m_width];
+                    if (depth < cur_depth) {
+                              m_zBuffer[static_cast<int>(point.x()) + static_cast<int>(point.y()) * m_width] = depth;
                               return true;
                     }
           }
@@ -314,14 +334,8 @@ SoftRasterizer::RenderingPipeline::rasterizeTriangle(const SoftRasterizer::Trian
 #pragma omp parallel for collapse(2)
           for (std::size_t y = min.y(); y < max.y(); y++) {
                     for (std::size_t x = min.x(); x < max.x(); x++) {
-
-                              //spdlog::info("Rastering Point(x,y)=({},{})", x, y);
-
                               /*is this Point(x,y) inside triangle*/
                               if (insideTriangle(x + 0.5f, y + 0.5f, triangle)) [[likely]]{
-
-                                        //spdlog::info("Point(x,y)=({},{}) Inside Triangle", x, y);
-
                                         auto [alpha, beta, gamma] = barycentric(x, y, triangle).value();
 
                                         /*for Z-buffer interpolated*/
@@ -337,15 +351,14 @@ SoftRasterizer::RenderingPipeline::rasterizeTriangle(const SoftRasterizer::Trian
                                         if (writeZBuffer(Eigen::Vector3f(x, y, 1.0f), z_interpolated)) {
 
                                                   /*for color interpolated*/
-                                                  Eigen::Vector3f color_interpolated =
-                                                            alpha * triangle.m_color[0] +
-                                                            beta * triangle.m_color[1] +
-                                                            gamma * triangle.m_color[2];
+                                                  auto RGB_i = Tools::interpolateRGB(alpha, beta, gamma, 
+                                                            triangle.m_color[0], 
+                                                            triangle.m_color[1], 
+                                                            triangle.m_color[2]
+                                                  );
 
-                                                  writePixel(Eigen::Vector3f(x, y, 1.0f), Eigen::Vector3f(255,255,255));
+                                                  writePixel(Eigen::Vector3f(x, y, 1.0f), RGB_i);
                                         }
-
-                                      //  writePixel(Eigen::Vector3f(x, y, 1.0f), Eigen::Vector3f(255, 255, 255));
                               }
                     }
           }
@@ -354,8 +367,7 @@ SoftRasterizer::RenderingPipeline::rasterizeTriangle(const SoftRasterizer::Trian
 /* Bresenham algorithm*/
 void SoftRasterizer::RenderingPipeline::drawLine(const Eigen::Vector3f &p0,
                                                  const Eigen::Vector3f &p1,
-                                                 const Eigen::Vector3f &color) {
-  Eigen::Vector3f line_color = {255, 255, 255};
+                                                 const Eigen::Vector3i &color) {
 
   auto x1 = p0.x();
   auto y1 = p0.y();
@@ -382,7 +394,7 @@ void SoftRasterizer::RenderingPipeline::drawLine(const Eigen::Vector3f &p0,
       xe = x1;
     }
 
-    writePixel(Eigen::Vector3f(x, y, 1.0f), line_color);
+    writePixel(Eigen::Vector3f(x, y, 1.0f), color);
 
     for (i = 0; x < xe; i++) {
       x = x + 1;
@@ -396,7 +408,7 @@ void SoftRasterizer::RenderingPipeline::drawLine(const Eigen::Vector3f &p0,
         }
         px = px + 2 * (dy1 - dx1);
       }
-      writePixel(Eigen::Vector3f(x, y, 1.0f), line_color);
+      writePixel(Eigen::Vector3f(x, y, 1.0f), color);
     }
   } else {
     if (dy >= 0) {
@@ -409,7 +421,7 @@ void SoftRasterizer::RenderingPipeline::drawLine(const Eigen::Vector3f &p0,
       ye = y1;
     }
 
-    writePixel(Eigen::Vector3f(x, y, 1.0f), line_color);
+    writePixel(Eigen::Vector3f(x, y, 1.0f), color);
 
     for (i = 0; y < ye; i++) {
       y = y + 1;
@@ -424,7 +436,7 @@ void SoftRasterizer::RenderingPipeline::drawLine(const Eigen::Vector3f &p0,
         py = py + 2 * (dx1 - dy1);
       }
 
-      writePixel(Eigen::Vector3f(x, y, 1.0f), line_color);
+      writePixel(Eigen::Vector3f(x, y, 1.0f), color);
     }
   }
 }
