@@ -13,19 +13,17 @@ int main() {
   SoftRasterizer::RenderingPipeline render(1000, 1000);
 
   /*set up all vertices*/
-  std::vector<Eigen::Vector3f> pos{
-            {0.f, 0.5f, -0.1f}, {-0.5f, -0.5f, -0.1f}, {0.5f, -0.5f, -0.1f},
-            {0.f, 0.5f, 0.1f}, {0.7f, 0.5f, 0.1f}, {0.7f, -0.3f, 0.1f}
-  };
+  std::vector<Eigen::Vector3f> pos{{0.f, 0.5f, -0.1f},   {-0.5f, -0.5f, -0.1f},
+                                   {0.5f, -0.5f, -0.1f}, {0.f, 0.5f, 0.1f},
+                                   {0.7f, 0.5f, 0.1f},   {0.7f, -0.3f, 0.1f}};
 
   /*set up all shading param(colours)*/
-  std::vector<Eigen::Vector3f> color{
-      {1.0f, 0.f, 0.f}, {0.f, 1.0f, 0.f}, {0.f, 0.f, 1.0f},
-       {1.0f, 1.f, 1.f}, {1.f, 1.0f, 1.f}, {1.f, 1.f, 1.0f}
-  };
+  std::vector<Eigen::Vector3f> color{{1.0f, 0.f, 0.f}, {0.f, 1.0f, 0.f},
+                                     {0.f, 0.f, 1.0f}, {1.0f, 1.f, 1.f},
+                                     {1.f, 1.0f, 1.f}, {1.f, 1.f, 1.0f}};
 
   /*set up all indices(faces)*/
-  std::vector<Eigen::Vector3i> ind{ {0, 1, 2},{3,4,1} };
+  std::vector<Eigen::Vector3i> ind{{0, 1, 2}, {3, 4, 1}};
   render.loadVertices(pos);
   render.loadColours(color);
   render.loadIndices(ind);

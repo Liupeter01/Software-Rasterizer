@@ -2,57 +2,54 @@
 #include <spdlog/spdlog.h>
 
 // degree to radian
-float 
-SoftRasterizer::Tools::degreeToRadian(float degree) {
+float SoftRasterizer::Tools::degreeToRadian(float degree) {
   return degree * (PI / 180.0f);
 }
 
-Eigen::Vector4f 
-SoftRasterizer::Tools::to_vec4(const Eigen::Vector3f &v3,
+Eigen::Vector4f SoftRasterizer::Tools::to_vec4(const Eigen::Vector3f &v3,
                                                float w) {
   return Eigen::Vector4f(v3.x(), v3.y(), v3.z(), w);
 }
 
-Eigen::Vector3f 
-SoftRasterizer::Tools::to_vec3(const Eigen::Vector4f &v4) {
+Eigen::Vector3f SoftRasterizer::Tools::to_vec3(const Eigen::Vector4f &v4) {
   return Eigen::Vector3f(v4.x() / v4.w(), v4.y() / v4.w(), v4.z() / v4.w());
 }
 
 /**
- * @brief Converts normalized color values (range [0, 1]) to RGB values (range [0, 255]).
+ * @brief Converts normalized color values (range [0, 1]) to RGB values (range
+ * [0, 255]).
  *
- * This function takes three float values representing normalized color components
- * (red, green, blue), clamps them to ensure they are within the valid range of [0, 1],
- * and scales them to the RGB range of [0, 255]. It returns the resulting RGB values as
- * an Eigen::Vector3i.
+ * This function takes three float values representing normalized color
+ * components (red, green, blue), clamps them to ensure they are within the
+ * valid range of [0, 1], and scales them to the RGB range of [0, 255]. It
+ * returns the resulting RGB values as an Eigen::Vector3i.
  *
  * @param red The normalized red component (range [0, 1]).
  * @param green The normalized green component (range [0, 1]).
  * @param blue The normalized blue component (range [0, 1]).
  *
- * @return Eigen::Vector3i A vector containing the RGB values in the range [0, 255].
+ * @return Eigen::Vector3i A vector containing the RGB values in the range [0,
+ * 255].
  */
-Eigen::Vector3i 
-SoftRasterizer::Tools::normalizedToRGB(float red, 
-                                                                    float green, 
-                                                                    float blue) {
+Eigen::Vector3i SoftRasterizer::Tools::normalizedToRGB(float red, float green,
+                                                       float blue) {
 
-          // Clamp values to ensure they're within the range [0, 1]
-          red = std::clamp(red, 0.0f, 1.0f);
-          green = std::clamp(green, 0.0f, 1.0f);
-          blue = std::clamp(blue, 0.0f, 1.0f);
+  // Clamp values to ensure they're within the range [0, 1]
+  red = std::clamp(red, 0.0f, 1.0f);
+  green = std::clamp(green, 0.0f, 1.0f);
+  blue = std::clamp(blue, 0.0f, 1.0f);
 
-          // Scale to the range [0, 255] and convert to integers
-          Eigen::Vector3i rgb;
-          rgb << static_cast<int>(red * 255.0f),
-                    static_cast<int>(green * 255.0f),
-                    static_cast<int>(blue * 255.0f);
+  // Scale to the range [0, 255] and convert to integers
+  Eigen::Vector3i rgb;
+  rgb << static_cast<int>(red * 255.0f), static_cast<int>(green * 255.0f),
+      static_cast<int>(blue * 255.0f);
 
-          return rgb;
+  return rgb;
 }
 
 /**
- * @brief Interpolates between three RGB colors using alpha, beta, and gamma weights.
+ * @brief Interpolates between three RGB colors using alpha, beta, and gamma
+ * weights.
  *
  * Given three RGB colors and interpolation parameters (alpha, beta, gamma),
  * this function computes the interpolated RGB color using a weighted average.
@@ -66,26 +63,25 @@ SoftRasterizer::Tools::normalizedToRGB(float red,
  *
  * @return Eigen::Vector3i The interpolated RGB color.
  */
-Eigen::Vector3i 
-SoftRasterizer::Tools::interpolateRGB(float alpha, float beta, float gamma,
-          const Eigen::Vector3i& color1,
-          const Eigen::Vector3i& color2,
-          const Eigen::Vector3i& color3) {
-          // Ensure weights sum up to 1.0 (optional, but recommended for normalized interpolation)
-          float sum = alpha + beta + gamma;
-          alpha /= sum;
-          beta /= sum;
-          gamma /= sum;
+Eigen::Vector3i SoftRasterizer::Tools::interpolateRGB(
+    float alpha, float beta, float gamma, const Eigen::Vector3i &color1,
+    const Eigen::Vector3i &color2, const Eigen::Vector3i &color3) {
+  // Ensure weights sum up to 1.0 (optional, but recommended for normalized
+  // interpolation)
+  float sum = alpha + beta + gamma;
+  alpha /= sum;
+  beta /= sum;
+  gamma /= sum;
 
-          // Perform the weighted average of the RGB components
-          Eigen::Vector3i interpolatedColor;
-          interpolatedColor = (
-                    alpha * color1.cast<float>() +
-                    beta * color2.cast<float>() +
-                    gamma * color3.cast<float>()).cast<int>();
+  // Perform the weighted average of the RGB components
+  Eigen::Vector3i interpolatedColor;
+  interpolatedColor =
+      (alpha * color1.cast<float>() + beta * color2.cast<float>() +
+       gamma * color3.cast<float>())
+          .cast<int>();
 
-          interpolatedColor = interpolatedColor.cwiseMin(255).cwiseMax(0);
-          return interpolatedColor;
+  interpolatedColor = interpolatedColor.cwiseMin(255).cwiseMax(0);
+  return interpolatedColor;
 }
 
 /**

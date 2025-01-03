@@ -30,12 +30,12 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
   scale << m_width / 2, 0, 0, 0, 0, m_height / 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
   flipy << -1, 0, 0, m_width, 0, -1, 0, m_height, 0, 0, 1, 0, 0, 0, 0, 1;
 
-  if(-0.0000001f <= m_aspectRatio - 1.0f && m_aspectRatio - 1.0f <= 0.0000001f){
-            aspect = Eigen::Matrix4f::Identity();
-  }
-  else {
-            /*width maybe more/less than height*/
-            aspect << 1, 0, 0, 0, 0, m_aspectRatio, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
+  if (-0.0000001f <= m_aspectRatio - 1.0f &&
+      m_aspectRatio - 1.0f <= 0.0000001f) {
+    aspect = Eigen::Matrix4f::Identity();
+  } else {
+    /*width maybe more/less than height*/
+    aspect << 1, 0, 0, 0, 0, m_aspectRatio, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
   }
 
   m_ndcToScreenMatrix = flipy * aspect * scale * translate;
@@ -47,24 +47,22 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
 
 SoftRasterizer::RenderingPipeline::~RenderingPipeline() {}
 
-void 
-SoftRasterizer::RenderingPipeline::clear(SoftRasterizer::Buffers flags) {
-          if ((flags & SoftRasterizer::Buffers::Color) ==
-                    SoftRasterizer::Buffers::Color) {
-                    std::for_each(
-                              m_frameBuffer.begin(), m_frameBuffer.end(),
-                              [](Eigen::Vector3f& color) { color = Eigen::Vector3f{ 0, 0, 0 }; });
-          }
-          if ((flags & SoftRasterizer::Buffers::Depth) ==
-                    SoftRasterizer::Buffers::Depth) {
-                    std::for_each(m_zBuffer.begin(), m_zBuffer.end(), [](float& depth) {
-                              depth = std::numeric_limits<float>::infinity();
-                              });
-          }
+void SoftRasterizer::RenderingPipeline::clear(SoftRasterizer::Buffers flags) {
+  if ((flags & SoftRasterizer::Buffers::Color) ==
+      SoftRasterizer::Buffers::Color) {
+    std::for_each(
+        m_frameBuffer.begin(), m_frameBuffer.end(),
+        [](Eigen::Vector3f &color) { color = Eigen::Vector3f{0, 0, 0}; });
+  }
+  if ((flags & SoftRasterizer::Buffers::Depth) ==
+      SoftRasterizer::Buffers::Depth) {
+    std::for_each(m_zBuffer.begin(), m_zBuffer.end(), [](float &depth) {
+      depth = std::numeric_limits<float>::infinity();
+    });
+  }
 }
 
-void 
-SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
+void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
   // controls the stretching/compression of the range
   float scale = (m_far - m_near) / 2.0f;
 
@@ -105,15 +103,19 @@ SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       C[2] = C[2] * scale + offset; // Z-Depth
 
       spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", A.x(),
-                A.y(), B.x(), B.y(), C.x(), C.y());
+                   A.y(), B.x(), B.y(), C.x(), C.y());
 
       triangle.setVertex({A, B, C});
 
-      triangle.setColor({ 
-                Tools::normalizedToRGB(m_colours[face[0]].x(), m_colours[face[0]].y(), m_colours[face[0]].z()), 
-                Tools::normalizedToRGB(m_colours[face[1]].x(), m_colours[face[1]].y(), m_colours[face[1]].z()),
-                Tools::normalizedToRGB(m_colours[face[2]].x(), m_colours[face[2]].y(), m_colours[face[2]].z())
-       });
+      triangle.setColor({Tools::normalizedToRGB(m_colours[face[0]].x(),
+                                                m_colours[face[0]].y(),
+                                                m_colours[face[0]].z()),
+                         Tools::normalizedToRGB(m_colours[face[1]].x(),
+                                                m_colours[face[1]].y(),
+                                                m_colours[face[1]].z()),
+                         Tools::normalizedToRGB(m_colours[face[2]].x(),
+                                                m_colours[face[2]].y(),
+                                                m_colours[face[2]].z())});
 
       rasterizeWireframe(triangle);
     }
@@ -129,10 +131,10 @@ SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
           m_ndcToScreenMatrix * mvp *
           SoftRasterizer::Tools::to_vec4(m_vertices[face[0]]));
       Eigen::Vector3f mvp_b = SoftRasterizer::Tools::to_vec3(
-                m_ndcToScreenMatrix * mvp *
+          m_ndcToScreenMatrix * mvp *
           SoftRasterizer::Tools::to_vec4(m_vertices[face[1]]));
       Eigen::Vector3f mvp_c = SoftRasterizer::Tools::to_vec3(
-                m_ndcToScreenMatrix * mvp *
+          m_ndcToScreenMatrix * mvp *
           SoftRasterizer::Tools::to_vec4(m_vertices[face[2]]));
 
       // Z-Depth
@@ -141,14 +143,18 @@ SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
       mvp_c[2] = mvp_c[2] * scale + offset; // Z-Depth
 
       spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", mvp_a.x(),
-                mvp_a.y(), mvp_b.x(), mvp_b.y(), mvp_c.x(), mvp_c.y());
+                   mvp_a.y(), mvp_b.x(), mvp_b.y(), mvp_c.x(), mvp_c.y());
 
       triangle.setVertex({mvp_a, mvp_b, mvp_c});
-      triangle.setColor({
-                Tools::normalizedToRGB(m_colours[face[0]].x(), m_colours[face[0]].y(), m_colours[face[0]].z()),
-                Tools::normalizedToRGB(m_colours[face[1]].x(), m_colours[face[1]].y(), m_colours[face[1]].z()),
-                Tools::normalizedToRGB(m_colours[face[2]].x(), m_colours[face[2]].y(), m_colours[face[2]].z())
-                });
+      triangle.setColor({Tools::normalizedToRGB(m_colours[face[0]].x(),
+                                                m_colours[face[0]].y(),
+                                                m_colours[face[0]].z()),
+                         Tools::normalizedToRGB(m_colours[face[1]].x(),
+                                                m_colours[face[1]].y(),
+                                                m_colours[face[1]].z()),
+                         Tools::normalizedToRGB(m_colours[face[2]].x(),
+                                                m_colours[face[2]].y(),
+                                                m_colours[face[2]].z())});
 
       /*draw triangle*/
       rasterizeTriangle(triangle);
@@ -159,8 +165,7 @@ SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
   }
 }
 
-void 
-SoftRasterizer::RenderingPipeline::display(Primitive type) {
+void SoftRasterizer::RenderingPipeline::display(Primitive type) {
   /*draw pictures according to the specific type*/
   draw(type);
 
@@ -169,8 +174,7 @@ SoftRasterizer::RenderingPipeline::display(Primitive type) {
   cv::imshow("SoftRasterizer", image);
 }
 
-void 
-SoftRasterizer::RenderingPipeline::writePixel(
+void SoftRasterizer::RenderingPipeline::writePixel(
     const Eigen::Vector3f &point, const Eigen::Vector3f &color) {
   if (point.x() >= 0 && point.x() < m_width && point.y() >= 0 &&
       point.y() < m_height) {
@@ -179,33 +183,31 @@ SoftRasterizer::RenderingPipeline::writePixel(
   }
 }
 
-void 
-SoftRasterizer::RenderingPipeline::writePixel(const Eigen::Vector3f& point, 
-                                                                           const Eigen::Vector3i& color){
-          writePixel(point, Eigen::Vector3f(
-                    static_cast<float>(color.x()),
-                    static_cast<float>(color.y()),
-                    static_cast<float>(color.z())
-          ));
+void SoftRasterizer::RenderingPipeline::writePixel(
+    const Eigen::Vector3f &point, const Eigen::Vector3i &color) {
+  writePixel(point, Eigen::Vector3f(static_cast<float>(color.x()),
+                                    static_cast<float>(color.y()),
+                                    static_cast<float>(color.z())));
 }
 
-bool
-SoftRasterizer::RenderingPipeline::writeZBuffer(const Eigen::Vector3f& point, 
-                                                                                         const float depth){
-          if (point.x() >= 0 && point.x() < m_width && point.y() >= 0 &&
-                    point.y() < m_height) {
+bool SoftRasterizer::RenderingPipeline::writeZBuffer(
+    const Eigen::Vector3f &point, const float depth) {
+  if (point.x() >= 0 && point.x() < m_width && point.y() >= 0 &&
+      point.y() < m_height) {
 
-                    auto cur_depth = m_zBuffer[static_cast<int>(point.x()) + static_cast<int>(point.y()) * m_width];
-                    if (depth < cur_depth) {
-                              m_zBuffer[static_cast<int>(point.x()) + static_cast<int>(point.y()) * m_width] = depth;
-                              return true;
-                    }
-          }
-          return false;
+    auto cur_depth = m_zBuffer[static_cast<int>(point.x()) +
+                               static_cast<int>(point.y()) * m_width];
+    if (depth < cur_depth) {
+      m_zBuffer[static_cast<int>(point.x()) +
+                static_cast<int>(point.y()) * m_width] = depth;
+      return true;
+    }
+  }
+  return false;
 }
 
-void 
-SoftRasterizer::RenderingPipeline::rasterizeWireframe(const SoftRasterizer::Triangle &triangle) {
+void SoftRasterizer::RenderingPipeline::rasterizeWireframe(
+    const SoftRasterizer::Triangle &triangle) {
   drawLine(triangle.b(), triangle.a(), triangle.m_color[0]);
   drawLine(triangle.b(), triangle.c(), triangle.m_color[1]);
   drawLine(triangle.a(), triangle.c(), triangle.m_color[2]);
@@ -220,148 +222,146 @@ SoftRasterizer::RenderingPipeline::rasterizeWireframe(const SoftRasterizer::Tria
  * minimum and maximum corners of the box.
  *
  * @param triangle The triangle for which the bounding box is to be calculated.
- *                 The triangle is represented using the `SoftRasterizer::Triangle` type.
+ *                 The triangle is represented using the
+ * `SoftRasterizer::Triangle` type.
  *
  * @return A pair of 2D integer vectors (Eigen::Vector2i), where:
- *         - The first vector represents the minimum corner of the bounding box (bottom-left).
- *         - The second vector represents the maximum corner of the bounding box (top-right).
+ *         - The first vector represents the minimum corner of the bounding box
+ * (bottom-left).
+ *         - The second vector represents the maximum corner of the bounding box
+ * (top-right).
  */
 std::pair<Eigen::Vector2i, Eigen::Vector2i>
-SoftRasterizer::RenderingPipeline::calculateBoundingBox(const SoftRasterizer::Triangle& triangle) {
-          auto A = triangle.a();
-          auto B = triangle.b();
-          auto C = triangle.c();
+SoftRasterizer::RenderingPipeline::calculateBoundingBox(
+    const SoftRasterizer::Triangle &triangle) {
+  auto A = triangle.a();
+  auto B = triangle.b();
+  auto C = triangle.c();
 
-          auto min = Eigen::Vector2i{
-                              static_cast<int>(std::floor(SoftRasterizer::Tools::min(A.x(), B.x(), C.x()))),
-                              static_cast<int>(std::floor(SoftRasterizer::Tools::min(A.y(), B.y(), C.y())))
-          };
+  auto min = Eigen::Vector2i{
+      static_cast<int>(
+          std::floor(SoftRasterizer::Tools::min(A.x(), B.x(), C.x()))),
+      static_cast<int>(
+          std::floor(SoftRasterizer::Tools::min(A.y(), B.y(), C.y())))};
 
-          auto max = Eigen::Vector2i{
-                              static_cast<int>(std::ceil(SoftRasterizer::Tools::max(A.x(), B.x(), C.x()))),
-                              static_cast<int>(std::ceil(SoftRasterizer::Tools::max(A.y(), B.y(), C.y())))
-          };
+  auto max = Eigen::Vector2i{
+      static_cast<int>(
+          std::ceil(SoftRasterizer::Tools::max(A.x(), B.x(), C.x()))),
+      static_cast<int>(
+          std::ceil(SoftRasterizer::Tools::max(A.y(), B.y(), C.y())))};
 
-          return std::pair<Eigen::Vector2i, Eigen::Vector2i>(min, max);
+  return std::pair<Eigen::Vector2i, Eigen::Vector2i>(min, max);
 }
 
-bool 
-SoftRasterizer::RenderingPipeline::insideTriangle(const std::size_t x_pos, 
-                                                                                const std::size_t y_pos, 
-                                                                                const SoftRasterizer::Triangle& triangle)
-{
-          const Eigen::Vector3f P = {
-              static_cast<float>(x_pos),
-              static_cast<float>(y_pos),
-              1.0f
-          };
+bool SoftRasterizer::RenderingPipeline::insideTriangle(
+    const std::size_t x_pos, const std::size_t y_pos,
+    const SoftRasterizer::Triangle &triangle) {
+  const Eigen::Vector3f P = {static_cast<float>(x_pos),
+                             static_cast<float>(y_pos), 1.0f};
 
-          Eigen::Vector3f A = triangle.a();
-          Eigen::Vector3f B = triangle.b();
-          Eigen::Vector3f C = triangle.c();
+  Eigen::Vector3f A = triangle.a();
+  Eigen::Vector3f B = triangle.b();
+  Eigen::Vector3f C = triangle.c();
 
-          // Vectors representing the edges of the triangle
-          Eigen::Vector3f AB = B - A;
-          Eigen::Vector3f BC = C - B;
-          Eigen::Vector3f CA = A - C;
+  // Vectors representing the edges of the triangle
+  Eigen::Vector3f AB = B - A;
+  Eigen::Vector3f BC = C - B;
+  Eigen::Vector3f CA = A - C;
 
-          // Vectors from the point to each vertex
-          Eigen::Vector3f AP = P - A;
-          Eigen::Vector3f BP = P - B;
-          Eigen::Vector3f CP = P - C;
+  // Vectors from the point to each vertex
+  Eigen::Vector3f AP = P - A;
+  Eigen::Vector3f BP = P - B;
+  Eigen::Vector3f CP = P - C;
 
-          // Cross products to determine the relative orientation of the point with respect to each edge
-          Eigen::Vector3f crossABP = AB.cross(AP);
-          Eigen::Vector3f crossBCP = BC.cross(BP);
-          Eigen::Vector3f crossCAP = CA.cross(CP);
+  // Cross products to determine the relative orientation of the point with
+  // respect to each edge
+  Eigen::Vector3f crossABP = AB.cross(AP);
+  Eigen::Vector3f crossBCP = BC.cross(BP);
+  Eigen::Vector3f crossCAP = CA.cross(CP);
 
-          // Check if all cross products have the same sign
-          // If all cross products have the same sign, the point is inside the triangle
-          return crossABP.z() * crossBCP.z() > 0 && crossBCP.z() * crossCAP.z() > 0 && crossCAP.z() * crossABP.z() > 0;
+  // Check if all cross products have the same sign
+  // If all cross products have the same sign, the point is inside the triangle
+  return crossABP.z() * crossBCP.z() > 0 && crossBCP.z() * crossCAP.z() > 0 &&
+         crossCAP.z() * crossABP.z() > 0;
 }
 
-std::optional<std::tuple<float, float, float>> 
-SoftRasterizer::RenderingPipeline::barycentric(const std::size_t x_pos,
-                                                                             const std::size_t y_pos,
-                                                                             const SoftRasterizer::Triangle& triangle)
-{
-          if (!insideTriangle(x_pos, y_pos, triangle)) {
-                    return std::nullopt;
-          }
+std::optional<std::tuple<float, float, float>>
+SoftRasterizer::RenderingPipeline::barycentric(
+    const std::size_t x_pos, const std::size_t y_pos,
+    const SoftRasterizer::Triangle &triangle) {
+  if (!insideTriangle(x_pos, y_pos, triangle)) {
+    return std::nullopt;
+  }
 
-          const Eigen::Vector3f P = {
-                    static_cast<float>(x_pos),
-                    static_cast<float>(y_pos),
-                    1.0f
-          };
+  const Eigen::Vector3f P = {static_cast<float>(x_pos),
+                             static_cast<float>(y_pos), 1.0f};
 
-          Eigen::Vector3f A = triangle.a();
-          Eigen::Vector3f B = triangle.b();
-          Eigen::Vector3f C = triangle.c();
+  Eigen::Vector3f A = triangle.a();
+  Eigen::Vector3f B = triangle.b();
+  Eigen::Vector3f C = triangle.c();
 
-          /*For Triangle Sabc*/
-          auto AC = C - A;
-          auto AB = B - A;
-          auto SquareOfTriangle = AC.cross(AB).norm() / 2.0f;
+  /*For Triangle Sabc*/
+  auto AC = C - A;
+  auto AB = B - A;
+  auto SquareOfTriangle = AC.cross(AB).norm() / 2.0f;
 
-          /*For Small Triangle Spbc*/
-          auto PB = B - P;
-          auto PC = C - P;
-          auto SquareOfSmallTrianglePBC = PC.cross(PB).norm() / 2.0f;
+  /*For Small Triangle Spbc*/
+  auto PB = B - P;
+  auto PC = C - P;
+  auto SquareOfSmallTrianglePBC = PC.cross(PB).norm() / 2.0f;
 
-          /*For Small Triangle Sapc*/
-          auto PA = A - P;
-          auto SquareOfSmallTrianglePAC = PA.cross(PC).norm() / 2.0f;
+  /*For Small Triangle Sapc*/
+  auto PA = A - P;
+  auto SquareOfSmallTrianglePAC = PA.cross(PC).norm() / 2.0f;
 
-          float alpha = SquareOfSmallTrianglePBC / SquareOfTriangle;
-          float beta = SquareOfSmallTrianglePAC / SquareOfTriangle;
+  float alpha = SquareOfSmallTrianglePBC / SquareOfTriangle;
+  float beta = SquareOfSmallTrianglePAC / SquareOfTriangle;
 
-          return std::tuple<float, float, float >(alpha, beta, 1.0f - alpha - beta);
+  return std::tuple<float, float, float>(alpha, beta, 1.0f - alpha - beta);
 }
 
-void 
-SoftRasterizer::RenderingPipeline::rasterizeTriangle(const SoftRasterizer::Triangle& triangle){
-          /*Get All Points Inside Triangle*/
-          auto A = triangle.a();
-          auto B = triangle.b();
-          auto C = triangle.c();
+void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
+    const SoftRasterizer::Triangle &triangle) {
+  /*Get All Points Inside Triangle*/
+  auto A = triangle.a();
+  auto B = triangle.b();
+  auto C = triangle.c();
 
-          /*min and max point cood*/
-          auto [min, max] = calculateBoundingBox(triangle);
+  /*min and max point cood*/
+  auto [min, max] = calculateBoundingBox(triangle);
 
-          spdlog::info("Bounding Box: min(x,y)=({},{}), max(x,y)=({},{})", min.x(), min.y(), max.x(), max.y());
+  spdlog::info("Bounding Box: min(x,y)=({},{}), max(x,y)=({},{})", min.x(),
+               min.y(), max.x(), max.y());
 
 #pragma omp parallel for collapse(2)
-          for (std::size_t y = min.y(); y < max.y(); y++) {
-                    for (std::size_t x = min.x(); x < max.x(); x++) {
-                              /*is this Point(x,y) inside triangle*/
-                              if (insideTriangle(x + 0.5f, y + 0.5f, triangle)) [[likely]]{
-                                        auto [alpha, beta, gamma] = barycentric(x, y, triangle).value();
+  for (std::size_t y = min.y(); y < max.y(); y++) {
+    for (std::size_t x = min.x(); x < max.x(); x++) {
+      /*is this Point(x,y) inside triangle*/
+      if (insideTriangle(x + 0.5f, y + 0.5f, triangle)) [[likely]] {
+        auto [alpha, beta, gamma] = barycentric(x, y, triangle).value();
 
-                                        /*for Z-buffer interpolated*/
-                                      
-                                        float w_reciprocal = 1.0f / (alpha + beta + gamma);
-                                        float z_interpolated = alpha * A.z() + beta * B.z() + gamma * C.z();
-                                        z_interpolated *= w_reciprocal;
+        /*for Z-buffer interpolated*/
 
-                                        /* test and write z-buffer
-                                        * if depth is smaller than the current depth, update the z-buffer
-                                        * meanwhile, write the color to the frame buffer
-                                        */
-                                        if (writeZBuffer(Eigen::Vector3f(x, y, 1.0f), z_interpolated)) {
+        float w_reciprocal = 1.0f / (alpha + beta + gamma);
+        float z_interpolated = alpha * A.z() + beta * B.z() + gamma * C.z();
+        z_interpolated *= w_reciprocal;
 
-                                                  /*for color interpolated*/
-                                                  auto RGB_i = Tools::interpolateRGB(alpha, beta, gamma, 
-                                                            triangle.m_color[0], 
-                                                            triangle.m_color[1], 
-                                                            triangle.m_color[2]
-                                                  );
+        /* test and write z-buffer
+         * if depth is smaller than the current depth, update the z-buffer
+         * meanwhile, write the color to the frame buffer
+         */
+        if (writeZBuffer(Eigen::Vector3f(x, y, 1.0f), z_interpolated)) {
 
-                                                  writePixel(Eigen::Vector3f(x, y, 1.0f), RGB_i);
-                                        }
-                              }
-                    }
-          }
+          /*for color interpolated*/
+          auto RGB_i =
+              Tools::interpolateRGB(alpha, beta, gamma, triangle.m_color[0],
+                                    triangle.m_color[1], triangle.m_color[2]);
+
+          writePixel(Eigen::Vector3f(x, y, 1.0f), RGB_i);
+        }
+      }
+    }
+  }
 }
 
 /* Bresenham algorithm*/
