@@ -3,6 +3,8 @@
 #define _RENDER_HPP_
 #include <Eigen/Eigen>
 #include <Triangle.hpp>
+#include <optional>
+#include <tuple>
 #include <algorithm>
 
 namespace SoftRasterizer {
@@ -73,8 +75,40 @@ private:
      |*************************************************|      \/
      ____________________________________________________________*/
 
+  /*Only Draw Line*/
   void rasterizeWireframe(const SoftRasterizer::Triangle &triangle);
+
+  /**
+   * @brief Calculates the bounding box for a given triangle.
+   *
+   * This function determines the axis-aligned bounding box (AABB)
+   * that encompasses the given triangle in 2D space. The bounding box
+   * is represented as a pair of 2D integer vectors, indicating the
+   * minimum and maximum corners of the box.
+   *
+   * @param triangle The triangle for which the bounding box is to be calculated.
+   *                 The triangle is represented using the `SoftRasterizer::Triangle` type.
+   *
+   * @return A pair of 2D integer vectors (Eigen::Vector2i), where:
+   *         - The first vector represents the minimum corner of the bounding box (bottom-left).
+   *         - The second vector represents the maximum corner of the bounding box (top-right).
+   */
+  std::pair<Eigen::Vector2i, Eigen::Vector2i> 
+            calculateBoundingBox(const SoftRasterizer::Triangle& triangle);
+
+  static bool insideTriangle(const std::size_t x_pos, 
+                                          const std::size_t y_pos, 
+                                          const SoftRasterizer::Triangle& triangle);
+
+  static std::optional<std::tuple<float,float,float>> barycentric(const std::size_t x_pos,
+                                                                                                    const std::size_t y_pos,
+                                                                                                    const SoftRasterizer::Triangle& triangle);
+
+  /*Rasterize a triangle*/
+  void rasterizeTriangle(const SoftRasterizer::Triangle& triangle);
+
   void writePixel(const Eigen::Vector3f &point, const Eigen::Vector3f &color);
+  bool writeZBuffer(const Eigen::Vector3f& point, const float depth);
 
   /*Bresenham algorithm*/
   void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,
