@@ -40,6 +40,42 @@ struct Tools {
   static Eigen::Vector3f to_vec3(const Eigen::Vector4f &v4);
 
   /**
+ * @brief Converts normalized color values (range [0, 1]) to RGB values (range [0, 255]).
+ *
+ * This function takes three float values representing normalized color components
+ * (red, green, blue), clamps them to ensure they are within the valid range of [0, 1],
+ * and scales them to the RGB range of [0, 255]. It returns the resulting RGB values as
+ * an Eigen::Vector3i.
+ *
+ * @param red The normalized red component (range [0, 1]).
+ * @param green The normalized green component (range [0, 1]).
+ * @param blue The normalized blue component (range [0, 1]).
+ *
+ * @return Eigen::Vector3i A vector containing the RGB values in the range [0, 255].
+ */
+  static Eigen::Vector3i normalizedToRGB(float red, float green, float blue);
+
+  /**
+ * @brief Interpolates between three RGB colors using alpha, beta, and gamma weights.
+ *
+ * Given three RGB colors and interpolation parameters (alpha, beta, gamma),
+ * this function computes the interpolated RGB color using a weighted average.
+ *
+ * @param alpha Weight for the first color (range [0, 1]).
+ * @param beta Weight for the second color (range [0, 1]).
+ * @param gamma Weight for the third color (range [0, 1]).
+ * @param color1 The first RGB color (Eigen::Vector3i).
+ * @param color2 The second RGB color (Eigen::Vector3i).
+ * @param color3 The third RGB color (Eigen::Vector3i).
+ *
+ * @return Eigen::Vector3i The interpolated RGB color.
+ */
+  static Eigen::Vector3i interpolateRGB(float alpha, float beta, float gamma,
+                                                    const Eigen::Vector3i& color1,
+                                                    const Eigen::Vector3i& color2,
+                                                    const Eigen::Vector3i& color3);
+
+  /**
    * @brief Calculates the rotation matrix using Rodrigues' rotation formula.
    *
    * This function computes a 4x4 rotation matrix that represents a rotation
