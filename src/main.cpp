@@ -66,17 +66,17 @@ int main() {
     render.display(SoftRasterizer::Primitive::LINES);
 
     key = cv::waitKey(1);
-    if (key == 'a' || key == 'A') {
-      degree += 10.0f;
-    } else if (key == 'd' || key == 'D') {
-      degree -= 10.0f;
-    }
+    //if (key == 'a' || key == 'A') {
+    //  degree += 10.0f;
+    //} else if (key == 'd' || key == 'D') {
+    //  degree -= 10.0f;
+    //}
 
-    /*reset the degree*/
-    auto delta = degree - 360.f;
-    if (delta >= -0.00000001f && delta <= 0.00000001f) {
-      degree = 0.0f;
-    }
+    ///*reset the degree*/
+    //auto delta = degree - 360.f;
+    //if (delta >= -0.00000001f && delta <= 0.00000001f) {
+    //  degree = 0.0f;
+    //}
   }
   return 0;
 }
