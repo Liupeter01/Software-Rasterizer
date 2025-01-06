@@ -42,7 +42,7 @@ namespace SoftRasterizer {
                     Eigen::Vector3f position;
                     Eigen::Vector3f normal;
                     Eigen::Vector2f texCoord;
-                    Eigen::Vector3f color;
+                    Eigen::Vector3f color = Eigen::Vector3f(1.0f, 1.0f, 1.0f);
 
                     bool operator==(const Vertex& other) const {
                               return this->position == other.position 
@@ -56,18 +56,22 @@ namespace SoftRasterizer {
                     Mesh() :Mesh("") {}
                     Mesh(const std::string& name) : meshname(name) {}
                     Mesh(const std::string& name,
+                              const SoftRasterizer::Material& _material,
                               const std::vector <Vertex> &_vertices,
-                              const std::vector<uint32_t>& _faces)
+                              const std::vector<Eigen::Vector3i>& _faces)
                               : meshname(name)
+                              , MeshMaterial(_material)
                               , vertices(_vertices)
                               , faces(_faces)
                     {
                     }
 
                     Mesh(const std::string& name,
-                              std::vector <Vertex> &&_vertices,
-                              std::vector<uint32_t> &&_faces)
+                              SoftRasterizer::Material&& _material,
+                              std::vector <Vertex>&& _vertices,
+                              std::vector<Eigen::Vector3i>&& _faces)
                               : meshname(name)
+                              , MeshMaterial(std::move(_material))
                               , vertices(std::move(_vertices))
                               , faces(std::move(_faces))
                     {
@@ -76,7 +80,7 @@ namespace SoftRasterizer {
                     // Mesh Name
                     std::string meshname;
                     std::vector <Vertex> vertices;
-                    std::vector<uint32_t> faces;
+                    std::vector<Eigen::Vector3i> faces;
 
                     // Material
                     Material MeshMaterial;
