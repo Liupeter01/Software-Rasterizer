@@ -14,21 +14,20 @@ int main() {
 
   SoftRasterizer::RenderingPipeline render(1000, 1000);
 
-  /*set up all vertices*/
-  std::vector<Eigen::Vector3f> pos{{0.f, 0.5f, -0.1f},   {-0.5f, -0.5f, -0.1f},
-                                   {0.5f, -0.5f, -0.1f}, {0.f, 0.5f, 0.1f},
-                                   {0.7f, 0.5f, 0.1f},   {0.7f, -0.3f, 0.1f}};
+  render.addGraphicObj(CONFIG_HOME"examples/models/bunny/bunny.obj", "bunny",
+            Eigen::Vector3f(0.f, 1.f, 0.f), 90.f,
+            Eigen::Vector3f(0.f, -0.2f, 0.5f),
+            Eigen::Vector3f(2.0f, 2.0f, 2.0f)
+  );
 
-  /*set up all shading param(colours)*/
-  std::vector<Eigen::Vector3f> color{{1.0f, 0.f, 0.f}, {0.f, 1.0f, 0.f},
-                                     {0.f, 0.f, 1.0f}, {1.0f, 1.f, 1.f},
-                                     {1.f, 1.0f, 1.f}, {1.f, 1.f, 1.0f}};
+  //render.addGraphicObj(CONFIG_HOME"examples/models/spot/spot_triangulated_good.obj", "spot",
+  //          Eigen::Vector3f(0.f, 1.f, 0.f), 45.f,
+  //          Eigen::Vector3f(0.f, 0.0f, 0.0f),
+  //          Eigen::Vector3f(0.3f, 0.3f, 0.3f)
+  //          );
 
-  /*set up all indices(faces)*/
-  std::vector<Eigen::Vector3i> ind{{0, 1, 2}/*, {3, 4, 1}*/};
-  render.loadVertices(pos);
-  render.loadColours(color);
-  render.loadIndices(ind);
+  //render.startLoadingMesh("spot");
+  render.startLoadingMesh("bunny");
 
   while (key != 27) {
     /*clear both shading and depth!*/
@@ -41,10 +40,10 @@ int main() {
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree);
 
     /*Model Matrix*/
-    auto model = SoftRasterizer::Tools::calculateModelMatrix(
-        /*transform=*/Eigen::Vector3f(0.0f, 0.0f, 0.f),
-        /*rotations=*/rotations,
-        /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f));
+    //auto model = SoftRasterizer::Tools::calculateModelMatrix(
+    //    /*transform=*/Eigen::Vector3f(0.0f, 0.0f, 0.f),
+    //    /*rotations=*/rotations,
+    //    /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f));
 
     /*View Matrix*/
     auto view = SoftRasterizer::Tools::calculateViewMatrix(
@@ -60,11 +59,11 @@ int main() {
     );
 
     /*draw lines*/
-    render.setModelMatrix(model);
+    //render.setModelMatrix(model);
     render.setViewMatrix(view);
     render.setProjectionMatrix(projection);
 
-    render.display(SoftRasterizer::Primitive::TRIANGLES);
+    render.display(SoftRasterizer::Primitive::LINES);
 
     key = cv::waitKey(1);
     if (key == 'a' || key == 'A') {
