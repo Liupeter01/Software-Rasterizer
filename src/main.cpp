@@ -1,8 +1,10 @@
-#include <Eigen/Eigen>
-#include <Render.hpp>
-#include <Tools.hpp>
-#include <Triangle.hpp>
+
 #include <iostream>
+#include <Tools.hpp>
+#include <Render.hpp>
+#include <Eigen/Eigen>
+#include <Triangle.hpp>
+#include <ObjLoader.hpp>
 #include <opencv2/opencv.hpp>
 
 int main() {
@@ -23,7 +25,7 @@ int main() {
                                      {1.f, 1.0f, 1.f}, {1.f, 1.f, 1.0f}};
 
   /*set up all indices(faces)*/
-  std::vector<Eigen::Vector3i> ind{{0, 1, 2}, {3, 4, 1}};
+  std::vector<Eigen::Vector3i> ind{{0, 1, 2}/*, {3, 4, 1}*/};
   render.loadVertices(pos);
   render.loadColours(color);
   render.loadIndices(ind);
@@ -42,7 +44,7 @@ int main() {
     auto model = SoftRasterizer::Tools::calculateModelMatrix(
         /*transform=*/Eigen::Vector3f(0.0f, 0.0f, 0.f),
         /*rotations=*/rotations,
-        /*scale=*/Eigen::Vector3f(1.f, 1.f, 1.f));
+        /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f));
 
     /*View Matrix*/
     auto view = SoftRasterizer::Tools::calculateViewMatrix(
@@ -50,24 +52,25 @@ int main() {
         /*center=*/Eigen::Vector3f(0.0f, 0.0f, 0.0f),
         /*up=*/Eigen::Vector3f(0.0f, 1.0f, 0.0f));
 
-    // auto projection = SoftRasterizer::Tools::calculateProjectionMatrix(
-    //           /*fov=*/45.0f,
-    //           /*aspect=*/1.0f,
-    //           /*near=*/0.1f,
-    //           /*far=*/10.0f
-    //);
+     auto projection = SoftRasterizer::Tools::calculateProjectionMatrix(
+               /*fov=*/45.0f,
+               /*aspect=*/1.0f,
+               /*near=*/0.1f,
+               /*far=*/100.0f
+    );
 
     /*draw lines*/
     render.setModelMatrix(model);
     render.setViewMatrix(view);
-    // render.setProjectionMatrix();
+    render.setProjectionMatrix(projection);
+
     render.display(SoftRasterizer::Primitive::TRIANGLES);
 
     key = cv::waitKey(1);
     if (key == 'a' || key == 'A') {
-      degree -= 10.0f;
-    } else if (key == 'd' || key == 'D') {
       degree += 10.0f;
+    } else if (key == 'd' || key == 'D') {
+      degree -= 10.0f;
     }
 
     /*reset the degree*/
