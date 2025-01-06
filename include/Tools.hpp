@@ -72,8 +72,7 @@ struct Tools {
 
   static Eigen::Vector3f calculateNormalWithWeight(const Eigen::Vector3f& A, 
                                                                                 const Eigen::Vector3f& B, 
-                                                                                const Eigen::Vector3f& C,
-                                                                                const Eigen::Vector3f& faceNormal);
+                                                                                const Eigen::Vector3f& C);
 
   /**
    * @brief Calculates the rotation matrix using Rodrigues' rotation formula.

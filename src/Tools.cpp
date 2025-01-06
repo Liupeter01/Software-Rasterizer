@@ -87,8 +87,7 @@ Eigen::Vector3i SoftRasterizer::Tools::interpolateRGB(
 Eigen::Vector3f 
 SoftRasterizer::Tools::calculateNormalWithWeight(const Eigen::Vector3f& A,
                                                                                 const Eigen::Vector3f& B,
-                                                                                const Eigen::Vector3f& C,
-                                                                                const Eigen::Vector3f& faceNormal)
+                                                                                const Eigen::Vector3f& C)
 {
           const Eigen::Vector3f AB = B - A;
           const Eigen::Vector3f AC = C - A;
@@ -100,14 +99,14 @@ SoftRasterizer::Tools::calculateNormalWithWeight(const Eigen::Vector3f& A,
           const float arc_sin_degree = length / (AB.norm() * AC.norm());
 
           //climp value to [0.f, 1.0f]
-          float weight = std::asin(arc_sin_degree);
+          float weight = std::asin(arc_sin_degree) / length;
 
           if (-0.00000001f <= weight && weight <= 0.00000001f){
-                    return faceNormal;
+                    return normal;
           }
 
-          Eigen::Vector3f weightedNormal = faceNormal * weight;
-          return faceNormal * weight;
+          Eigen::Vector3f weightedNormal = normal * weight;
+          return normal * weight;
 }
 
 /**
