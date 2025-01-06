@@ -20,7 +20,7 @@ endif()
 
 project(
   Software-Rasterizer
-  VERSION 0.0.6
+  VERSION 0.0.7
   LANGUAGES CXX)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
@@ -32,7 +32,7 @@ add_subdirectory(eigen)
 add_subdirectory(spdlog)
 
 add_executable(Software-Rasterizer ${source_file} ${header_file})
-target_include_directories(Software-Rasterizer PUBLIC include
+target_include_directories(Software-Rasterizer PUBLIC include externel/
                                                       ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} eigen
                                                  spdlog)
