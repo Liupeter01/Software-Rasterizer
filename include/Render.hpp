@@ -6,6 +6,10 @@
 #include <algorithm>
 #include <optional>
 #include <tuple>
+#include <memory>
+#include <unordered_map>
+#include <ObjLoader.hpp>
+#include <TextureLoader.hpp>
 
 namespace SoftRasterizer {
 enum class Buffers { Color = 1, Depth = 2 };
@@ -38,26 +42,32 @@ protected:
 public:
   void clear(SoftRasterizer::Buffers flags);
 
-  /*load graphics vertices and faces*/
-  void loadVertices(const std::vector<Eigen::Vector3f> &vertices) {
-    m_vertices = vertices;
-  }
-  void loadIndices(const std::vector<Eigen::Vector3i> &indices) {
-    m_faces = indices;
-  }
-  void loadColours(const std::vector<Eigen::Vector3f> &colours) {
-    m_colours = colours;
-  }
-
   /*set MVP*/
-  void setModelMatrix(const Eigen::Matrix4f &model) { m_model = model; }
-  void setViewMatrix(const Eigen::Matrix4f &view) { m_view = view; }
-  void setProjectionMatrix(const Eigen::Matrix4f &projection) {
-    m_projection = projection;
-  }
+  void setModelMatrix(const Eigen::Matrix4f& model);
+  void setViewMatrix(const Eigen::Matrix4f& view);
+  void setProjectionMatrix(const Eigen::Matrix4f& projection);
 
   /*display*/
   void display(Primitive type);
+
+  /*load ObjLoader object to load wavefront obj file*/
+  bool addGraphicObj(const std::string& path,
+            const std::string& meshName);
+
+  bool addGraphicObj(const std::string& path,
+            const std::string& meshName,
+            const Eigen::Matrix4f& rotation,
+            const Eigen::Vector3f& translation = Eigen::Vector3f(0.f, 0.f, 0.f),
+            const Eigen::Vector3f& scale = Eigen::Matrix4f::Identity());
+
+  bool addGraphicObj(const std::string& path,
+            const std::string& meshName,
+            const Eigen::Vector3f& axis,
+            const float angle,
+            const Eigen::Vector3f& translation = Eigen::Vector3f(0.f, 0.f, 0.f),
+            const Eigen::Vector3f& scale = Eigen::Matrix4f::Identity());
+
+  bool startLoadingMesh(const std::string& meshName);
 
 private:
   std::vector<Eigen::Vector3f> &getFrameBuffer() { return m_frameBuffer; }
@@ -124,17 +134,14 @@ private:
   std::size_t m_height;
   float m_aspectRatio;
 
-  /*user input vertices*/
-  std::vector<Eigen::Vector3f> m_vertices;
+  /*store all identified objs, waiting for loading*/
+  std::unordered_map<std::string, std::unique_ptr<ObjLoader>> m_suspendObjs;
 
-  /*
-   * vertices[x], vertices[y], vertices[z] which combined a face
-   * so in faces, we have 3 vertices index to form a triangle
-   */
-  std::vector<Eigen::Vector3i> m_faces;
+  /*store all loaded objs*/
+  std::unordered_map<std::string, std::unique_ptr<Mesh>> m_loadedObjs;
 
-  /* color for each vertex*/
-  std::vector<Eigen::Vector3f> m_colours;
+  /*store all texture*/
+
 
   /*Matrix MVP*/
   Eigen::Matrix4f m_model;

@@ -62,107 +62,220 @@ void SoftRasterizer::RenderingPipeline::clear(SoftRasterizer::Buffers flags) {
   }
 }
 
+bool  
+SoftRasterizer::RenderingPipeline::addGraphicObj(const std::string& path,
+                                                                                const std::string& meshName,
+                                                                                const Eigen::Matrix4f& rotation,
+                                                                                const Eigen::Vector3f& translation ,
+                                                                                const Eigen::Vector3f& scale)
+{
+          /*This Object has already been identified!*/
+          if (m_suspendObjs.find(meshName) != m_suspendObjs.end()) {
+                    spdlog::error("This Object has already been identified");
+                    return false;
+          }
+
+          try {
+                    m_suspendObjs[meshName] = std::make_unique<ObjLoader>(
+                              path,
+                              meshName,
+                              rotation,
+                              translation,
+                              scale
+                    );
+          }
+          catch (const std::exception& e) {
+                    spdlog::info("Add Graphic Obj Error! Reason: {}", e.what());
+                    return false;
+          }
+          return true;
+}
+
+bool  
+SoftRasterizer::RenderingPipeline::addGraphicObj(const std::string& path,
+                                                                                const std::string& meshName,
+                                                                                const Eigen::Vector3f& axis,
+                                                                                const float angle,
+                                                                                const Eigen::Vector3f& translation,
+                                                                                const Eigen::Vector3f& scale)
+{
+          /*This Object has already been identified!*/
+          if (m_suspendObjs.find(meshName) != m_suspendObjs.end()) {
+                    spdlog::error("Add Graphic Obj Error! This Object has already been identified");
+                    return false;
+          }
+
+          try {
+                    m_suspendObjs[meshName] = std::make_unique<ObjLoader>(
+                              path,
+                              meshName,
+                              axis,
+                              angle,
+                              translation,
+                              scale
+                    );
+          }
+          catch (const std::exception& e){
+                    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
+                    return false;
+          }
+          return true;
+}
+
+bool
+SoftRasterizer::RenderingPipeline::addGraphicObj(const std::string& path,
+          const std::string& meshName) {
+
+          /*This Object has already been identified!*/
+          if (m_suspendObjs.find(meshName) != m_suspendObjs.end()) {
+                    spdlog::error("This Object has already been identified");
+                    return false;
+          }
+
+          try {
+                    m_suspendObjs[meshName] = std::make_unique<ObjLoader>(path, meshName);
+          }
+          catch (const std::exception& e) {
+                    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
+                    return false;
+          }
+          return true;
+}
+
+bool 
+SoftRasterizer::RenderingPipeline::startLoadingMesh(const std::string& meshName){
+
+          if (m_loadedObjs.find(meshName) != m_loadedObjs.end()) {
+                    spdlog::error("Start Loading Mesh Failed! Because {} Has Already Loaded into m_loadedObjs", meshName);
+                    return false;
+          }
+
+          /*This Object has already been identified!*/
+          if (m_suspendObjs.find(meshName) == m_suspendObjs.end()) {
+                    spdlog::error("Start Loading Mesh Failed! Because There is nothing found in m_suspendObjs");
+                    return false;
+          }
+
+          std::optional<std::unique_ptr<Mesh>> mesh_op = m_suspendObjs[meshName]->startLoadingFromFile(meshName);
+          if (!mesh_op.has_value()) {
+                    spdlog::error("Start Loading Mesh Failed! Because Loading Internel Error!");
+                    return false;
+          }
+
+          try {
+                    m_loadedObjs[meshName] = std::move(mesh_op.value());
+                    m_loadedObjs[meshName]->meshname = meshName;
+          }
+          catch (const std::exception& e) {
+                    spdlog::error("Start Loading Mesh Failed! Reason: {}", e.what());
+                    return false;
+          }
+          return true;
+}
+
+/*set MVP*/
+void SoftRasterizer::RenderingPipeline::setModelMatrix(const Eigen::Matrix4f& model) { 
+          m_model = model; 
+}
+void SoftRasterizer::RenderingPipeline::setViewMatrix(const Eigen::Matrix4f& view) { 
+          m_view = view; 
+}
+void SoftRasterizer::RenderingPipeline::setProjectionMatrix(const Eigen::Matrix4f& projection) {
+          m_projection = projection;
+}
+
 void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
+          if ((type != SoftRasterizer::Primitive::LINES) && (type != SoftRasterizer::Primitive::TRIANGLES)) {
+                    spdlog::error("Primitive Type is not supported!");
+                    throw std::runtime_error("Primitive Type is not supported!");
+          }
+
   // controls the stretching/compression of the range
   float scale = (m_far - m_near) / 2.0f;
 
   //  shifts the range
   float offset = (m_far + m_near) / 2.0f;
 
-  /*MVP Matrix*/
-  Eigen::Matrix4f mvp = m_projection * m_view * m_model;
+  std::for_each(m_loadedObjs.begin(), m_loadedObjs.end(), [this, scale, offset, type](const   decltype(m_loadedObjs)::value_type& objPair) {
 
-  /*only draw lines*/
-  if (type == SoftRasterizer::Primitive::LINES) {
+            auto faces = objPair.second->faces;
+            auto vertices = objPair.second->vertices;
 
-    for (const auto &face : m_faces) {
+            /*MVP Matrix*/
+            Eigen::Matrix4f mvp = m_projection * m_view * m_suspendObjs[objPair.second->meshname]->getModelMatrix();
 
-      /*create a triangle class*/
-      SoftRasterizer::Triangle triangle;
+            for (long long face_index = 0; face_index < faces.size(); ++face_index) {
+                      /*create a triangle class*/
+                      SoftRasterizer::Triangle triangle;
 
-      /*Vertex(4) NDC Transform to Vec(3)*/
-      // A[0] = (A[0] + 1.0f) * m_width / 2.0f; // X
-      // A[1] = (m_height - (A[1] + 1.0f) * m_height / 2.0f) * (1.0f /
-      // m_aspectRatio); // Y B[0] = (B[0] + 1.0f) * m_width / 2.0f; // X B[1] =
-      // (m_height - (B[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio);
-      // // Y C[0] = (C[0] + 1.0f) * m_width / 2.0f; // X C[1] = (m_height -
-      // (C[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio); // Y
-      Eigen::Vector3f A =
-          Tools::to_vec3(m_ndcToScreenMatrix * mvp *
-                         Tools::to_vec4(m_vertices[face[0]], 1.0f));
-      Eigen::Vector3f B =
-          Tools::to_vec3(m_ndcToScreenMatrix * mvp *
-                         Tools::to_vec4(m_vertices[face[1]], 1.0f));
-      Eigen::Vector3f C =
-          Tools::to_vec3(m_ndcToScreenMatrix * mvp *
-                         Tools::to_vec4(m_vertices[face[2]], 1.0f));
+                      SoftRasterizer::Vertex A = vertices[faces[face_index].x()];
+                      SoftRasterizer::Vertex B = vertices[faces[face_index].y()];
+                      SoftRasterizer::Vertex C = vertices[faces[face_index].z()];
 
-      // Z-Depth
-      A[2] = A[2] * scale + offset; // Z-Depth
-      B[2] = B[2] * scale + offset; // Z-Depth
-      C[2] = C[2] * scale + offset; // Z-Depth
+                     //vertices[faces[face_index].x()]
 
-      spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", A.x(),
-                   A.y(), B.x(), B.y(), C.x(), C.y());
+                      /*triangle v*/
+                      std::array<Eigen::Vector3f, 3> vertex = { A.position, B.position, C.position };
 
-      triangle.setVertex({A, B, C});
+                      /*texcoord vt*/
+                      std::array<Eigen::Vector2f, 3> texCoords = { A.texCoord, B.texCoord, C.texCoord };
 
-      triangle.setColor({Tools::normalizedToRGB(m_colours[face[0]].x(),
-                                                m_colours[face[0]].y(),
-                                                m_colours[face[0]].z()),
-                         Tools::normalizedToRGB(m_colours[face[1]].x(),
-                                                m_colours[face[1]].y(),
-                                                m_colours[face[1]].z()),
-                         Tools::normalizedToRGB(m_colours[face[2]].x(),
-                                                m_colours[face[2]].y(),
-                                                m_colours[face[2]].z())});
+                      /*normal coordinates vn*/
+                      std::array<Eigen::Vector3f, 3> normals = { A.normal, B.normal, C.normal };
 
-      rasterizeWireframe(triangle);
-    }
+                      /*Vertex(4) NDC Transform to Vec(3)*/
+                      // A[0] = (A[0] + 1.0f) * m_width / 2.0f; // X
+                      // A[1] = (m_height - (A[1] + 1.0f) * m_height / 2.0f) * (1.0f /
+                      // m_aspectRatio); // Y B[0] = (B[0] + 1.0f) * m_width / 2.0f; // X B[1] =
+                      // (m_height - (B[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio);
+                      // // Y C[0] = (C[0] + 1.0f) * m_width / 2.0f; // X C[1] = (m_height -
+                      // (C[1] + 1.0f) * m_height / 2.0f) *(1.0f / m_aspectRatio); // Y
+                      vertex[0] = Tools::to_vec3(m_ndcToScreenMatrix * mvp *
+                                Tools::to_vec4(vertex[0], 1.0f));
+                      vertex[1] = Tools::to_vec3(m_ndcToScreenMatrix * mvp *
+                                Tools::to_vec4(vertex[1], 1.0f));
+                      vertex[2] = Tools::to_vec3(m_ndcToScreenMatrix * mvp *
+                                Tools::to_vec4(vertex[2], 1.0f));
 
-  } else if (type == SoftRasterizer::Primitive::TRIANGLES) {
+                      vertex[0].z() = vertex[0].z() * scale + offset; // Z-Depth
+                      vertex[1].z() = vertex[1].z() * scale + offset; // Z-Depth
+                      vertex[2].z() = vertex[2].z() * scale + offset; // Z-Depth
 
-    for (const auto &face : m_faces) {
-      /*create a triangle class*/
-      SoftRasterizer::Triangle triangle;
+                      spdlog::info("A(x, y)=({}, {}), B(x, y)=({}, {}), C(x, y)=({}, {})",
+                                vertex[0].x(), vertex[0].y(),
+                                vertex[1].x(), vertex[1].y(),
+                                vertex[2].x(), vertex[2].y()
+                      );
 
-      /*Vertex(4) MVP and NDC Transform to Vec(3)*/
-      Eigen::Vector3f mvp_a = SoftRasterizer::Tools::to_vec3(
-          m_ndcToScreenMatrix * mvp *
-          SoftRasterizer::Tools::to_vec4(m_vertices[face[0]]));
-      Eigen::Vector3f mvp_b = SoftRasterizer::Tools::to_vec3(
-          m_ndcToScreenMatrix * mvp *
-          SoftRasterizer::Tools::to_vec4(m_vertices[face[1]]));
-      Eigen::Vector3f mvp_c = SoftRasterizer::Tools::to_vec3(
-          m_ndcToScreenMatrix * mvp *
-          SoftRasterizer::Tools::to_vec4(m_vertices[face[2]]));
+                      Eigen::Vector3f a(1.0f, 1.0f, 1.0f);
 
-      // Z-Depth
-      mvp_a[2] = mvp_a[2] * scale + offset; // Z-Depth
-      mvp_b[2] = mvp_b[2] * scale + offset; // Z-Depth
-      mvp_c[2] = mvp_c[2] * scale + offset; // Z-Depth
+                      auto white = Tools::normalizedToRGB(a.x(), a.y(), a.z());
 
-      spdlog::info("A(x,y)=({},{}), B(x,y)=({},{}),C(x,y)=({},{})", mvp_a.x(),
-                   mvp_a.y(), mvp_b.x(), mvp_b.y(), mvp_c.x(), mvp_c.y());
+                      triangle.setColor({ white,white,white });
 
-      triangle.setVertex({mvp_a, mvp_b, mvp_c});
-      triangle.setColor({Tools::normalizedToRGB(m_colours[face[0]].x(),
-                                                m_colours[face[0]].y(),
-                                                m_colours[face[0]].z()),
-                         Tools::normalizedToRGB(m_colours[face[1]].x(),
-                                                m_colours[face[1]].y(),
-                                                m_colours[face[1]].z()),
-                         Tools::normalizedToRGB(m_colours[face[2]].x(),
-                                                m_colours[face[2]].y(),
-                                                m_colours[face[2]].z())});
+                      //   triangle.setColor({ Tools::normalizedToRGB(m_colours[face[0]].x(),
+                      //                       m_colours[face[0]].y(),
+                      //                       m_colours[face[0]].z()),
+                      //Tools::normalizedToRGB(m_colours[face[1]].x(),
+                      //                       m_colours[face[1]].y(),
+                      //                       m_colours[face[1]].z()),
+                      //Tools::normalizedToRGB(m_colours[face[2]].x(),
+                      //                       m_colours[face[2]].y(),
+                      //                       m_colours[face[2]].z()) });
 
-      /*draw triangle*/
-      rasterizeTriangle(triangle);
-    }
-  } else {
-    throw std::runtime_error("Drawing primitives other than triangle and line "
-                             "is not implemented yet!");
-  }
+                      /*set Vertex position*/
+                      triangle.setVertex({ vertex[0],vertex[1], vertex[2] });
+
+                         /*draw line*/
+                      if (type == SoftRasterizer::Primitive::LINES) {
+                                rasterizeWireframe(triangle);
+                      }
+                      /*draw triangle*/
+                      else if (type == SoftRasterizer::Primitive::TRIANGLES) {
+                                rasterizeTriangle(triangle);
+                      }
+            }
+            });
 }
 
 void SoftRasterizer::RenderingPipeline::display(Primitive type) {
@@ -174,7 +287,8 @@ void SoftRasterizer::RenderingPipeline::display(Primitive type) {
   cv::imshow("SoftRasterizer", image);
 }
 
-void SoftRasterizer::RenderingPipeline::writePixel(
+void 
+SoftRasterizer::RenderingPipeline::writePixel(
     const Eigen::Vector3f &point, const Eigen::Vector3f &color) {
   if (point.x() >= 0 && point.x() < m_width && point.y() >= 0 &&
       point.y() < m_height) {
@@ -334,8 +448,8 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
                min.y(), max.x(), max.y());
 
 #pragma omp parallel for collapse(2)
-  for (std::size_t y = min.y(); y < max.y(); y++) {
-    for (std::size_t x = min.x(); x < max.x(); x++) {
+  for (long long y = (min.y() >= 0 ? min.y() : 0); y < (max.y() > m_height ? m_height : max.y()); y++) {
+    for (long long x =( min.x() >= 0 ? min.x() : 0); x < (max.x() > m_width ? m_width : max.x()); x++) {
       /*is this Point(x,y) inside triangle*/
       if (insideTriangle(x + 0.5f, y + 0.5f, triangle)) [[likely]] {
         auto [alpha, beta, gamma] = barycentric(x, y, triangle).value();
