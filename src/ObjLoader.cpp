@@ -43,7 +43,7 @@ SoftRasterizer::ObjLoader::setObjFilePath(const std::string& path){
 }
 
 static
-const SoftRasterizer::Material&
+SoftRasterizer::Material
 processMatrial(const std::vector<tinyobj::material_t>& _material) {
 
           SoftRasterizer::Material m{};
