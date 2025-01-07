@@ -238,7 +238,13 @@ SoftRasterizer::ObjLoader::startLoadingFromFile(const std::string &objName) {
 SoftRasterizer::ObjLoader::~ObjLoader() {
 }
 
-const Eigen::Matrix4f& 
+void 
+SoftRasterizer::ObjLoader::updateModelMatrix(const Eigen::Matrix4f& model){
+          m_model = model;
+}
+
+const 
+Eigen::Matrix4f& 
 SoftRasterizer::ObjLoader::getModelMatrix() {
           return m_model; 
 }
