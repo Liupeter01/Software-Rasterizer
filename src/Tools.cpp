@@ -125,7 +125,7 @@ SoftRasterizer::Tools::calculateNormalWithWeight(const Eigen::Vector3f &A,
 Eigen::Matrix4f
 SoftRasterizer::Tools::calculateRotationMatrix(const Eigen::Vector3f &axis,
                                                float angle) {
-  spdlog::info(
+  spdlog::debug(
       "Calculating rotation matrix for angle: {} and axis: ({}, {}, {})", angle,
       axis.x(), axis.y(), axis.z());
   Eigen::Matrix4f rotationMatrix = Eigen::Matrix4f::Identity();
