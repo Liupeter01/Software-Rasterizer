@@ -1,15 +1,13 @@
 #pragma once
 #ifndef _RENDER_HPP_
 #define _RENDER_HPP_
-#include <Eigen/Eigen>
-#include <Triangle.hpp>
-#include <algorithm>
-#include <optional>
 #include <tuple>
-#include <memory>
-#include <unordered_map>
+#include <optional>
+#include <algorithm>
+#include <Shader.hpp>
+#include <Triangle.hpp>
 #include <ObjLoader.hpp>
-#include <TextureLoader.hpp>
+#include <unordered_map>
 
 namespace SoftRasterizer {
 enum class Buffers { Color = 1, Depth = 2 };
@@ -29,7 +27,6 @@ public:
   RenderingPipeline();
   RenderingPipeline(
       const std::size_t width, const std::size_t height,
-      const Eigen::Matrix4f &model = Eigen::Matrix4f::Identity(),
       const Eigen::Matrix4f &view = Eigen::Matrix4f::Identity(),
       const Eigen::Matrix4f &projection = Eigen::Matrix4f::Identity());
 
@@ -43,7 +40,9 @@ public:
   void clear(SoftRasterizer::Buffers flags);
 
   /*set MVP*/
-  void setModelMatrix(const Eigen::Matrix4f& model);
+  bool setModelMatrix(const std::string& meshName, 
+                                        const Eigen::Matrix4f& model);
+
   void setViewMatrix(const Eigen::Matrix4f& view);
   void setProjectionMatrix(const Eigen::Matrix4f& projection);
 
@@ -140,11 +139,10 @@ private:
   /*store all loaded objs*/
   std::unordered_map<std::string, std::unique_ptr<Mesh>> m_loadedObjs;
 
-  /*store all texture*/
+  /*store all shaders*/
+  std::unordered_map<std::string, std::shared_ptr<Shader>> m_texture;
 
-
-  /*Matrix MVP*/
-  Eigen::Matrix4f m_model;
+  /*Matrix VP*/
   Eigen::Matrix4f m_view;
   Eigen::Matrix4f m_projection;
 

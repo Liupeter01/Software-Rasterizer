@@ -8,7 +8,7 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline()
 
 SoftRasterizer::RenderingPipeline::RenderingPipeline(
     const std::size_t width, const std::size_t height,
-    const Eigen::Matrix4f &model, const Eigen::Matrix4f &view,
+    const Eigen::Matrix4f &view,
     const Eigen::Matrix4f &projection)
     : m_width(width), m_height(height) {
 
@@ -20,7 +20,6 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
   m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
 
   /*init MVP*/
-  setModelMatrix(model);
   setViewMatrix(view);
   setProjectionMatrix(projection);
 
@@ -174,9 +173,19 @@ SoftRasterizer::RenderingPipeline::startLoadingMesh(const std::string& meshName)
 }
 
 /*set MVP*/
-void SoftRasterizer::RenderingPipeline::setModelMatrix(const Eigen::Matrix4f& model) { 
-          m_model = model; 
+bool 
+SoftRasterizer::RenderingPipeline::setModelMatrix(const std::string& meshName,
+                           const Eigen::Matrix4f& model)
+{
+          if (m_suspendObjs.find(meshName) == m_suspendObjs.end()) {
+                    spdlog::error("Editing Model Matrix Failed! Because {} Not Found", meshName);
+                    return false;
+          }
+
+          m_suspendObjs[meshName]->updateModelMatrix(model);
+          return true;
 }
+
 void SoftRasterizer::RenderingPipeline::setViewMatrix(const Eigen::Matrix4f& view) { 
           m_view = view; 
 }
@@ -241,7 +250,7 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
                       vertex[1].z() = vertex[1].z() * scale + offset; // Z-Depth
                       vertex[2].z() = vertex[2].z() * scale + offset; // Z-Depth
 
-                      spdlog::info("A(x, y)=({}, {}), B(x, y)=({}, {}), C(x, y)=({}, {})",
+                      spdlog::debug("A(x, y)=({}, {}), B(x, y)=({}, {}), C(x, y)=({}, {})",
                                 vertex[0].x(), vertex[0].y(),
                                 vertex[1].x(), vertex[1].y(),
                                 vertex[2].x(), vertex[2].y()
@@ -441,10 +450,18 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   auto B = triangle.b();
   auto C = triangle.c();
 
+  auto normalA = triangle.m_normal[0];
+  auto normalB = triangle.m_normal[1];
+  auto normalC = triangle.m_normal[2];
+
+  auto colorA = triangle.m_color[0];
+  auto colorB = triangle.m_color[1];
+  auto colorC = triangle.m_color[2];
+
   /*min and max point cood*/
   auto [min, max] = calculateBoundingBox(triangle);
 
-  spdlog::info("Bounding Box: min(x,y)=({},{}), max(x,y)=({},{})", min.x(),
+  spdlog::debug("Bounding Box: min(x,y)=({},{}), max(x,y)=({},{})", min.x(),
                min.y(), max.x(), max.y());
 
 #pragma omp parallel for collapse(2)
@@ -467,9 +484,7 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
         if (writeZBuffer(Eigen::Vector3f(x, y, 1.0f), z_interpolated)) {
 
           /*for color interpolated*/
-          auto RGB_i =
-              Tools::interpolateRGB(alpha, beta, gamma, triangle.m_color[0],
-                                    triangle.m_color[1], triangle.m_color[2]);
+         auto RGB_i = Tools::interpolateRGB(alpha, beta, gamma, colorA, colorB, colorC);
 
           writePixel(Eigen::Vector3f(x, y, 1.0f), RGB_i);
         }
