@@ -1,12 +1,12 @@
 #pragma once
 #ifndef _RENDER_HPP_
 #define _RENDER_HPP_
-#include <tuple>
-#include <optional>
-#include <algorithm>
+#include <ObjLoader.hpp>
 #include <Shader.hpp>
 #include <Triangle.hpp>
-#include <ObjLoader.hpp>
+#include <algorithm>
+#include <optional>
+#include <tuple>
 #include <unordered_map>
 
 namespace SoftRasterizer {
@@ -40,33 +40,31 @@ public:
   void clear(SoftRasterizer::Buffers flags);
 
   /*set MVP*/
-  bool setModelMatrix(const std::string& meshName, 
-                                        const Eigen::Matrix4f& model);
+  bool setModelMatrix(const std::string &meshName,
+                      const Eigen::Matrix4f &model);
 
-  void setViewMatrix(const Eigen::Matrix4f& view);
-  void setProjectionMatrix(const Eigen::Matrix4f& projection);
+  void setViewMatrix(const Eigen::Matrix4f &view);
+  void setProjectionMatrix(const Eigen::Matrix4f &projection);
 
   /*display*/
   void display(Primitive type);
 
   /*load ObjLoader object to load wavefront obj file*/
-  bool addGraphicObj(const std::string& path,
-            const std::string& meshName);
+  bool addGraphicObj(const std::string &path, const std::string &meshName);
 
-  bool addGraphicObj(const std::string& path,
-            const std::string& meshName,
-            const Eigen::Matrix4f& rotation,
-            const Eigen::Vector3f& translation = Eigen::Vector3f(0.f, 0.f, 0.f),
-            const Eigen::Vector3f& scale = Eigen::Matrix4f::Identity());
+  bool addGraphicObj(
+      const std::string &path, const std::string &meshName,
+      const Eigen::Matrix4f &rotation,
+      const Eigen::Vector3f &translation = Eigen::Vector3f(0.f, 0.f, 0.f),
+      const Eigen::Vector3f &scale = Eigen::Matrix4f::Identity());
 
-  bool addGraphicObj(const std::string& path,
-            const std::string& meshName,
-            const Eigen::Vector3f& axis,
-            const float angle,
-            const Eigen::Vector3f& translation = Eigen::Vector3f(0.f, 0.f, 0.f),
-            const Eigen::Vector3f& scale = Eigen::Matrix4f::Identity());
+  bool addGraphicObj(
+      const std::string &path, const std::string &meshName,
+      const Eigen::Vector3f &axis, const float angle,
+      const Eigen::Vector3f &translation = Eigen::Vector3f(0.f, 0.f, 0.f),
+      const Eigen::Vector3f &scale = Eigen::Matrix4f::Identity());
 
-  bool startLoadingMesh(const std::string& meshName);
+  bool startLoadingMesh(const std::string &meshName);
 
 private:
   std::vector<Eigen::Vector3f> &getFrameBuffer() { return m_frameBuffer; }

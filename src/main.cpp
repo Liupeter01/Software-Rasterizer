@@ -36,14 +36,14 @@ int main() {
 
     /*Rotations*/
     auto rotations = SoftRasterizer::Tools::calculateRotationMatrix(
-        /*axis=*/Eigen::Vector3f(0.f, 1.f, 0.f), 
+        /*axis=*/Eigen::Vector3f(0.f, 1.f, 0.f),
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree);
 
     /*Model Matrix*/
-     auto model = SoftRasterizer::Tools::calculateModelMatrix(
-         /*transform=*/Eigen::Vector3f(0.f, -0.2f, 0.5f),
-         /*rotations=*/rotations,
-         /*scale=*/  Eigen::Vector3f(2.0f, 2.0f, 2.0f));
+    auto model = SoftRasterizer::Tools::calculateModelMatrix(
+        /*transform=*/Eigen::Vector3f(0.f, -0.2f, 0.5f),
+        /*rotations=*/rotations,
+        /*scale=*/Eigen::Vector3f(2.0f, 2.0f, 2.0f));
 
     /*View Matrix*/
     auto view = SoftRasterizer::Tools::calculateViewMatrix(
@@ -64,17 +64,17 @@ int main() {
     render.display(SoftRasterizer::Primitive::LINES);
 
     key = cv::waitKey(1);
-     if (key == 'a' || key == 'A') {
-       degree += 1.0f;
-     } else if (key == 'd' || key == 'D') {
-       degree -= 1.0f;
-     }
+    if (key == 'a' || key == 'A') {
+      degree += 1.0f;
+    } else if (key == 'd' || key == 'D') {
+      degree -= 1.0f;
+    }
 
     /*reset the degree*/
-     auto delta = degree - 360.f;
-     if (delta >= -0.00000001f && delta <= 0.00000001f) {
-       degree = 0.0f;
-     }
+    auto delta = degree - 360.f;
+    if (delta >= -0.00000001f && delta <= 0.00000001f) {
+      degree = 0.0f;
+    }
   }
   return 0;
 }

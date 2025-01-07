@@ -26,7 +26,7 @@ public:
 
 public:
   void setObjFilePath(const std::string &path);
-  void updateModelMatrix(const Eigen::Matrix4f& model);
+  void updateModelMatrix(const Eigen::Matrix4f &model);
   const Eigen::Matrix4f &getModelMatrix();
 
   std::optional<std::unique_ptr<Mesh>>
