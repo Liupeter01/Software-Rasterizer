@@ -70,9 +70,9 @@ struct Tools {
                                         const Eigen::Vector3i &color2,
                                         const Eigen::Vector3i &color3);
 
-  static Eigen::Vector3f calculateNormalWithWeight(const Eigen::Vector3f& A, 
-                                                                                const Eigen::Vector3f& B, 
-                                                                                const Eigen::Vector3f& C);
+  static Eigen::Vector3f calculateNormalWithWeight(const Eigen::Vector3f &A,
+                                                   const Eigen::Vector3f &B,
+                                                   const Eigen::Vector3f &C);
 
   /**
    * @brief Calculates the rotation matrix using Rodrigues' rotation formula.

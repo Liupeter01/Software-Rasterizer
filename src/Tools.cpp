@@ -84,29 +84,28 @@ Eigen::Vector3i SoftRasterizer::Tools::interpolateRGB(
   return interpolatedColor;
 }
 
-Eigen::Vector3f 
-SoftRasterizer::Tools::calculateNormalWithWeight(const Eigen::Vector3f& A,
-                                                                                const Eigen::Vector3f& B,
-                                                                                const Eigen::Vector3f& C)
-{
-          const Eigen::Vector3f AB = B - A;
-          const Eigen::Vector3f AC = C - A;
-          Eigen::Vector3f normal = AB.cross(AC);
+Eigen::Vector3f
+SoftRasterizer::Tools::calculateNormalWithWeight(const Eigen::Vector3f &A,
+                                                 const Eigen::Vector3f &B,
+                                                 const Eigen::Vector3f &C) {
+  const Eigen::Vector3f AB = B - A;
+  const Eigen::Vector3f AC = C - A;
+  Eigen::Vector3f normal = AB.cross(AC);
 
-          const float length = normal.norm();
+  const float length = normal.norm();
 
-          // arc_sin_degree
-          const float arc_sin_degree = length / (AB.norm() * AC.norm());
+  // arc_sin_degree
+  const float arc_sin_degree = length / (AB.norm() * AC.norm());
 
-          //climp value to [0.f, 1.0f]
-          float weight = std::asin(arc_sin_degree) / length;
+  // climp value to [0.f, 1.0f]
+  float weight = std::asin(arc_sin_degree) / length;
 
-          if (-0.00000001f <= weight && weight <= 0.00000001f){
-                    return normal;
-          }
+  if (-0.00000001f <= weight && weight <= 0.00000001f) {
+    return normal;
+  }
 
-          Eigen::Vector3f weightedNormal = normal * weight;
-          return normal * weight;
+  Eigen::Vector3f weightedNormal = normal * weight;
+  return normal * weight;
 }
 
 /**
