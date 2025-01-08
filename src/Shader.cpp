@@ -58,8 +58,9 @@ Eigen::Vector3f SoftRasterizer::Shader::BlinnPhong(
   Eigen::Vector3f lightDir = light.position - shading_point.position;
 
   // Light distribution based on inverse square law (distance attenuation)
-  float distanceSquared =
-      (light.position - shading_point.position).squaredNorm();
+  float distanceSquared = std::sqrt(
+            std::pow((light.position.x() - shading_point.position.x()), 2) + std::pow((light.position.y() - shading_point.position.y()), 2));
+
   Eigen::Vector3f distribution = light.intensity / distanceSquared;
 
   // Ambient lighting
@@ -70,8 +71,8 @@ Eigen::Vector3f SoftRasterizer::Shader::BlinnPhong(
   Eigen::Vector3f Ld = cosTheta * kd.cwiseProduct(distribution);
 
   // Specular reflection (Blinn-Phong)
-  Eigen::Vector3f Eye = (camera - shading_point.position).normalized();
-  Eigen::Vector3f h = (lightDir.normalized() + Eye).normalized();
+  Eigen::Vector3f v = camera - shading_point.position;
+  Eigen::Vector3f h = (lightDir + v).normalized();
   float cosAlpha = std::max(0.f, normal.dot(h));
   Eigen::Vector3f Ls = std::pow(cosAlpha, p) * ks.cwiseProduct(distribution);
 
@@ -223,11 +224,11 @@ Eigen::Vector3f SoftRasterizer::Shader::phong_fragment_shader_impl(
 
   Eigen::Vector3f result_color = {0, 0, 0};
 
-  Eigen::Vector3f kd = texture->getTextureColor(payload.texCoords);
+  Eigen::Vector3f kd = payload.color;
 
   fragment_shader_payload shader_arguments{
       payload.position, payload.normal, payload.texCoords,
-      texture->getTextureColor(payload.texCoords)};
+     kd };
 
   /* *ambient*, *diffuse*, and *specular* */
   for (const auto &light : lights) {
