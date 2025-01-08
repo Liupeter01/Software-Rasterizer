@@ -66,6 +66,17 @@ public:
 
   bool startLoadingMesh(const std::string &meshName);
 
+  bool addShader(const std::string& shaderName,
+                              const std::string& texturePath,
+                              SHADERS_TYPE type);
+
+  bool addShader(const std::string& shaderName,
+                            std::shared_ptr<TextureLoader> text,
+                            SHADERS_TYPE type);
+
+  bool bindShader2Mesh(const std::string& meshName,
+                                        const std::string& shaderName);
+
 private:
   std::vector<Eigen::Vector3f> &getFrameBuffer() { return m_frameBuffer; }
 
@@ -110,7 +121,7 @@ private:
               const SoftRasterizer::Triangle &triangle);
 
   /*Rasterize a triangle*/
-  void rasterizeTriangle(const SoftRasterizer::Triangle &triangle);
+  void rasterizeTriangle(SoftRasterizer::Triangle &triangle);
 
   void writePixel(const Eigen::Vector3f &point, const Eigen::Vector3f &color);
   void writePixel(const Eigen::Vector3f &point, const Eigen::Vector3i &color);
@@ -138,7 +149,7 @@ private:
   std::unordered_map<std::string, std::unique_ptr<Mesh>> m_loadedObjs;
 
   /*store all shaders*/
-  std::unordered_map<std::string, std::shared_ptr<Shader>> m_texture;
+  std::unordered_map<std::string, std::shared_ptr<Shader>> m_shaders;
 
   /*Matrix VP*/
   Eigen::Matrix4f m_view;
