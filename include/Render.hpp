@@ -9,6 +9,15 @@
 #include <tuple>
 #include <unordered_map>
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
+#include <xmmintrin.h>
+#define PREFETCH(address) _mm_prefetch(reinterpret_cast<const char*>(address), _MM_HINT_T0)
+#elif defined(__arm__) || defined(__aarch64__)
+#define PREFETCH(address) __builtin_prefetch(reinterpret_cast<const char*>(address), 0, 1)
+#else
+#define PREFETCH(address) // Prefetch not supported, fallback to no-op
+#endif
+
 namespace SoftRasterizer {
 enum class Buffers { Color = 1, Depth = 2 };
 
@@ -36,6 +45,10 @@ protected:
   /*draw graphics*/
   void draw(Primitive type);
 
+  /*we don't want other user to deploy it directly, because we need to record detailed arguments*/
+  void setProjectionMatrix(const Eigen::Matrix4f& projection);
+  void setViewMatrix(const Eigen::Matrix4f& view);
+
 public:
   void clear(SoftRasterizer::Buffers flags);
 
@@ -43,8 +56,13 @@ public:
   bool setModelMatrix(const std::string &meshName,
                       const Eigen::Matrix4f &model);
 
-  void setViewMatrix(const Eigen::Matrix4f &view);
-  void setProjectionMatrix(const Eigen::Matrix4f &projection);
+  void setViewMatrix(const Eigen::Vector3f& eye,
+                                   const Eigen::Vector3f& center,
+                                   const Eigen::Vector3f& up);
+
+  void setProjectionMatrix(float fovy,
+                                          float zNear,
+                                          float zFar);
 
   /*display*/
   void display(Primitive type);
@@ -114,12 +132,18 @@ private:
   static bool insideTriangle(const std::size_t x_pos, const std::size_t y_pos,
                              const SoftRasterizer::Triangle &triangle);
 
+
+  static std::optional<std::tuple<float, float, float>>
+  linearBaryCentric(const std::size_t x_pos, const std::size_t y_pos,
+                      const Eigen::Vector2i min, const Eigen::Vector2i max);
+
   static std::optional<std::tuple<float, float, float>>
   barycentric(const std::size_t x_pos, const std::size_t y_pos,
               const SoftRasterizer::Triangle &triangle);
 
   /*Rasterize a triangle*/
-  void rasterizeTriangle(SoftRasterizer::Triangle &triangle);
+  void rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader,
+                                        SoftRasterizer::Triangle& triangle);
 
   void writePixel(const Eigen::Vector3f &point, const Eigen::Vector3f &color);
   void writePixel(const Eigen::Vector3f &point, const Eigen::Vector3i &color);
@@ -131,9 +155,9 @@ private:
                 const Eigen::Vector3i &color);
 
 private:
-  // near and far clipping planes
-  float m_near = 0.1f;
-  float m_far = 100.0f;
+          constexpr static std::size_t UNROLLING_Y = 16;
+          constexpr static std::size_t UNROLLING_X = 16;
+
 
   /*display resolution*/
   std::size_t m_width;
@@ -149,8 +173,17 @@ private:
   /*store all shaders*/
   std::unordered_map<std::string, std::shared_ptr<Shader>> m_shaders;
 
-  /*Matrix VP*/
+  /*Matrix View*/
+  Eigen::Vector3f m_eye;
+  Eigen::Vector3f m_center;
+  Eigen::Vector3f m_up;
   Eigen::Matrix4f m_view;
+
+  /*Matrix Projection*/
+  // near and far clipping planes
+  float m_fovy;
+  float m_near = 0.1f;
+  float m_far = 100.0f;
   Eigen::Matrix4f m_projection;
 
   /*Transform normalized coordinates into screen space coordinates*/

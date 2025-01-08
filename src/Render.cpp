@@ -227,102 +227,44 @@ bool SoftRasterizer::RenderingPipeline::setModelMatrix(
   return true;
 }
 
-void SoftRasterizer::RenderingPipeline::setViewMatrix(
+void 
+SoftRasterizer::RenderingPipeline::setViewMatrix(
     const Eigen::Matrix4f &view) {
   m_view = view;
 }
-void SoftRasterizer::RenderingPipeline::setProjectionMatrix(
+void 
+SoftRasterizer::RenderingPipeline::setProjectionMatrix(
     const Eigen::Matrix4f &projection) {
   m_projection = projection;
 }
 
-void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
-  if ((type != SoftRasterizer::Primitive::LINES) &&
-      (type != SoftRasterizer::Primitive::TRIANGLES)) {
-    spdlog::error("Primitive Type is not supported!");
-    throw std::runtime_error("Primitive Type is not supported!");
-  }
+void 
+SoftRasterizer::RenderingPipeline::setViewMatrix(const Eigen::Vector3f& eye,
+                                                                                const Eigen::Vector3f& center,
+                                                                                const Eigen::Vector3f& up) {
+          m_eye = eye;
+          m_center = center;
+          m_up = up;
+          setViewMatrix(Tools::calculateViewMatrix(
+                    /*eye=*/ m_eye,
+                    /*center=*/m_center,
+                    /*up=*/m_up));
+}
 
-  std::for_each(
-      m_loadedObjs.begin(), m_loadedObjs.end(),
-      [this, type](const decltype(m_loadedObjs)::value_type &objPair) {
-        auto meshName = objPair.first;
-        auto faces = objPair.second->faces;
-        auto vertices = objPair.second->vertices;
-
-        /*get shader object for this mesh obj*/
-        std::shared_ptr<SoftRasterizer::Shader> shader =
-            m_loadedObjs[meshName]->m_shader;
-
-        /*MVP Matrix*/
-        auto Model = m_suspendObjs[meshName]->getModelMatrix();
-
-        for (long long face_index = 0; face_index < faces.size();
-             ++face_index) {
-          /*create a triangle class*/
-          SoftRasterizer::Triangle triangle;
-
-          SoftRasterizer::Vertex A = vertices[faces[face_index].x()];
-          SoftRasterizer::Vertex B = vertices[faces[face_index].y()];
-          SoftRasterizer::Vertex C = vertices[faces[face_index].z()];
-
-          /*triangle v, texcoord vt, normal coordinates vn*/
-          fragment_shader_payload payloads[] = {
-              {A.position, A.normal, A.texCoord},
-              {B.position, B.normal, B.texCoord},
-              {C.position, C.normal, C.texCoord}};
-
-          vertex_displacement newVertices[] = {
-              shader->applyVertexShader(Model, m_view, m_projection,
-                                        payloads[0]),
-              shader->applyVertexShader(Model, m_view, m_projection,
-                                        payloads[1]),
-              shader->applyVertexShader(Model, m_view, m_projection,
-                                        payloads[2])};
-
-          payloads[0].position = newVertices[0].new_position;
-          payloads[0].normal = newVertices[0].new_normal;
-          payloads[1].position = newVertices[1].new_position;
-          payloads[1].normal = newVertices[1].new_normal;
-          payloads[2].position = newVertices[2].new_position;
-          payloads[2].normal = newVertices[2].new_normal;
-
-          Eigen::Vector3f camera{0.f, 0.f, -0.5f};
-          light_struct light{Eigen::Vector3f{0.0, 0.5, 0.0f},
-                             Eigen::Vector3f{100, 100, 100}};
-
-          std::initializer_list<light_struct> lights = {light};
-
-          /*set Vertex position*/
-          triangle.setVertex({payloads[0].position, payloads[1].position,
-                              payloads[2].position});
-
-          auto ColorA_norm =
-              shader->applyFragmentShader(camera, lights, payloads[0]);
-          auto ColorB_norm =
-              shader->applyFragmentShader(camera, lights, payloads[1]);
-          auto ColorC_norm =
-              shader->applyFragmentShader(camera, lights, payloads[2]);
-
-          /*Set Color Of Pixel*/
-          triangle.setColor(
-              {Tools::normalizedToRGB(ColorA_norm.x(), ColorA_norm.y(),
-                                      ColorA_norm.z()),
-               Tools::normalizedToRGB(ColorB_norm.x(), ColorB_norm.y(),
-                                      ColorB_norm.z()),
-               Tools::normalizedToRGB(ColorC_norm.x(), ColorC_norm.y(),
-                                      ColorC_norm.z())});
-
-          /*draw line*/
-          if (type == SoftRasterizer::Primitive::LINES) {
-            rasterizeWireframe(triangle);
-          }
-          /*draw triangle*/
-          else if (type == SoftRasterizer::Primitive::TRIANGLES) {
-            rasterizeTriangle(triangle);
-          }
-        }
-      });
+void 
+SoftRasterizer::RenderingPipeline::setProjectionMatrix(float fovy,
+                                                                                          float zNear,
+                                                                                          float zFar) {
+          m_fovy = fovy;
+          m_near = zNear;
+          m_far = zFar;
+          setProjectionMatrix(
+                    Tools::calculateProjectionMatrix(
+                              /*fov=*/m_fovy,
+                              /*aspect=*/m_aspectRatio,
+                              /*near=*/m_near,
+                              /*far=*/m_far)
+          );
 }
 
 void SoftRasterizer::RenderingPipeline::display(Primitive type) {
@@ -357,7 +299,7 @@ bool SoftRasterizer::RenderingPipeline::writeZBuffer(
 
     auto cur_depth = m_zBuffer[static_cast<int>(point.x()) +
                                static_cast<int>(point.y()) * m_width];
-    if (depth < cur_depth) {
+    if (depth <= cur_depth) {
       m_zBuffer[static_cast<int>(point.x()) +
                 static_cast<int>(point.y()) * m_width] = depth;
       return true;
@@ -446,6 +388,25 @@ bool SoftRasterizer::RenderingPipeline::insideTriangle(
 }
 
 std::optional<std::tuple<float, float, float>>
+SoftRasterizer::RenderingPipeline::linearBaryCentric(const std::size_t x_pos, const std::size_t y_pos,
+                                                                             const Eigen::Vector2i min, const Eigen::Vector2i max)
+{
+          // Bounds check: ensure x_pos and y_pos are inside the rectangle defined by min and max
+          if (x_pos < min.x() || x_pos >= max.x() || y_pos < min.y() || y_pos >= max.y()) {
+                    return std::nullopt; // Point is outside the bounds
+          }
+          // Linear interpolation of alpha based on x position
+          float alpha = static_cast<float>(x_pos - min.x()) / static_cast<float>(max.x() - min.x());
+
+          // Linear interpolation of beta based on y position
+          float beta = static_cast<float>(y_pos - min.y()) / static_cast<float>(max.y() - min.y());
+
+          // Calculate gamma (the remainder to sum to 1)
+          float gamma = 1.0f - alpha - beta;
+          return std::tuple<float, float, float>(alpha, beta, gamma);
+}
+
+std::optional<std::tuple<float, float, float>>
 SoftRasterizer::RenderingPipeline::barycentric(
     const std::size_t x_pos, const std::size_t y_pos,
     const SoftRasterizer::Triangle &triangle) {
@@ -481,8 +442,82 @@ SoftRasterizer::RenderingPipeline::barycentric(
   return std::tuple<float, float, float>(alpha, beta, 1.0f - alpha - beta);
 }
 
-void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
-    SoftRasterizer::Triangle &triangle) {
+void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
+          if ((type != SoftRasterizer::Primitive::LINES) &&
+                    (type != SoftRasterizer::Primitive::TRIANGLES)) {
+                    spdlog::error("Primitive Type is not supported!");
+                    throw std::runtime_error("Primitive Type is not supported!");
+          }
+
+          std::for_each(
+                    m_loadedObjs.begin(), m_loadedObjs.end(),
+                    [this, type](const decltype(m_loadedObjs)::value_type& objPair) {
+                              auto meshName = objPair.first;
+                              auto faces = objPair.second->faces;
+                              auto vertices = objPair.second->vertices;
+
+                              /*get shader object for this mesh obj*/
+                              std::shared_ptr<SoftRasterizer::Shader> shader =
+                                        m_loadedObjs[meshName]->m_shader;
+
+                              /*MVP Matrix*/
+                              auto Model = m_suspendObjs[meshName]->getModelMatrix();
+
+                              for (long long face_index = 0; face_index < faces.size();
+                                        ++face_index) {
+
+                                        const auto& face = faces[face_index];
+
+                                        /*create a triangle class*/
+                                        SoftRasterizer::Triangle triangle;
+
+                                        SoftRasterizer::Vertex A = vertices[face.x()];
+                                        SoftRasterizer::Vertex B = vertices[face.y()];
+                                        SoftRasterizer::Vertex C = vertices[face.z()];
+
+                                        /*triangle v, texcoord vt, normal coordinates vn*/
+                                        fragment_shader_payload payloads[] = {
+                                            {A.position, A.normal, A.texCoord},
+                                            {B.position, B.normal, B.texCoord},
+                                            {C.position, C.normal, C.texCoord} };
+
+                                        vertex_displacement newVertices[] = {
+                                            shader->applyVertexShader(Model, m_view, m_projection,
+                                                                      payloads[0]),
+                                            shader->applyVertexShader(Model, m_view, m_projection,
+                                                                      payloads[1]),
+                                            shader->applyVertexShader(Model, m_view, m_projection,
+                                                                      payloads[2]) };
+
+                                        payloads[0].position = newVertices[0].new_position;
+                                        payloads[0].normal = newVertices[0].new_normal;
+                                        payloads[1].position = newVertices[1].new_position;
+                                        payloads[1].normal = newVertices[1].new_normal;
+                                        payloads[2].position = newVertices[2].new_position;
+                                        payloads[2].normal = newVertices[2].new_normal;
+
+                                        /*set Vertex position*/
+                                        triangle.setVertex({ payloads[0].position, payloads[1].position,
+                                                            payloads[2].position });
+
+                                        triangle.setTexCoord({ payloads[0].texCoords,payloads[1].texCoords,payloads[2].texCoords });
+                                        triangle.setNormal({ payloads[0].normal, payloads[1].normal , payloads[2].normal });
+
+                                        /*draw line*/
+                                        if (type == SoftRasterizer::Primitive::LINES) {
+                                                  rasterizeWireframe(triangle);
+                                        }
+                                        /*draw triangle*/
+                                        else if (type == SoftRasterizer::Primitive::TRIANGLES) {
+                                                  rasterizeTriangle(shader, triangle);
+                                        }
+                              }
+                    });
+}
+
+void 
+SoftRasterizer::RenderingPipeline::rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader ,
+                                                                                    SoftRasterizer::Triangle &triangle) {
 
   // controls the stretching/compression of the range
   float scale = (m_far - m_near) / 2.0f;
@@ -490,22 +525,31 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   //  shifts the range
   float offset = (m_far + m_near) / 2.0f;
 
-  auto &A = triangle.m_vertex[0];
-  auto &B = triangle.m_vertex[1];
-  auto &C = triangle.m_vertex[2];
+  Eigen::Vector3f camera{ 0.f, 0.f, -0.5f };
+  light_struct light{ Eigen::Vector3f{0.0, 0.5, 0.0f},
+                     Eigen::Vector3f{100, 100, 100} };
 
-  auto &colorA = triangle.m_color[0];
-  auto &colorB = triangle.m_color[1];
-  auto &colorC = triangle.m_color[2];
+  std::initializer_list<light_struct> lights = { light };
+
+  fragment_shader_payload payloads[] = {
+    {triangle.m_vertex[0], triangle.m_normal[0], triangle.m_texCoords[0]},           //A
+    {triangle.m_vertex[1], triangle.m_normal[1], triangle.m_texCoords[1]},           //B
+    {triangle.m_vertex[2], triangle.m_normal[2], triangle.m_texCoords[2]}            //C
+  };        
 
   /*Vertex(4) NDC Transform to Vec(3)*/
-  A = Tools::to_vec3(m_ndcToScreenMatrix * Tools::to_vec4(A, 1.0f));
-  B = Tools::to_vec3(m_ndcToScreenMatrix * Tools::to_vec4(B, 1.0f));
-  C = Tools::to_vec3(m_ndcToScreenMatrix * Tools::to_vec4(C, 1.0f));
+  payloads[0].position = Tools::to_vec3(m_ndcToScreenMatrix * Tools::to_vec4(payloads[0].position, 1.0f));
+  payloads[1].position = Tools::to_vec3(m_ndcToScreenMatrix * Tools::to_vec4(payloads[1].position, 1.0f));
+  payloads[2].position = Tools::to_vec3(m_ndcToScreenMatrix * Tools::to_vec4(payloads[2].position, 1.0f));
 
-  A.z() = A.z() * scale + offset; // Z-Depth
-  B.z() = C.z() * scale + offset; // Z-Depth
-  C.z() = C.z() * scale + offset; // Z-Depth
+  payloads[0].position.z() = payloads[0].position.z() * scale + offset; // Z-Depth
+  payloads[1].position.z() = payloads[1].position.z() * scale + offset; // Z-Depth
+  payloads[2].position.z() = payloads[2].position.z() * scale + offset; // Z-Depth
+
+  /*update triangle position!*/
+  auto A = triangle.m_vertex[0] = payloads[0].position;
+  auto B = triangle.m_vertex[1] = payloads[1].position;
+  auto C = triangle.m_vertex[2] = payloads[2].position;
 
   /*min and max point cood*/
   auto [min, max] = calculateBoundingBox(triangle);
@@ -516,41 +560,28 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   long long endX = (max.x() > m_width ? m_width : max.x());
   long long endY = (max.y() > m_height ? m_height : max.y());
 
-  // for (auto y = startY; y < endY; y++) {
-  //           for (auto x = startX; x < endX; x++) {
-  //                     /*is this Point(x,y) inside triangle*/
-  //                     auto res = barycentric(x, y, triangle);
-  //                     if (!res.has_value()) {
-  //                               continue;
-  //                     }
-  //                     auto [alpha, beta, gamma] = res.value();
-  //                     /*for Z-buffer interpolated*/
-  //                     float w_reciprocal = 1.0f / (alpha + beta + gamma);
-  //                     float z_interpolated = alpha * A.z() + beta * B.z() +
-  //                     gamma * C.z(); z_interpolated *= w_reciprocal;
-  //                     /* test and write z-buffer
-  //                      * if depth is smaller than the current depth, update
-  //                      the z-buffer
-  //                      * meanwhile, write the color to the frame buffer
-  //                      */
-  //                     if (writeZBuffer(Eigen::Vector3f(x, y, 1.0f),
-  //                     z_interpolated)) {
-  //                               /*for color interpolated*/
-  //                               auto RGB_i =
-  //                                         Tools::interpolateRGB(alpha, beta,
-  //                                         gamma, colorA, colorB, colorC);
-  //                               writePixel(Eigen::Vector3f(x, y, 1.0f),
-  //                               RGB_i);
-  //                     }
-  //           }
-  // }
-  for (auto y = startY; y < endY; y += 32) {   // Loop unrolled by 4 in y
-    for (auto x = startX; x < endX; x += 32) { // Loop unrolled by 4 in x
+  auto prefetch_value = startY * m_width + startX + UNROLLING_X;
+  /*zBuffer each item size is 3 float*/
+  PREFETCH(reinterpret_cast<char*>(&m_frameBuffer[prefetch_value]));
+
+  /*zBuffer each item size is a float*/
+  PREFETCH(reinterpret_cast<char*>(&m_zBuffer[prefetch_value]));
+
+//#pragma omp parallel for collapse(2)
+  for (auto y = startY; y < endY; y += UNROLLING_Y) {   // Loop unrolled by 4 in y
+    for (auto x = startX; x < endX; x += UNROLLING_X) { // Loop unrolled by 4 in x
+              prefetch_value = y * m_width + x + UNROLLING_X;
+
+              /*zBuffer each item size is 3 float*/
+              PREFETCH(reinterpret_cast<char*>(&m_frameBuffer[prefetch_value]));
+
+              /*zBuffer each item size is a float*/
+              PREFETCH(reinterpret_cast<char*>(&m_zBuffer[prefetch_value]));
 
       // We process the points (x, y), (x+1, y), (x+2, y), (x+3, y) in a 4x4
       // block
-      for (int dx = 0; dx < 32 && x + dx < endX; ++dx) {
-        for (int dy = 0; dy < 32 && y + dy < endY; ++dy) {
+      for (int dy = 0; dy < UNROLLING_Y && y + dy < endY; ++dy) {
+        for (int dx = 0; dx < UNROLLING_X && x + dx < endX; ++dx) {
           auto currentX = x + dx;
           auto currentY = y + dy;
 
@@ -571,12 +602,28 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
           if (writeZBuffer(Eigen::Vector3f(currentX, currentY, 1.0f),
                            z_interpolated)) {
 
-            // For color interpolation
-            auto RGB_i = Tools::interpolateRGB(alpha, beta, gamma, colorA,
-                                               colorB, colorC);
+                    /*interpolate normal*/
+                    auto interpolation_normal = Tools::interpolateNormal(alpha, beta, gamma,
+                              payloads[0].normal,
+                              payloads[1].normal,
+                              payloads[2].normal);
+
+                    /*interpolate uv*/
+                    auto interpolation_texCoord = Tools::interpolateTexCoord(alpha, beta, gamma,
+                              payloads[0].texCoords,
+                              payloads[1].texCoords,
+                              payloads[2].texCoords);
+
+                    fragment_shader_payload shading_on_xy(
+                              Eigen::Vector3f(currentX, currentY, z_interpolated),
+                              interpolation_normal,
+                              interpolation_texCoord
+                    );
+
+            auto color = Tools::normalizedToRGB(shader->applyFragmentShader(camera, lights, shading_on_xy));
 
             // Write pixel to the frame buffer
-            writePixel(Eigen::Vector3f(currentX, currentY, 1.0f), RGB_i);
+            writePixel(Eigen::Vector3f(currentX, currentY, 1.0f), color);
           }
         }
       }
