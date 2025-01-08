@@ -14,14 +14,6 @@ int main() {
 
   SoftRasterizer::RenderingPipeline render(1000, 1000);
 
-  // render.addGraphicObj(CONFIG_HOME "examples/models/bunny/bunny.obj",
-  // "bunny",
-  //                      Eigen::Vector3f(0.f, 1.f, 0.f), degree,
-  //                      Eigen::Vector3f(0.f, -0.2f, 0.5f),
-  //                      Eigen::Vector3f(2.0f, 2.0f, 2.0f));
-  //
-  // render.startLoadingMesh("bunny");
-
   render.addGraphicObj(
       CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
       Eigen::Vector3f(0.f, 1.f, 0.f), degree, Eigen::Vector3f(0.f, 0.0f, 0.0f),
@@ -30,9 +22,8 @@ int main() {
   render.startLoadingMesh("spot");
   render.addShader("shader",
                    CONFIG_HOME "examples/models/spot/spot_texture.png",
-                   SoftRasterizer::SHADERS_TYPE::NORMAL);
-  // render.addShader("shader", CONFIG_HOME "examples/models/spot/hmap.jpg",
-  // SoftRasterizer::SHADERS_TYPE::BUMP);
+                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
+
   render.bindShader2Mesh("spot", "shader");
 
   while (key != 27) {
@@ -41,19 +32,14 @@ int main() {
     render.clear(SoftRasterizer::Buffers::Color |
                  SoftRasterizer::Buffers::Depth);
 
-    /*Rotations*/
-    auto rotations = SoftRasterizer::Tools::calculateRotationMatrix(
-        /*axis=*/Eigen::Vector3f(0.f, 1.f, 0.f),
-        /*degree=+ for Counterclockwise;- for Clockwise*/ degree);
-
     /*Model Matrix*/
-    auto model = SoftRasterizer::Tools::calculateModelMatrix(
-        /*transform=*/Eigen::Vector3f(0.f, 0.0f, 0.0f),
-        /*rotations=*/rotations,
-        /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f));
-
-    /*Model Matrix*/
-    render.setModelMatrix("spot", model);
+    render.setModelMatrix("spot", SoftRasterizer::Tools::calculateModelMatrix(
+              /*transform=*/Eigen::Vector3f(0.f, 0.0f, 0.0f),
+              /*rotations=*/
+              SoftRasterizer::Tools::calculateRotationMatrix(  
+                        /*axis=*/Eigen::Vector3f(0.f, 1.f, 0.f),
+                        /*degree=+ for Counterclockwise;- for Clockwise*/ degree),
+              /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f)));
 
     /*View Matrix*/
     render.setViewMatrix(
