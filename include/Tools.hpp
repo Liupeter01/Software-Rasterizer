@@ -48,7 +48,7 @@ struct Tools {
    * 255].
    */
   static Eigen::Vector3i normalizedToRGB(float red, float green, float blue);
-  static Eigen::Vector3i normalizedToRGB(const Eigen::Vector3f& color);
+  static Eigen::Vector3i normalizedToRGB(const Eigen::Vector3f &color);
 
   /**
    * @brief Interpolates between three RGB colors using alpha, beta, and gamma
@@ -72,18 +72,19 @@ struct Tools {
                                         const Eigen::Vector3i &color3);
 
   static Eigen::Vector3f interpolateNormal(float alpha, float beta, float gamma,
-                                                              const Eigen::Vector3f& normal1,
-                                                              const Eigen::Vector3f& normal2,
-                                                              const Eigen::Vector3f& normal3);
+                                           const Eigen::Vector3f &normal1,
+                                           const Eigen::Vector3f &normal2,
+                                           const Eigen::Vector3f &normal3);
 
   static Eigen::Vector2f interpolateTexCoord(float alpha, float beta,
-                                                                        const Eigen::Vector2f& textCoord1,
-                                                                        const Eigen::Vector2f& textCoord2);
+                                             const Eigen::Vector2f &textCoord1,
+                                             const Eigen::Vector2f &textCoord2);
 
-  static Eigen::Vector2f interpolateTexCoord(float alpha, float beta, float gamma,
-                                                                        const Eigen::Vector2f& textCoord1,
-                                                                        const Eigen::Vector2f& textCoord2,
-                                                                        const Eigen::Vector2f& textCoord3);
+  static Eigen::Vector2f interpolateTexCoord(float alpha, float beta,
+                                             float gamma,
+                                             const Eigen::Vector2f &textCoord1,
+                                             const Eigen::Vector2f &textCoord2,
+                                             const Eigen::Vector2f &textCoord3);
 
   static Eigen::Vector3f calculateNormalWithWeight(const Eigen::Vector3f &A,
                                                    const Eigen::Vector3f &B,

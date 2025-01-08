@@ -79,7 +79,7 @@ Eigen::Vector3f SoftRasterizer::Shader::BlinnPhong(
   Eigen::Vector3f result_color = La + Ld + Ls;
 
   // Calculate the final color based on the shading point color
-  return  result_color.cwiseProduct(shading_point.color);
+  return result_color.cwiseProduct(shading_point.color);
 }
 
 /*Compute Displacement Mapping*/
@@ -170,7 +170,8 @@ SoftRasterizer::vertex_displacement SoftRasterizer::Shader::applyVertexShader(
   return SoftRasterizer::vertex_displacement{
       Tools::to_vec3(Projection * View * Model *
                      Tools::to_vec4(payload.position, 1.0f)),
-      Tools::to_vec3(Model.inverse().transpose() * Tools::to_vec4(payload.normal))};
+      Tools::to_vec3(Model.inverse().transpose() *
+                     Tools::to_vec4(payload.normal))};
 }
 
 /*Use Fragment Shader*/
