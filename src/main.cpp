@@ -1,35 +1,40 @@
-
+#include <atomic>
 #include <Eigen/Eigen>
 #include <ObjLoader.hpp>
 #include <Render.hpp>
 #include <Tools.hpp>
 #include <Triangle.hpp>
 #include <iostream>
+#include <spdlog/spdlog.h>
 #include <opencv2/opencv.hpp>
 
 int main() {
   int key = 0;
-  int frame_count = 0;
   float degree = 0.0f;
 
   SoftRasterizer::RenderingPipeline render(1000, 1000);
 
-  render.addGraphicObj(CONFIG_HOME "examples/models/bunny/bunny.obj", "bunny",
-                       Eigen::Vector3f(0.f, 1.f, 0.f), degree,
-                       Eigen::Vector3f(0.f, -0.2f, 0.5f),
-                       Eigen::Vector3f(2.0f, 2.0f, 2.0f));
+  //render.addGraphicObj(CONFIG_HOME "examples/models/bunny/bunny.obj", "bunny",
+  //                     Eigen::Vector3f(0.f, 1.f, 0.f), degree,
+  //                     Eigen::Vector3f(0.f, -0.2f, 0.5f),
+  //                     Eigen::Vector3f(2.0f, 2.0f, 2.0f));
+  // 
+  //render.startLoadingMesh("bunny");
 
-  // render.addGraphicObj(CONFIG_HOME"examples/models/spot/spot_triangulated_good.obj",
-  // "spot",
-  //           Eigen::Vector3f(0.f, 1.f, 0.f), 45.f,
-  //           Eigen::Vector3f(0.f, 0.0f, 0.0f),
-  //           Eigen::Vector3f(0.3f, 0.3f, 0.3f)
-  //           );
+   render.addGraphicObj(CONFIG_HOME"examples/models/spot/spot_triangulated_good.obj",
+   "spot",
+             Eigen::Vector3f(0.f, 1.f, 0.f), degree,
+             Eigen::Vector3f(0.f, 0.0f, 0.0f),
+             Eigen::Vector3f(0.3f, 0.3f, 0.3f)
+             );
 
-  // render.startLoadingMesh("spot");
-  render.startLoadingMesh("bunny");
+  render.startLoadingMesh("spot");
+  render.addShader("shader", CONFIG_HOME "examples/models/spot/spot_texture.png", SoftRasterizer::SHADERS_TYPE::NORMAL);
+  //render.addShader("shader", CONFIG_HOME "examples/models/spot/hmap.jpg", SoftRasterizer::SHADERS_TYPE::BUMP);
+  render.bindShader2Mesh("spot", "shader");
 
   while (key != 27) {
+
     /*clear both shading and depth!*/
     render.clear(SoftRasterizer::Buffers::Color |
                  SoftRasterizer::Buffers::Depth);
@@ -41,9 +46,9 @@ int main() {
 
     /*Model Matrix*/
     auto model = SoftRasterizer::Tools::calculateModelMatrix(
-        /*transform=*/Eigen::Vector3f(0.f, -0.2f, 0.5f),
+        /*transform=*/ Eigen::Vector3f(0.f, 0.0f, 0.0f),
         /*rotations=*/rotations,
-        /*scale=*/Eigen::Vector3f(2.0f, 2.0f, 2.0f));
+        /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f));
 
     /*View Matrix*/
     auto view = SoftRasterizer::Tools::calculateViewMatrix(
@@ -57,13 +62,13 @@ int main() {
         /*near=*/0.1f,
         /*far=*/100.0f);
 
-    render.setModelMatrix("bunny", model);
+    render.setModelMatrix("spot", model);
     render.setViewMatrix(view);
     render.setProjectionMatrix(projection);
 
-    render.display(SoftRasterizer::Primitive::LINES);
+    render.display(SoftRasterizer::Primitive::TRIANGLES);
 
-    key = cv::waitKey(1);
+    key = cv::waitKey(0);
     if (key == 'a' || key == 'A') {
       degree += 1.0f;
     } else if (key == 'd' || key == 'D') {
