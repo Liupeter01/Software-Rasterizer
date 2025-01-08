@@ -420,6 +420,8 @@ SoftRasterizer::RenderingPipeline::barycentric(
   Eigen::Vector3f B = triangle.b();
   Eigen::Vector3f C = triangle.c();
 
+  A.z() = B.z() = C.z() = 1.0f;
+
   /*For Triangle Sabc*/
   auto AC = C - A;
   auto AB = B - A;
@@ -525,11 +527,10 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   //  shifts the range
   float offset = (m_far + m_near) / 2.0f;
 
-  Eigen::Vector3f camera{0.f, 0.f, -0.5f};
-  light_struct light{Eigen::Vector3f{0.0, 0.5, 0.0f},
-                     Eigen::Vector3f{100, 100, 100}};
-
-  std::initializer_list<light_struct> lights = {light};
+  std::initializer_list<light_struct> lights = {
+            {Eigen::Vector3f{0.9, 0.9, 0.9f},Eigen::Vector3f{50, 50, 50}},
+            { Eigen::Vector3f{-0.9, 0.9, 0.0f},Eigen::Vector3f{50, 50, 50} }
+  };
 
   fragment_shader_payload payloads[] = {
       {triangle.m_vertex[0], triangle.m_normal[0],
@@ -568,7 +569,7 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   long long endX = (max.x() > m_width ? m_width : max.x());
   long long endY = (max.y() > m_height ? m_height : max.y());
 
-  auto prefetch_value = startY * m_width + startX + UNROLLING_X;
+  auto prefetch_value = startY * m_width + startX;
   /*zBuffer each item size is 3 float*/
   PREFETCH(reinterpret_cast<char *>(&m_frameBuffer[prefetch_value]));
 
@@ -626,7 +627,7 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
                 interpolation_normal, interpolation_texCoord);
 
             auto color = Tools::normalizedToRGB(
-                shader->applyFragmentShader(camera, lights, shading_on_xy));
+                shader->applyFragmentShader(m_eye, lights, shading_on_xy));
 
             // Write pixel to the frame buffer
             writePixel(Eigen::Vector3f(currentX, currentY, 1.0f), color);
