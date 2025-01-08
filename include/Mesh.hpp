@@ -1,3 +1,4 @@
+
 #pragma once
 #ifndef _MESH_HPP_
 #define _MESH_HPP_
@@ -7,6 +8,9 @@
 #include <string>
 
 namespace SoftRasterizer {
+
+          /*forward declaration*/
+          class Shader;
 
 /*copy from boost*/
 template <typename SizeT>
@@ -52,17 +56,23 @@ struct Vertex {
 
 struct Mesh {
   Mesh() : Mesh("") {}
-  Mesh(const std::string &name) : meshname(name) {}
+  Mesh(const std::string &name) : meshname(name) , m_shader(nullptr){}
   Mesh(const std::string &name, const SoftRasterizer::Material &_material,
        const std::vector<Vertex> &_vertices,
        const std::vector<Eigen::Vector3i> &_faces)
       : meshname(name), MeshMaterial(_material), vertices(_vertices),
-        faces(_faces) {}
+        faces(_faces) ,m_shader(nullptr) {}
 
   Mesh(const std::string &name, SoftRasterizer::Material &&_material,
        std::vector<Vertex> &&_vertices, std::vector<Eigen::Vector3i> &&_faces)
       : meshname(name), MeshMaterial(std::move(_material)),
-        vertices(std::move(_vertices)), faces(std::move(_faces)) {}
+        vertices(std::move(_vertices)), faces(std::move(_faces)) , m_shader(nullptr) {}
+
+  void bindShader2Mesh(std::shared_ptr<Shader> shader) {
+            /*bind shader2 mesh without dtor,  the life od this pointer is maintained by render class*/
+            m_shader.reset();
+            m_shader = shader;
+  }
 
   // Mesh Name
   std::string meshname;
@@ -71,6 +81,8 @@ struct Mesh {
 
   // Material
   Material MeshMaterial;
+
+  std::shared_ptr<Shader> m_shader;
 };
 } // namespace SoftRasterizer
 
@@ -108,8 +120,14 @@ template <> struct std::hash<SoftRasterizer::Vertex> {
     size_t h3 = std::hash<Eigen::Vector3f>()(vertex.normal);
     size_t h4 = std::hash<Eigen::Vector2f>()(vertex.texCoord);
 
+    size_t seed = 0;
+    SoftRasterizer::hash_combine_impl(seed, h1);
+    SoftRasterizer::hash_combine_impl(seed, h2);
+    SoftRasterizer::hash_combine_impl(seed, h3);
+    SoftRasterizer::hash_combine_impl(seed, h4);
+
     // Combine all hashes using bit manipulation
-    return ((h1 ^ (h2 << 1)) >> 1) ^ ((h3 ^ (h4 << 1)) >> 1);
+    return seed;
   }
 };
 } // namespace std
