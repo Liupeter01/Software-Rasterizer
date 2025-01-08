@@ -52,21 +52,22 @@ int main() {
         /*rotations=*/rotations,
         /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f));
 
-    /*View Matrix*/
-    auto view = SoftRasterizer::Tools::calculateViewMatrix(
-        /*eye=*/Eigen::Vector3f(0.0f, 0.0f, 0.9f),
-        /*center=*/Eigen::Vector3f(0.0f, 0.0f, 0.0f),
-        /*up=*/Eigen::Vector3f(0.0f, 1.0f, 0.0f));
-
-    auto projection = SoftRasterizer::Tools::calculateProjectionMatrix(
-        /*fov=*/45.0f,
-        /*aspect=*/1.0f,
-        /*near=*/0.1f,
-        /*far=*/100.0f);
-
+    /*Model Matrix*/
     render.setModelMatrix("spot", model);
-    render.setViewMatrix(view);
-    render.setProjectionMatrix(projection);
+
+    /*View Matrix*/
+    render.setViewMatrix(
+              /*eye=*/Eigen::Vector3f(0.0f, 0.0f, 0.9f),
+              /*center=*/Eigen::Vector3f(0.0f, 0.0f, 0.0f),
+              /*up=*/Eigen::Vector3f(0.0f, 1.0f, 0.0f)
+    );
+
+    /*Projection Matrix*/
+    render.setProjectionMatrix(
+              /*fov=*/45.0f,
+              /*near=*/0.1f,
+              /*far=*/100.0f
+    );
 
     render.display(SoftRasterizer::Primitive::TRIANGLES);
 
