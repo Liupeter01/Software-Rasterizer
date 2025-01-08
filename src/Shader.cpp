@@ -54,7 +54,6 @@ Eigen::Vector3f SoftRasterizer::Shader::BlinnPhong(
     const light_struct &light, const Eigen::Vector3f &ka,
     const Eigen::Vector3f &kd, const Eigen::Vector3f &ks, const float p) {
 
-  Eigen::Vector3f result_color = {0, 0, 0};
   Eigen::Vector3f normal = shading_point.normal.normalized();
   Eigen::Vector3f lightDir = light.position - shading_point.position;
 
@@ -77,12 +76,10 @@ Eigen::Vector3f SoftRasterizer::Shader::BlinnPhong(
   Eigen::Vector3f Ls = std::pow(cosAlpha, p) * ks.cwiseProduct(distribution);
 
   // Combine all lighting components
-  result_color = La + Ld + Ls;
+  Eigen::Vector3f result_color = La + Ld + Ls;
 
   // Calculate the final color based on the shading point color
-  result_color = result_color.cwiseProduct(shading_point.color);
-
-  return result_color;
+  return  result_color.cwiseProduct(shading_point.color);
 }
 
 /*Compute Displacement Mapping*/
@@ -173,7 +170,7 @@ SoftRasterizer::vertex_displacement SoftRasterizer::Shader::applyVertexShader(
   return SoftRasterizer::vertex_displacement{
       Tools::to_vec3(Projection * View * Model *
                      Tools::to_vec4(payload.position, 1.0f)),
-      payload.normal};
+      Tools::to_vec3(Model.inverse().transpose() * Tools::to_vec4(payload.normal))};
 }
 
 /*Use Fragment Shader*/
@@ -202,8 +199,6 @@ Eigen::Vector3f SoftRasterizer::Shader::texture_fragment_shader_impl(
     const fragment_shader_payload &payload) {
 
   Eigen::Vector3f result_color = {0, 0, 0};
-
-  float p = 150;
 
   Eigen::Vector3f kd = texture->getTextureColor(payload.texCoords);
 
