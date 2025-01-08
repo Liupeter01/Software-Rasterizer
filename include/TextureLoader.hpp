@@ -6,7 +6,10 @@
 #include <string>
 
 namespace SoftRasterizer {
+          class Shader;
+
 class TextureLoader {
+          friend class Shader;
 public:
   TextureLoader(const std::string &path);
   virtual ~TextureLoader();
