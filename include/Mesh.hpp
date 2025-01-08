@@ -9,8 +9,8 @@
 
 namespace SoftRasterizer {
 
-          /*forward declaration*/
-          class Shader;
+/*forward declaration*/
+class Shader;
 
 /*copy from boost*/
 template <typename SizeT>
@@ -56,22 +56,24 @@ struct Vertex {
 
 struct Mesh {
   Mesh() : Mesh("") {}
-  Mesh(const std::string &name) : meshname(name) , m_shader(nullptr){}
+  Mesh(const std::string &name) : meshname(name), m_shader(nullptr) {}
   Mesh(const std::string &name, const SoftRasterizer::Material &_material,
        const std::vector<Vertex> &_vertices,
        const std::vector<Eigen::Vector3i> &_faces)
       : meshname(name), MeshMaterial(_material), vertices(_vertices),
-        faces(_faces) ,m_shader(nullptr) {}
+        faces(_faces), m_shader(nullptr) {}
 
   Mesh(const std::string &name, SoftRasterizer::Material &&_material,
        std::vector<Vertex> &&_vertices, std::vector<Eigen::Vector3i> &&_faces)
       : meshname(name), MeshMaterial(std::move(_material)),
-        vertices(std::move(_vertices)), faces(std::move(_faces)) , m_shader(nullptr) {}
+        vertices(std::move(_vertices)), faces(std::move(_faces)),
+        m_shader(nullptr) {}
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) {
-            /*bind shader2 mesh without dtor,  the life od this pointer is maintained by render class*/
-            m_shader.reset();
-            m_shader = shader;
+    /*bind shader2 mesh without dtor,  the life od this pointer is maintained by
+     * render class*/
+    m_shader.reset();
+    m_shader = shader;
   }
 
   // Mesh Name

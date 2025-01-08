@@ -66,16 +66,14 @@ public:
 
   bool startLoadingMesh(const std::string &meshName);
 
-  bool addShader(const std::string& shaderName,
-                              const std::string& texturePath,
-                              SHADERS_TYPE type);
+  bool addShader(const std::string &shaderName, const std::string &texturePath,
+                 SHADERS_TYPE type);
 
-  bool addShader(const std::string& shaderName,
-                            std::shared_ptr<TextureLoader> text,
-                            SHADERS_TYPE type);
+  bool addShader(const std::string &shaderName,
+                 std::shared_ptr<TextureLoader> text, SHADERS_TYPE type);
 
-  bool bindShader2Mesh(const std::string& meshName,
-                                        const std::string& shaderName);
+  bool bindShader2Mesh(const std::string &meshName,
+                       const std::string &shaderName);
 
 private:
   std::vector<Eigen::Vector3f> &getFrameBuffer() { return m_frameBuffer; }

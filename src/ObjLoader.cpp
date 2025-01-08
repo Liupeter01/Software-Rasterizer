@@ -113,10 +113,10 @@ processingVertexData(const std::string &objName,
                           attrib.vertices[3 * size_t(idx.vertex_index) + 1],
                           attrib.vertices[3 * size_t(idx.vertex_index) + 2]);
 
-      vertex.color = 
+      vertex.color =
           Eigen::Vector3f(attrib.colors[3 * size_t(idx.vertex_index) + 0],
-                    attrib.colors[3 * size_t(idx.vertex_index) + 1],
-                    attrib.colors[3 * size_t(idx.vertex_index) + 2]);
+                          attrib.colors[3 * size_t(idx.vertex_index) + 1],
+                          attrib.colors[3 * size_t(idx.vertex_index) + 2]);
 
       // Check if `normal_index` is zero or positive. negative = no normal data
       if (idx.normal_index >= 0) {
@@ -134,9 +134,8 @@ processingVertexData(const std::string &objName,
       if (idx.texcoord_index >= 0) {
         vertex.texCoord = Eigen::Vector2f(
             attrib.texcoords[2 * size_t(idx.texcoord_index) + 0],
-            //attrib.texcoords[2 * size_t(idx.texcoord_index) + 1]
-             1.0f -  attrib.texcoords[2 * size_t(idx.texcoord_index) + 1]
-        );
+            // attrib.texcoords[2 * size_t(idx.texcoord_index) + 1]
+            1.0f - attrib.texcoords[2 * size_t(idx.texcoord_index) + 1]);
       }
 
       if (uniqueVertices.count(vertex) == 0) {

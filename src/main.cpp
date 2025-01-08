@@ -1,12 +1,12 @@
-#include <atomic>
 #include <Eigen/Eigen>
 #include <ObjLoader.hpp>
 #include <Render.hpp>
 #include <Tools.hpp>
 #include <Triangle.hpp>
+#include <atomic>
 #include <iostream>
-#include <spdlog/spdlog.h>
 #include <opencv2/opencv.hpp>
+#include <spdlog/spdlog.h>
 
 int main() {
   int key = 0;
@@ -14,23 +14,25 @@ int main() {
 
   SoftRasterizer::RenderingPipeline render(1000, 1000);
 
-  //render.addGraphicObj(CONFIG_HOME "examples/models/bunny/bunny.obj", "bunny",
-  //                     Eigen::Vector3f(0.f, 1.f, 0.f), degree,
-  //                     Eigen::Vector3f(0.f, -0.2f, 0.5f),
-  //                     Eigen::Vector3f(2.0f, 2.0f, 2.0f));
-  // 
-  //render.startLoadingMesh("bunny");
+  // render.addGraphicObj(CONFIG_HOME "examples/models/bunny/bunny.obj",
+  // "bunny",
+  //                      Eigen::Vector3f(0.f, 1.f, 0.f), degree,
+  //                      Eigen::Vector3f(0.f, -0.2f, 0.5f),
+  //                      Eigen::Vector3f(2.0f, 2.0f, 2.0f));
+  //
+  // render.startLoadingMesh("bunny");
 
-   render.addGraphicObj(CONFIG_HOME"examples/models/spot/spot_triangulated_good.obj",
-   "spot",
-             Eigen::Vector3f(0.f, 1.f, 0.f), degree,
-             Eigen::Vector3f(0.f, 0.0f, 0.0f),
-             Eigen::Vector3f(0.3f, 0.3f, 0.3f)
-             );
+  render.addGraphicObj(
+      CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
+      Eigen::Vector3f(0.f, 1.f, 0.f), degree, Eigen::Vector3f(0.f, 0.0f, 0.0f),
+      Eigen::Vector3f(0.3f, 0.3f, 0.3f));
 
   render.startLoadingMesh("spot");
-  render.addShader("shader", CONFIG_HOME "examples/models/spot/spot_texture.png", SoftRasterizer::SHADERS_TYPE::NORMAL);
-  //render.addShader("shader", CONFIG_HOME "examples/models/spot/hmap.jpg", SoftRasterizer::SHADERS_TYPE::BUMP);
+  render.addShader("shader",
+                   CONFIG_HOME "examples/models/spot/spot_texture.png",
+                   SoftRasterizer::SHADERS_TYPE::NORMAL);
+  // render.addShader("shader", CONFIG_HOME "examples/models/spot/hmap.jpg",
+  // SoftRasterizer::SHADERS_TYPE::BUMP);
   render.bindShader2Mesh("spot", "shader");
 
   while (key != 27) {
@@ -46,7 +48,7 @@ int main() {
 
     /*Model Matrix*/
     auto model = SoftRasterizer::Tools::calculateModelMatrix(
-        /*transform=*/ Eigen::Vector3f(0.f, 0.0f, 0.0f),
+        /*transform=*/Eigen::Vector3f(0.f, 0.0f, 0.0f),
         /*rotations=*/rotations,
         /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f));
 

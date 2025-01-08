@@ -153,70 +153,65 @@ bool SoftRasterizer::RenderingPipeline::startLoadingMesh(
   return true;
 }
 
-bool 
-SoftRasterizer::RenderingPipeline::addShader(const std::string& shaderName,
-                                                                           const std::string& texturePath,
-                                                                            SHADERS_TYPE type)
-{
-          if (m_shaders.find(shaderName) != m_shaders.end()) {
-                    spdlog::error("Add Shader Failed! Because Shader {} Already Exist!", shaderName);
-                    return false;
-          }
-          try
-          {
-                    m_shaders[shaderName] = std::make_shared<Shader>(texturePath);
-                    m_shaders[shaderName]->setFragmentShader(type);
-          }
-          catch (const std::exception& e) {
-                    spdlog::error("Add Shader Failed! Reason: {}", e.what());
-                    return false;
-          }
-          return true;
+bool SoftRasterizer::RenderingPipeline::addShader(
+    const std::string &shaderName, const std::string &texturePath,
+    SHADERS_TYPE type) {
+  if (m_shaders.find(shaderName) != m_shaders.end()) {
+    spdlog::error("Add Shader Failed! Because Shader {} Already Exist!",
+                  shaderName);
+    return false;
+  }
+  try {
+    m_shaders[shaderName] = std::make_shared<Shader>(texturePath);
+    m_shaders[shaderName]->setFragmentShader(type);
+  } catch (const std::exception &e) {
+    spdlog::error("Add Shader Failed! Reason: {}", e.what());
+    return false;
+  }
+  return true;
 }
 
-bool 
-SoftRasterizer::RenderingPipeline::addShader(const std::string& shaderName,
-                                                                           std::shared_ptr<TextureLoader> text,
-                                                                            SHADERS_TYPE type)
-{
-          if (m_shaders.find(shaderName) != m_shaders.end()) {
-                    spdlog::error("Add Shader Failed! Because Shader {} Already Exist!", shaderName);
-                    return false;
-          }
-          try
-          {
-                    m_shaders[shaderName] = std::make_shared<Shader>(text);
-                    m_shaders[shaderName]->setFragmentShader(type);
-          }
-          catch (const std::exception& e) {
-                    spdlog::error("Add Shader Failed! Reason: {}", e.what());
-                    return false;
-          }
-          return true;
+bool SoftRasterizer::RenderingPipeline::addShader(
+    const std::string &shaderName, std::shared_ptr<TextureLoader> text,
+    SHADERS_TYPE type) {
+  if (m_shaders.find(shaderName) != m_shaders.end()) {
+    spdlog::error("Add Shader Failed! Because Shader {} Already Exist!",
+                  shaderName);
+    return false;
+  }
+  try {
+    m_shaders[shaderName] = std::make_shared<Shader>(text);
+    m_shaders[shaderName]->setFragmentShader(type);
+  } catch (const std::exception &e) {
+    spdlog::error("Add Shader Failed! Reason: {}", e.what());
+    return false;
+  }
+  return true;
 }
 
-bool 
-SoftRasterizer::RenderingPipeline::bindShader2Mesh(const std::string& meshName,
-          const std::string& shaderName) {
+bool SoftRasterizer::RenderingPipeline::bindShader2Mesh(
+    const std::string &meshName, const std::string &shaderName) {
 
-          if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
-                    spdlog::error("Bind Shader To Mesh Failed! Because Loaded Mesh {} Not found!", meshName);
-                    return false;
-          }
+  if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
+    spdlog::error(
+        "Bind Shader To Mesh Failed! Because Loaded Mesh {} Not found!",
+        meshName);
+    return false;
+  }
 
-          if (m_shaders.find(shaderName) == m_shaders.end()) {
-                    spdlog::error("Bind Shader To Mesh Failed! Because Shader {} Not found!", shaderName);
-                    return false;
-          }
+  if (m_shaders.find(shaderName) == m_shaders.end()) {
+    spdlog::error("Bind Shader To Mesh Failed! Because Shader {} Not found!",
+                  shaderName);
+    return false;
+  }
 
-          try {
-                    m_loadedObjs[meshName]->bindShader2Mesh(m_shaders[shaderName]);
-          }
-          catch (const std::exception& e) {
-                    spdlog::error("Bind Shader To Mesh Failed! Reason: {}", e.what());
-                    return false;
-          }
-          return true;
+  try {
+    m_loadedObjs[meshName]->bindShader2Mesh(m_shaders[shaderName]);
+  } catch (const std::exception &e) {
+    spdlog::error("Bind Shader To Mesh Failed! Reason: {}", e.what());
+    return false;
+  }
+  return true;
 }
 
 /*set MVP*/
@@ -250,15 +245,14 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
 
   std::for_each(
       m_loadedObjs.begin(), m_loadedObjs.end(),
-      [this,  type](const decltype(m_loadedObjs)::value_type &objPair) {
-
+      [this, type](const decltype(m_loadedObjs)::value_type &objPair) {
         auto meshName = objPair.first;
         auto faces = objPair.second->faces;
         auto vertices = objPair.second->vertices;
 
         /*get shader object for this mesh obj*/
         std::shared_ptr<SoftRasterizer::Shader> shader =
-                  m_loadedObjs[meshName]->m_shader;
+            m_loadedObjs[meshName]->m_shader;
 
         /*MVP Matrix*/
         auto Model = m_suspendObjs[meshName]->getModelMatrix();
@@ -274,16 +268,17 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
 
           /*triangle v, texcoord vt, normal coordinates vn*/
           fragment_shader_payload payloads[] = {
-                    {A.position, A.normal,A.texCoord},
-                    {B.position, B.normal,B.texCoord},
-                    {C.position, C.normal,C.texCoord}
-          };
+              {A.position, A.normal, A.texCoord},
+              {B.position, B.normal, B.texCoord},
+              {C.position, C.normal, C.texCoord}};
 
           vertex_displacement newVertices[] = {
-                    shader->applyVertexShader(Model,m_view, m_projection, payloads[0]),
-                    shader->applyVertexShader(Model,m_view,m_projection, payloads[1]),
-                    shader->applyVertexShader(Model, m_view, m_projection, payloads[2])
-          };
+              shader->applyVertexShader(Model, m_view, m_projection,
+                                        payloads[0]),
+              shader->applyVertexShader(Model, m_view, m_projection,
+                                        payloads[1]),
+              shader->applyVertexShader(Model, m_view, m_projection,
+                                        payloads[2])};
 
           payloads[0].position = newVertices[0].new_position;
           payloads[0].normal = newVertices[0].new_normal;
@@ -292,27 +287,31 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
           payloads[2].position = newVertices[2].new_position;
           payloads[2].normal = newVertices[2].new_normal;
 
-          Eigen::Vector3f camera{0.f,0.f,-0.5f};
-          light_struct light{
-                     Eigen::Vector3f{0.0,0.5,0.0f},
-                    Eigen::Vector3f{100,100,100}
-          };
+          Eigen::Vector3f camera{0.f, 0.f, -0.5f};
+          light_struct light{Eigen::Vector3f{0.0, 0.5, 0.0f},
+                             Eigen::Vector3f{100, 100, 100}};
 
-          std::initializer_list< light_struct> lights = { light };
+          std::initializer_list<light_struct> lights = {light};
 
           /*set Vertex position*/
-          triangle.setVertex({ payloads[0].position,payloads[1].position, payloads[2].position });
+          triangle.setVertex({payloads[0].position, payloads[1].position,
+                              payloads[2].position});
 
-          auto ColorA_norm = shader->applyFragmentShader(camera, lights, payloads[0]);
-          auto ColorB_norm = shader->applyFragmentShader(camera, lights, payloads[1]);
-          auto ColorC_norm = shader->applyFragmentShader(camera, lights, payloads[2]);
+          auto ColorA_norm =
+              shader->applyFragmentShader(camera, lights, payloads[0]);
+          auto ColorB_norm =
+              shader->applyFragmentShader(camera, lights, payloads[1]);
+          auto ColorC_norm =
+              shader->applyFragmentShader(camera, lights, payloads[2]);
 
           /*Set Color Of Pixel*/
-          triangle.setColor({
-                     Tools::normalizedToRGB(ColorA_norm.x(), ColorA_norm.y(), ColorA_norm.z()),
-                     Tools::normalizedToRGB(ColorB_norm.x(), ColorB_norm.y(), ColorB_norm.z()),
-                     Tools::normalizedToRGB(ColorC_norm.x(), ColorC_norm.y(), ColorC_norm.z())
-           });
+          triangle.setColor(
+              {Tools::normalizedToRGB(ColorA_norm.x(), ColorA_norm.y(),
+                                      ColorA_norm.z()),
+               Tools::normalizedToRGB(ColorB_norm.x(), ColorB_norm.y(),
+                                      ColorB_norm.z()),
+               Tools::normalizedToRGB(ColorC_norm.x(), ColorC_norm.y(),
+                                      ColorC_norm.z())});
 
           /*draw line*/
           if (type == SoftRasterizer::Primitive::LINES) {
@@ -451,7 +450,7 @@ SoftRasterizer::RenderingPipeline::barycentric(
     const std::size_t x_pos, const std::size_t y_pos,
     const SoftRasterizer::Triangle &triangle) {
 
-  if (!insideTriangle(x_pos+0.5f, y_pos+0.5f, triangle)) {
+  if (!insideTriangle(x_pos + 0.5f, y_pos + 0.5f, triangle)) {
     return std::nullopt;
   }
 
@@ -485,19 +484,19 @@ SoftRasterizer::RenderingPipeline::barycentric(
 void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
     SoftRasterizer::Triangle &triangle) {
 
-          // controls the stretching/compression of the range
-          float scale = (m_far - m_near) / 2.0f;
+  // controls the stretching/compression of the range
+  float scale = (m_far - m_near) / 2.0f;
 
-          //  shifts the range
-          float offset = (m_far + m_near) / 2.0f;
+  //  shifts the range
+  float offset = (m_far + m_near) / 2.0f;
 
-          auto& A = triangle.m_vertex[0];
-          auto& B = triangle.m_vertex[1];
-          auto& C = triangle.m_vertex[2];
+  auto &A = triangle.m_vertex[0];
+  auto &B = triangle.m_vertex[1];
+  auto &C = triangle.m_vertex[2];
 
-          auto& colorA = triangle.m_color[0];
-          auto& colorB = triangle.m_color[1];
-          auto& colorC = triangle.m_color[2];
+  auto &colorA = triangle.m_color[0];
+  auto &colorB = triangle.m_color[1];
+  auto &colorC = triangle.m_color[2];
 
   /*Vertex(4) NDC Transform to Vec(3)*/
   A = Tools::to_vec3(m_ndcToScreenMatrix * Tools::to_vec4(A, 1.0f));
@@ -517,64 +516,71 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   long long endX = (max.x() > m_width ? m_width : max.x());
   long long endY = (max.y() > m_height ? m_height : max.y());
 
-  //for (auto y = startY; y < endY; y++) {
-  //          for (auto x = startX; x < endX; x++) {
-  //                    /*is this Point(x,y) inside triangle*/
-  //                    auto res = barycentric(x, y, triangle);
-  //                    if (!res.has_value()) {
-  //                              continue;
-  //                    }
-  //                    auto [alpha, beta, gamma] = res.value();
-  //                    /*for Z-buffer interpolated*/
-  //                    float w_reciprocal = 1.0f / (alpha + beta + gamma);
-  //                    float z_interpolated = alpha * A.z() + beta * B.z() + gamma * C.z();
-  //                    z_interpolated *= w_reciprocal;
-  //                    /* test and write z-buffer
-  //                     * if depth is smaller than the current depth, update the z-buffer
-  //                     * meanwhile, write the color to the frame buffer
-  //                     */
-  //                    if (writeZBuffer(Eigen::Vector3f(x, y, 1.0f), z_interpolated)) {
-  //                              /*for color interpolated*/
-  //                              auto RGB_i =
-  //                                        Tools::interpolateRGB(alpha, beta, gamma, colorA, colorB, colorC);
-  //                              writePixel(Eigen::Vector3f(x, y, 1.0f), RGB_i);
-  //                    }
-  //          }
-  //}
-  for (auto y = startY; y < endY; y +=32) { // Loop unrolled by 4 in y
-            for (auto x = startX; x < endX; x += 32) { // Loop unrolled by 4 in x
+  // for (auto y = startY; y < endY; y++) {
+  //           for (auto x = startX; x < endX; x++) {
+  //                     /*is this Point(x,y) inside triangle*/
+  //                     auto res = barycentric(x, y, triangle);
+  //                     if (!res.has_value()) {
+  //                               continue;
+  //                     }
+  //                     auto [alpha, beta, gamma] = res.value();
+  //                     /*for Z-buffer interpolated*/
+  //                     float w_reciprocal = 1.0f / (alpha + beta + gamma);
+  //                     float z_interpolated = alpha * A.z() + beta * B.z() +
+  //                     gamma * C.z(); z_interpolated *= w_reciprocal;
+  //                     /* test and write z-buffer
+  //                      * if depth is smaller than the current depth, update
+  //                      the z-buffer
+  //                      * meanwhile, write the color to the frame buffer
+  //                      */
+  //                     if (writeZBuffer(Eigen::Vector3f(x, y, 1.0f),
+  //                     z_interpolated)) {
+  //                               /*for color interpolated*/
+  //                               auto RGB_i =
+  //                                         Tools::interpolateRGB(alpha, beta,
+  //                                         gamma, colorA, colorB, colorC);
+  //                               writePixel(Eigen::Vector3f(x, y, 1.0f),
+  //                               RGB_i);
+  //                     }
+  //           }
+  // }
+  for (auto y = startY; y < endY; y += 32) {   // Loop unrolled by 4 in y
+    for (auto x = startX; x < endX; x += 32) { // Loop unrolled by 4 in x
 
-                      // We process the points (x, y), (x+1, y), (x+2, y), (x+3, y) in a 4x4 block
-                      for (int dx = 0; dx < 32 && x + dx < endX; ++dx) {
-                                for (int dy = 0; dy < 32 && y + dy < endY; ++dy) {
-                                          auto currentX = x + dx;
-                                          auto currentY = y + dy;
+      // We process the points (x, y), (x+1, y), (x+2, y), (x+3, y) in a 4x4
+      // block
+      for (int dx = 0; dx < 32 && x + dx < endX; ++dx) {
+        for (int dy = 0; dy < 32 && y + dy < endY; ++dy) {
+          auto currentX = x + dx;
+          auto currentY = y + dy;
 
-                                          // Check if the point (currentX, currentY) is inside the triangle
-                                          auto res = barycentric(currentX, currentY, triangle);
-                                          if (!res.has_value()) {
-                                                    continue;
-                                          }
+          // Check if the point (currentX, currentY) is inside the triangle
+          auto res = barycentric(currentX, currentY, triangle);
+          if (!res.has_value()) {
+            continue;
+          }
 
-                                          auto [alpha, beta, gamma] = res.value();
+          auto [alpha, beta, gamma] = res.value();
 
-                                          // For Z-buffer interpolation
-                                          float w_reciprocal = 1.0f / (alpha + beta + gamma);
-                                          float z_interpolated = alpha * A.z() + beta * B.z() + gamma * C.z();
-                                          z_interpolated *= w_reciprocal;
+          // For Z-buffer interpolation
+          float w_reciprocal = 1.0f / (alpha + beta + gamma);
+          float z_interpolated = alpha * A.z() + beta * B.z() + gamma * C.z();
+          z_interpolated *= w_reciprocal;
 
-                                          // Test and write z-buffer (check depth before writing)
-                                          if (writeZBuffer(Eigen::Vector3f(currentX, currentY, 1.0f), z_interpolated)) {
+          // Test and write z-buffer (check depth before writing)
+          if (writeZBuffer(Eigen::Vector3f(currentX, currentY, 1.0f),
+                           z_interpolated)) {
 
-                                                    // For color interpolation
-                                                    auto RGB_i = Tools::interpolateRGB(alpha, beta, gamma, colorA, colorB, colorC);
+            // For color interpolation
+            auto RGB_i = Tools::interpolateRGB(alpha, beta, gamma, colorA,
+                                               colorB, colorC);
 
-                                                    // Write pixel to the frame buffer
-                                                    writePixel(Eigen::Vector3f(currentX, currentY, 1.0f), RGB_i);
-                                          }
-                                }
-                      }
-            }
+            // Write pixel to the frame buffer
+            writePixel(Eigen::Vector3f(currentX, currentY, 1.0f), RGB_i);
+          }
+        }
+      }
+    }
   }
 }
 
