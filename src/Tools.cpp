@@ -31,7 +31,8 @@ Eigen::Vector3f SoftRasterizer::Tools::to_vec3(const Eigen::Vector4f &v4) {
  * @return Eigen::Vector3i A vector containing the RGB values in the range [0,
  * 255].
  */
-Eigen::Vector3i SoftRasterizer::Tools::normalizedToRGB(float red, float green,
+Eigen::Vector3i 
+SoftRasterizer::Tools::normalizedToRGB(float red, float green,
                                                        float blue) {
 
   // Clamp values to ensure they're within the range [0, 1]
@@ -45,6 +46,11 @@ Eigen::Vector3i SoftRasterizer::Tools::normalizedToRGB(float red, float green,
       static_cast<int>(blue * 255.0f);
 
   return rgb;
+}
+
+Eigen::Vector3i 
+SoftRasterizer::Tools::normalizedToRGB(const Eigen::Vector3f& color){
+          return normalizedToRGB(color.x(), color.y(), color.z());
 }
 
 /**
@@ -82,6 +88,33 @@ Eigen::Vector3i SoftRasterizer::Tools::interpolateRGB(
 
   interpolatedColor = interpolatedColor.cwiseMin(255).cwiseMax(0);
   return interpolatedColor;
+}
+
+Eigen::Vector3f 
+SoftRasterizer::Tools::interpolateNormal(float alpha, float beta, float gamma,
+                                                                      const Eigen::Vector3f& normal1,
+                                                                      const Eigen::Vector3f& normal2,
+                                                                      const Eigen::Vector3f& normal3)
+{
+          Eigen::Vector3f normal = alpha * normal1 + beta * normal2 + gamma * normal3;
+          return normal.normalized();
+}
+
+Eigen::Vector2f 
+SoftRasterizer::Tools::interpolateTexCoord(float alpha, float beta,
+                                                                      const Eigen::Vector2f& textCoord1,
+                                                                      const Eigen::Vector2f& textCoord2)
+{
+          return alpha * textCoord1 + beta * textCoord2;
+}
+
+Eigen::Vector2f 
+SoftRasterizer::Tools::interpolateTexCoord(float alpha, float beta, float gamma,
+                                                                      const Eigen::Vector2f& textCoord1,
+                                                                      const Eigen::Vector2f& textCoord2,
+                                                                      const Eigen::Vector2f& textCoord3)
+{
+          return  alpha * textCoord1 + beta * textCoord2 + gamma * textCoord3;
 }
 
 Eigen::Vector3f
