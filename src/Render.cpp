@@ -528,9 +528,8 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   float offset = (m_far + m_near) / 2.0f;
 
   std::initializer_list<light_struct> lights = {
-            {Eigen::Vector3f{0.9, 0.9, 0.9f},Eigen::Vector3f{50, 50, 50}},
-            { Eigen::Vector3f{-0.9, 0.9, 0.0f},Eigen::Vector3f{50, 50, 50} }
-  };
+      {Eigen::Vector3f{0.9, 0.9, 0.9f}, Eigen::Vector3f{50, 50, 50}},
+      {Eigen::Vector3f{-0.9, 0.9, 0.0f}, Eigen::Vector3f{50, 50, 50}}};
 
   fragment_shader_payload payloads[] = {
       {triangle.m_vertex[0], triangle.m_normal[0],
