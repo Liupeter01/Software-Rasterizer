@@ -359,6 +359,8 @@ bool SoftRasterizer::RenderingPipeline::insideTriangle(
   Eigen::Vector3f B = triangle.b();
   Eigen::Vector3f C = triangle.c();
 
+  A.z() = B.z() = C.z() = 1.0f;
+
   // Vectors representing the edges of the triangle
   Eigen::Vector3f AB = B - A;
   Eigen::Vector3f BC = C - B;
