@@ -12,7 +12,7 @@
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_WIN64)
 #include <intrin.h> // Required for __cpuid intrinsic
 #include <xmmintrin.h>
 #define PREFETCH(address)                                                      \
