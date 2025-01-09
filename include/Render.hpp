@@ -9,14 +9,51 @@
 #include <tuple>
 #include <unordered_map>
 
+/*Use for unrolling calculation*/
+#define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
+
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386) ||               \
     defined(_M_IX86)
 #include <xmmintrin.h>
+#include <intrin.h> // Required for __cpuid intrinsic
 #define PREFETCH(address)                                                      \
   _mm_prefetch(reinterpret_cast<const char *>(address), _MM_HINT_T0)
+// Macro to define the CPUID call and store results
+#define GET_CPUID(info, function) __cpuid((info), (function))
+
+// Macro to extract EBX from CPUID result
+#define EBX_FROM_CPUID(info) (info[1])
+
+// Macro to extract cache line size from EBX[15:8] and convert to bytes
+#define CACHE_LINE_SIZE(ebx) ((((ebx) >> 8) & 0xFF) * 8)
+
+// Macro to retrieve cache line size using CPUID function 1
+#define GET_CACHE_LINE_SIZE()                        \
+([]() -> unsigned {                                  \
+    int cpu_info[4] = {0};                           \
+    GET_CPUID(cpu_info, 1);                          \
+    unsigned ebx = EBX_FROM_CPUID(cpu_info);         \
+    return CACHE_LINE_SIZE(ebx);                     \
+}())
+
 #elif defined(__arm__) || defined(__aarch64__)
 #define PREFETCH(address)                                                      \
   __builtin_prefetch(reinterpret_cast<const char *>(address), 0, 1)
+
+// Macro to read CLIDR register (ARMv7 and ARMv8)
+#define READ_CLIDR(clidr) __asm__ __volatile__("mrc p15, 1, %0, c0, c0, 1" : "=r"(clidr))
+
+// Macro to extract the cache line size (in bytes)
+#define CACHE_LINE_SIZE_FROM_CLIDR(clidr) (1 << (((clidr) & 0x7) + 2))
+
+// Macro to retrieve cache line size directly
+#define GET_CACHE_LINE_SIZE()                \
+    ({                                       \
+        unsigned clidr;                      \
+        READ_CLIDR(clidr);                   \
+        CACHE_LINE_SIZE_FROM_CLIDR(clidr);   \
+    })
+
 #else
 #define PREFETCH(address) // Prefetch not supported, fallback to no-op
 #endif
@@ -137,7 +174,7 @@ private:
   linearBaryCentric(const std::size_t x_pos, const std::size_t y_pos,
                     const Eigen::Vector2i min, const Eigen::Vector2i max);
 
-  static std::optional<std::tuple<float, float, float>>
+  static inline std::optional<std::tuple<float, float, float>>
   barycentric(const std::size_t x_pos, const std::size_t y_pos,
               const SoftRasterizer::Triangle &triangle);
 
@@ -145,18 +182,21 @@ private:
   void rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader,
                          SoftRasterizer::Triangle &triangle);
 
-  void writePixel(const Eigen::Vector3f &point, const Eigen::Vector3f &color);
-  void writePixel(const Eigen::Vector3f &point, const Eigen::Vector3i &color);
+  inline void writePixel(const long long x, const long long y, const Eigen::Vector3f &color);
+  inline void writePixel(const long long x, const long long y, const Eigen::Vector3i &color);
 
-  bool writeZBuffer(const Eigen::Vector3f &point, const float depth);
+  inline bool writeZBuffer(const long long x, const long long y, const float depth);
 
   /*Bresenham algorithm*/
   void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,
                 const Eigen::Vector3i &color);
 
 private:
-  constexpr static std::size_t UNROLLING_Y = 16;
-  constexpr static std::size_t UNROLLING_X = 16;
+          /*optimized*/
+          unsigned cache_line_size = 0;
+
+          std::size_t BLOCK_SIZE = 64;
+  std::size_t UNROLLING_FACTOR;
 
   /*display resolution*/
   std::size_t m_width;
