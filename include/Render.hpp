@@ -12,10 +12,9 @@
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
 
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) ||               \
-    defined(_M_IX86)
-#include <xmmintrin.h>
+#if defined(__x86_64__)
 #include <intrin.h> // Required for __cpuid intrinsic
+#include <xmmintrin.h>
 #define PREFETCH(address)                                                      \
   _mm_prefetch(reinterpret_cast<const char *>(address), _MM_HINT_T0)
 // Macro to define the CPUID call and store results
@@ -28,31 +27,31 @@
 #define CACHE_LINE_SIZE(ebx) ((((ebx) >> 8) & 0xFF) * 8)
 
 // Macro to retrieve cache line size using CPUID function 1
-#define GET_CACHE_LINE_SIZE()                        \
-([]() -> unsigned {                                  \
-    int cpu_info[4] = {0};                           \
-    GET_CPUID(cpu_info, 1);                          \
-    unsigned ebx = EBX_FROM_CPUID(cpu_info);         \
-    return CACHE_LINE_SIZE(ebx);                     \
-}())
+#define GET_CACHE_LINE_SIZE()                                                  \
+  ([]() -> unsigned {                                                          \
+    int cpu_info[4] = {0};                                                     \
+    GET_CPUID(cpu_info, 1);                                                    \
+    unsigned ebx = EBX_FROM_CPUID(cpu_info);                                   \
+    return CACHE_LINE_SIZE(ebx);                                               \
+  }())
 
 #elif defined(__arm__) || defined(__aarch64__)
 #define PREFETCH(address)                                                      \
   __builtin_prefetch(reinterpret_cast<const char *>(address), 0, 1)
 
-// Macro to read CLIDR register (ARMv7 and ARMv8)
-#define READ_CLIDR(clidr) __asm__ __volatile__("mrc p15, 1, %0, c0, c0, 1" : "=r"(clidr))
-
-// Macro to extract the cache line size (in bytes)
-#define CACHE_LINE_SIZE_FROM_CLIDR(clidr) (1 << (((clidr) & 0x7) + 2))
-
-// Macro to retrieve cache line size directly
-#define GET_CACHE_LINE_SIZE()                \
-    ({                                       \
-        unsigned clidr;                      \
-        READ_CLIDR(clidr);                   \
-        CACHE_LINE_SIZE_FROM_CLIDR(clidr);   \
-    })
+#define GET_CACHE_LINE_SIZE()                                                  \
+  ([]() -> unsigned {                                                          \
+    FILE *fp =                                                                 \
+        popen("sysctl -a | grep 'cachelinesize' | awk '{print $2}'", "r");     \
+    unsigned size = 0;                                                         \
+    if (fp) {                                                                  \
+      fscanf(fp, "%u", &size);                                                 \
+      pclose(fp);                                                              \
+    } else {                                                                   \
+      std::cerr << "Error: Failed to run sysctl command\n";                    \
+    }                                                                          \
+    return size;                                                               \
+  }())
 
 #else
 #define PREFETCH(address) // Prefetch not supported, fallback to no-op
@@ -182,20 +181,23 @@ private:
   void rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader,
                          SoftRasterizer::Triangle &triangle);
 
-  inline void writePixel(const long long x, const long long y, const Eigen::Vector3f &color);
-  inline void writePixel(const long long x, const long long y, const Eigen::Vector3i &color);
+  inline void writePixel(const long long x, const long long y,
+                         const Eigen::Vector3f &color);
+  inline void writePixel(const long long x, const long long y,
+                         const Eigen::Vector3i &color);
 
-  inline bool writeZBuffer(const long long x, const long long y, const float depth);
+  inline bool writeZBuffer(const long long x, const long long y,
+                           const float depth);
 
   /*Bresenham algorithm*/
   void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,
                 const Eigen::Vector3i &color);
 
 private:
-          /*optimized*/
-          unsigned cache_line_size = 0;
+  /*optimized*/
+  unsigned cache_line_size = 0;
 
-          std::size_t BLOCK_SIZE = 64;
+  std::size_t BLOCK_SIZE = 64;
   std::size_t UNROLLING_FACTOR;
 
   /*display resolution*/
