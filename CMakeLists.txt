@@ -9,12 +9,12 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-if(MSVC)
+  if(MSVC)
     # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Ox")
-else()
+  else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-endif()
+  endif()
 endif()
 
 if(NOT MSVC)
@@ -28,7 +28,7 @@ endif()
 
 project(
   Software-Rasterizer
-  VERSION 0.0.15
+  VERSION 0.0.16
   LANGUAGES CXX)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
@@ -48,7 +48,7 @@ target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} eigen
 # Enable OpenMP
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
-    target_link_libraries(Software-Rasterizer  PUBLIC OpenMP::OpenMP_CXX)
+  target_link_libraries(Software-Rasterizer PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
 target_compile_definitions(
