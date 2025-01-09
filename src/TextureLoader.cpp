@@ -6,7 +6,7 @@ SoftRasterizer::TextureLoader::TextureLoader(const std::string &path)
     throw std::runtime_error("Cannot open file: " + path);
   }
 
- // cv::cvtColor(m_texture, m_texture, cv::COLOR_RGB2BGR);
+  // cv::cvtColor(m_texture, m_texture, cv::COLOR_RGB2BGR);
   m_width = m_texture.cols;
   m_height = m_texture.rows;
 }

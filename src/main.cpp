@@ -33,13 +33,15 @@ int main() {
                  SoftRasterizer::Buffers::Depth);
 
     /*Model Matrix*/
-    render.setModelMatrix("spot", SoftRasterizer::Tools::calculateModelMatrix(
-              /*transform=*/Eigen::Vector3f(0.f, 0.0f, 0.0f),
-              /*rotations=*/
-              SoftRasterizer::Tools::calculateRotationMatrix(  
-                        /*axis=*/Eigen::Vector3f(0.f, 1.f, 0.f),
-                        /*degree=+ for Counterclockwise;- for Clockwise*/ degree),
-              /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f)));
+    render.setModelMatrix(
+        "spot",
+        SoftRasterizer::Tools::calculateModelMatrix(
+            /*transform=*/Eigen::Vector3f(0.f, 0.0f, 0.0f),
+            /*rotations=*/
+            SoftRasterizer::Tools::calculateRotationMatrix(
+                /*axis=*/Eigen::Vector3f(0.f, 1.f, 0.f),
+                /*degree=+ for Counterclockwise;- for Clockwise*/ degree),
+            /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f)));
 
     /*View Matrix*/
     render.setViewMatrix(

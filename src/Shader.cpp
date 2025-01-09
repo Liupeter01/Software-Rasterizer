@@ -58,8 +58,9 @@ Eigen::Vector3f SoftRasterizer::Shader::BlinnPhong(
   Eigen::Vector3f lightDir = light.position - shading_point.position;
 
   // Light distribution based on inverse square law (distance attenuation)
-  float distanceSquared = std::sqrt(
-            std::pow((light.position.x() - shading_point.position.x()), 2) + std::pow((light.position.y() - shading_point.position.y()), 2));
+  float distanceSquared =
+      std::sqrt(std::pow((light.position.x() - shading_point.position.x()), 2) +
+                std::pow((light.position.y() - shading_point.position.y()), 2));
 
   Eigen::Vector3f distribution = light.intensity / distanceSquared;
 
@@ -226,9 +227,8 @@ Eigen::Vector3f SoftRasterizer::Shader::phong_fragment_shader_impl(
 
   Eigen::Vector3f kd = payload.color;
 
-  fragment_shader_payload shader_arguments{
-      payload.position, payload.normal, payload.texCoords,
-     kd };
+  fragment_shader_payload shader_arguments{payload.position, payload.normal,
+                                           payload.texCoords, kd};
 
   /* *ambient*, *diffuse*, and *specular* */
   for (const auto &light : lights) {
