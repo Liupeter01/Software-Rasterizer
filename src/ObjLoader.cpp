@@ -1,6 +1,5 @@
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
-
+#include <externel/tiny_obj_loader.h>
 #include <ObjLoader.hpp>
 #include <Tools.hpp>
 #include <iostream>
