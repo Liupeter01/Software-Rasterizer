@@ -13,7 +13,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Ox")
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
   endif()
 endif()
 
@@ -40,7 +39,7 @@ add_subdirectory(eigen)
 add_subdirectory(spdlog)
 
 add_executable(Software-Rasterizer ${source_file} ${header_file})
-target_include_directories(Software-Rasterizer PUBLIC include externel/
+target_include_directories(Software-Rasterizer PUBLIC include
                                                       ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} eigen
                                                  spdlog)
