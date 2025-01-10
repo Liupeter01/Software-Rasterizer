@@ -12,7 +12,11 @@ int main() {
   int key = 0;
   float degree = 0.0f;
 
-  SoftRasterizer::RenderingPipeline render(1000, 1000);
+  SoftRasterizer::RenderingPipeline render(1024, 1024);
+
+  render.addShader("shader",
+            CONFIG_HOME "examples/models/spot/spot_texture.png",
+            SoftRasterizer::SHADERS_TYPE::NORMAL);
 
   render.addGraphicObj(
       CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
@@ -20,10 +24,6 @@ int main() {
       Eigen::Vector3f(0.3f, 0.3f, 0.3f));
 
   render.startLoadingMesh("spot");
-  render.addShader("shader",
-                   CONFIG_HOME "examples/models/spot/spot_texture.png",
-                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
-
   render.bindShader2Mesh("spot", "shader");
 
   while (key != 27) {
