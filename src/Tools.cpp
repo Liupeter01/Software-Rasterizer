@@ -96,17 +96,70 @@ Eigen::Vector3f SoftRasterizer::Tools::interpolateNormal(
   return normal.normalized();
 }
 
-Eigen::Vector2f
-SoftRasterizer::Tools::interpolateTexCoord(float alpha, float beta,
-                                           const Eigen::Vector2f &textCoord1,
-                                           const Eigen::Vector2f &textCoord2) {
-  return alpha * textCoord1 + beta * textCoord2;
+SoftRasterizer::NormalSIMD 
+SoftRasterizer::Tools::interpolateNormal(
+          const __m256& alpha, const __m256& beta, const __m256& gamma,
+          const Eigen::Vector3f& normal1, const Eigen::Vector3f& normal2, const Eigen::Vector3f& normal3,
+          const __m256&valid)
+{
+          auto zero = _mm256_setzero_ps();
+
+          // Return as a struct containing all three components (x, y, z)
+          NormalSIMD result;
+
+          // Interpolate normals for each component (x, y, z)
+          result.x = _mm256_add_ps(
+                    _mm256_mul_ps(beta, _mm256_set1_ps(normal1.x())),
+                    _mm256_add_ps(
+                              _mm256_mul_ps(beta, _mm256_set1_ps(normal2.x())),
+                              _mm256_mul_ps(beta, _mm256_set1_ps(normal3.x()))
+                    )
+          );
+
+          result.y = _mm256_add_ps(
+                    _mm256_mul_ps(beta, _mm256_set1_ps(normal1.y())),
+                    _mm256_add_ps(
+                              _mm256_mul_ps(beta, _mm256_set1_ps(normal2.y())),
+                              _mm256_mul_ps(beta, _mm256_set1_ps(normal3.y()))
+                    )
+          );
+
+          result.z = _mm256_add_ps(
+                    _mm256_mul_ps(beta, _mm256_set1_ps(normal1.z())),
+                    _mm256_add_ps(
+                              _mm256_mul_ps(beta, _mm256_set1_ps(normal2.z())),
+                              _mm256_mul_ps(beta, _mm256_set1_ps(normal3.z()))
+                    )
+          );
+
+          // Return as a struct containing all three components (x, y, z)
+          return result.normalized();
 }
 
 Eigen::Vector2f SoftRasterizer::Tools::interpolateTexCoord(
     float alpha, float beta, float gamma, const Eigen::Vector2f &textCoord1,
     const Eigen::Vector2f &textCoord2, const Eigen::Vector2f &textCoord3) {
   return alpha * textCoord1 + beta * textCoord2 + gamma * textCoord3;
+}
+
+SoftRasterizer::TexCoordSIMD 
+SoftRasterizer::Tools::interpolateTexCoord(
+          const __m256& alpha, const __m256& beta, const __m256& gamma,
+          const Eigen::Vector2f& textCoord1,
+          const Eigen::Vector2f& textCoord2,
+          const Eigen::Vector2f& textCoord3)
+{
+          TexCoordSIMD result;
+
+          result.u = _mm256_fmadd_ps(alpha, _mm256_set1_ps(textCoord1.x()),
+                    _mm256_fmadd_ps(beta, _mm256_set1_ps(textCoord2.x()),
+                              _mm256_mul_ps(gamma, _mm256_set1_ps(textCoord3.x()))));
+          result.v = _mm256_fmadd_ps(alpha, _mm256_set1_ps(textCoord1.y()), 
+                    _mm256_fmadd_ps(beta, _mm256_set1_ps(textCoord2.y()), 
+                              _mm256_mul_ps(gamma, _mm256_set1_ps(textCoord3.y()))));
+
+          // Return as a struct containing both components (x and y)
+          return result;
 }
 
 Eigen::Vector3f
