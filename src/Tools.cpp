@@ -1,6 +1,41 @@
 #include <Tools.hpp>
 #include <spdlog/spdlog.h>
 
+SoftRasterizer::NormalSIMD::NormalSIMD(const __m256& _x, const __m256& _y, const __m256& _z)
+          :x(_x), y(_y), z(_z)
+{
+}
+
+// Normalizing all the vector components
+SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
+          //  __m256 epsilon = _mm256_set1_ps(1e-6f);  
+          __m256 zero = _mm256_set1_ps(0.0f);
+
+          __m256 length = _mm256_sqrt_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(x, x), _mm256_mul_ps(y, y)), _mm256_mul_ps(z, z)));
+
+          __m256 is_zero_length = _mm256_cmp_ps(length, zero, _CMP_EQ_OQ);
+
+          __m256 safe_length = _mm256_blendv_ps(length, _mm256_set1_ps(1.0f), is_zero_length);
+
+          __m256 nx = _mm256_div_ps(x, safe_length);
+          __m256 ny = _mm256_div_ps(y, safe_length);
+          __m256 nz = _mm256_div_ps(z, safe_length);
+
+          nx = _mm256_blendv_ps(nx, zero, is_zero_length);
+          ny = _mm256_blendv_ps(ny, zero, is_zero_length);
+          nz = _mm256_blendv_ps(nz, zero, is_zero_length);
+
+          return { nx, ny, nz };
+}
+
+SoftRasterizer::ColorSIMD::ColorSIMD(const  __m256& valid) {
+          r = g = b = _mm256_blendv_ps(_mm256_set1_ps(0.f), _mm256_set1_ps(1.0f), valid);
+}
+
+SoftRasterizer::ColorSIMD::ColorSIMD::ColorSIMD() {
+          r = g = b = _mm256_set1_ps(1.0f);
+}
+
 // degree to radian
 float SoftRasterizer::Tools::degreeToRadian(float degree) {
   return degree * (PI / 180.0f);
