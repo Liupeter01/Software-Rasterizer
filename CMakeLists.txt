@@ -35,14 +35,18 @@ find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
 file(GLOB_RECURSE source_file CONFIGURE_DEPENDS src/*.cpp src/*.cc src/*.c)
 file(GLOB_RECURSE header_file CONFIGURE_DEPENDS include/*.hpp include/*.h)
 
-add_subdirectory(eigen)
-add_subdirectory(spdlog)
+add_subdirectory(external/eigen)
+add_subdirectory(external/spdlog)
+add_subdirectory(external/tinyobjloader)
 
 add_executable(Software-Rasterizer ${source_file} ${header_file})
-target_include_directories(Software-Rasterizer PUBLIC include
+target_include_directories(Software-Rasterizer PUBLIC include external/ARM_NEON_2_x86_SSE
                                                       ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} eigen
-                                                 spdlog)
+target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} 
+eigen
+                                                 spdlog
+tinyobjloader
+)
 
 # Enable OpenMP
 find_package(OpenMP)
