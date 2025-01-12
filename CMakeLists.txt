@@ -40,7 +40,7 @@ add_subdirectory(external/spdlog)
 add_subdirectory(external/tinyobjloader)
 
 add_executable(Software-Rasterizer ${source_file} ${header_file})
-target_include_directories(Software-Rasterizer PUBLIC include external/sse2neon
+target_include_directories(Software-Rasterizer PUBLIC include external/simde/simde
                                                       ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} 
 eigen
