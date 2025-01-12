@@ -167,10 +167,20 @@ private:
 
 public:
   // Preparing constants for transformation
-  const simde__m256 zero = simde_mm256_set1_ps(0.0f);
-  const simde__m256 one = simde_mm256_set1_ps(1.0f);
-  const simde__m256 two = simde_mm256_set1_ps(2.0f);
-  const simde__m256 point_five = simde_mm256_set1_ps(0.5f);
+#if defined(__x86_64__) || defined(_WIN64)
+          const __m256 zero =_mm256_set1_ps(0.0f);
+          const __m256 one =_mm256_set1_ps(1.0f);
+          const __m256 two =_mm256_set1_ps(2.0f);
+          const __m256 point_five = _mm256_set1_ps(0.5f);
+
+#elif defined(__arm__) || defined(__aarch64__)
+          const simde__m256 zero = simde_mm256_set1_ps(0.0f);
+          const simde__m256 one = simde_mm256_set1_ps(1.0f);
+          const simde__m256 two = simde_mm256_set1_ps(2.0f);
+          const simde__m256 point_five = simde_mm256_set1_ps(0.5f);
+
+#else
+#endif
 
 private:
   /*

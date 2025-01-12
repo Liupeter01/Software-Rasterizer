@@ -6,34 +6,71 @@
 #include <algorithm>
 
 namespace SoftRasterizer {
+
+#if defined(__x86_64__) || defined(_WIN64)
 struct PointSIMD {
-  simde__m256 x, y, z;
+          __m256 x, y, z;
 };
 
 struct NormalSIMD {
-  simde__m256 x, y, z;
-  NormalSIMD() = default;
-  NormalSIMD(const simde__m256 &_x, const simde__m256 &_y,
-             const simde__m256 &_z);
+         __m256 x, y, z;
+          NormalSIMD() = default;
+          NormalSIMD(const __m256& _x, const __m256& _y,
+                    const __m256& _z);
 
-  // Normalizing all the vector components
-  NormalSIMD normalized();
+          // Normalizing all the vector components
+          NormalSIMD normalized();
 
-  simde__m256 zero = simde_mm256_set1_ps(0.0f);
+         __m256 zero = _mm256_set1_ps(0.0f);
 };
 
 struct TexCoordSIMD {
-  simde__m256 u, v;
+          __m256 u, v;
 };
 
 struct ColorSIMD {
-  ColorSIMD();
-  ColorSIMD(const simde__m256 &_r, const simde__m256 &_g,
-            const simde__m256 &_b);
-  simde__m256 r, g, b;
-  const simde__m256 zero = simde_mm256_set1_ps(0.f);
-  const simde__m256 one = simde_mm256_set1_ps(01.f);
+          ColorSIMD();
+          ColorSIMD(const __m256& _r, const __m256& _g,
+                    const __m256& _b);
+          __m256 r, g, b;
+          const __m256 zero = _mm256_set1_ps(0.f);
+          const __m256 one = _mm256_set1_ps(01.f);
 };
+
+#elif defined(__arm__) || defined(__aarch64__)
+#include <arm/neon.h>
+struct PointSIMD {
+          simde__m256 x, y, z;
+};
+
+struct NormalSIMD {
+          simde__m256 x, y, z;
+          NormalSIMD() = default;
+          NormalSIMD(const simde__m256& _x, const simde__m256& _y,
+                    const simde__m256& _z);
+
+          // Normalizing all the vector components
+          NormalSIMD normalized();
+
+          simde__m256 zero = simde_mm256_set1_ps(0.0f);
+};
+
+struct TexCoordSIMD {
+          simde__m256 u, v;
+};
+
+struct ColorSIMD {
+          ColorSIMD();
+          ColorSIMD(const simde__m256& _r, const simde__m256& _g,
+                    const simde__m256& _b);
+          simde__m256 r, g, b;
+          const simde__m256 zero = simde_mm256_set1_ps(0.f);
+          const simde__m256 one = simde_mm256_set1_ps(01.f);
+};
+
+#else
+#endif
+
 
 struct Tools {
   static constexpr float PI = 3.14159265358979323846f;
@@ -106,25 +143,46 @@ struct Tools {
                                            const Eigen::Vector3f &normal2,
                                            const Eigen::Vector3f &normal3);
 
-  static NormalSIMD interpolateNormal(const simde__m256 &alpha,
-                                      const simde__m256 &beta,
-                                      const simde__m256 &gamma,
-                                      const Eigen::Vector3f &normal1,
-                                      const Eigen::Vector3f &normal2,
-                                      const Eigen::Vector3f &normal3);
+#if defined(__x86_64__) || defined(_WIN64)
+  static NormalSIMD interpolateNormal(const __m256& alpha,
+            const __m256& beta,
+            const __m256& gamma,
+            const Eigen::Vector3f& normal1,
+            const Eigen::Vector3f& normal2,
+            const Eigen::Vector3f& normal3);
+
+  static TexCoordSIMD interpolateTexCoord(const __m256& alpha,
+            const __m256& beta,
+            const __m256& gamma,
+            const Eigen::Vector2f& textCoord1,
+            const Eigen::Vector2f& textCoord2,
+            const Eigen::Vector2f& textCoord3);
+
+#elif defined(__arm__) || defined(__aarch64__)
+  static NormalSIMD interpolateNormal(const simde__m256& alpha,
+            const simde__m256& beta,
+            const simde__m256& gamma,
+            const Eigen::Vector3f& normal1,
+            const Eigen::Vector3f& normal2,
+            const Eigen::Vector3f& normal3);
+
+
+  static TexCoordSIMD interpolateTexCoord(const simde__m256& alpha,
+            const simde__m256& beta,
+            const simde__m256& gamma,
+            const Eigen::Vector2f& textCoord1,
+            const Eigen::Vector2f& textCoord2,
+            const Eigen::Vector2f& textCoord3);
+
+#else
+#endif
+
 
   static Eigen::Vector2f interpolateTexCoord(float alpha, float beta,
                                              float gamma,
                                              const Eigen::Vector2f &textCoord1,
                                              const Eigen::Vector2f &textCoord2,
                                              const Eigen::Vector2f &textCoord3);
-
-  static TexCoordSIMD interpolateTexCoord(const simde__m256 &alpha,
-                                          const simde__m256 &beta,
-                                          const simde__m256 &gamma,
-                                          const Eigen::Vector2f &textCoord1,
-                                          const Eigen::Vector2f &textCoord2,
-                                          const Eigen::Vector2f &textCoord3);
 
   static Eigen::Vector3f calculateNormalWithWeight(const Eigen::Vector3f &A,
                                                    const Eigen::Vector3f &B,

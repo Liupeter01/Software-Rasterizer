@@ -169,9 +169,6 @@ private:
   static bool insideTriangle(const std::size_t x_pos, const std::size_t y_pos,
                              const SoftRasterizer::Triangle &triangle);
 
-  static simde__m256 insideTriangle(const simde__m256 &x, const simde__m256 &y,
-                                    const SoftRasterizer::Triangle &triangle);
-
   static std::optional<std::tuple<float, float, float>>
   linearBaryCentric(const std::size_t x_pos, const std::size_t y_pos,
                     const Eigen::Vector2i min, const Eigen::Vector2i max);
@@ -195,9 +192,19 @@ private:
    * coordinates (alpha, beta, gamma) for the point (x_pos, y_pos). The
    * coordinates are zeroed out for points outside the triangle using a mask.
    */
+#if defined(__x86_64__) || defined(_WIN64)
+  static inline std::tuple<__m256,__m256, __m256>
+            barycentric(const __m256& x_pos, const __m256& y_pos,
+                      const SoftRasterizer::Triangle& triangle);
+
+#elif defined(__arm__) || defined(__aarch64__)
   static inline std::tuple<simde__m256, simde__m256, simde__m256>
-  barycentric(const simde__m256 &x_pos, const simde__m256 &y_pos,
-              const SoftRasterizer::Triangle &triangle);
+            barycentric(const simde__m256& x_pos, const simde__m256& y_pos,
+                      const SoftRasterizer::Triangle& triangle);
+
+#else
+#endif
+
 
   /*Rasterize a triangle*/
   void rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader,
@@ -211,13 +218,29 @@ private:
 
   inline void writePixel(const long long start_pos, const ColorSIMD &color);
 
-  inline void writePixel(const long long start_pos, const simde__m256 &r,
-                         const simde__m256 &g, const simde__m256 &b);
-
   inline bool writeZBuffer(const long long x, const long long y,
                            const float depth);
 
-  inline void writeZBuffer(const long long start_pos, const simde__m256 &depth);
+#if defined(__x86_64__) || defined(_WIN64)
+  inline void writePixel(const long long start_pos, const __m256& r,
+            const __m256& g, const __m256& b);
+
+  inline void writeZBuffer(const long long start_pos, const __m256& depth);
+
+  static __m256 insideTriangle(const __m256& x, const __m256& y,
+            const SoftRasterizer::Triangle& triangle);
+
+#elif defined(__arm__) || defined(__aarch64__)
+  inline void writePixel(const long long start_pos, const simde__m256& r,
+            const simde__m256& g, const simde__m256& b);
+
+  inline void writeZBuffer(const long long start_pos, const simde__m256& depth);
+
+  static simde__m256 insideTriangle(const simde__m256& x, const simde__m256& y,
+            const SoftRasterizer::Triangle& triangle);
+
+#else
+#endif
 
   /*Bresenham algorithm*/
   void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,
@@ -258,14 +281,34 @@ private:
   // controls the stretching/compression of the  & shifts the range
   float scale;
   float offset;
-  simde__m256 scale_simd;
-  simde__m256 offset_simd;
 
   /*Transform normalized coordinates into screen space coordinates*/
   Eigen::Matrix4f m_ndcToScreenMatrix;
 
+#if defined(__x86_64__) || defined(_WIN64)
+  __m256 scale_simd;
+  __m256 offset_simd;
+
+  const __m256 zero = _mm256_set1_ps(0.0f);
+  const __m256 one = _mm256_set1_ps(1.0f);
+
+  /*decribe inf distance in z buffer*/
+  const __m256 inf =
+            _mm256_set1_ps(std::numeric_limits<float>::infinity());
+
+#elif defined(__arm__) || defined(__aarch64__)
+  simde__m256 scale_simd;
+  simde__m256 offset_simd;
+
   const simde__m256 zero = simde_mm256_set1_ps(0.0f);
   const simde__m256 one = simde_mm256_set1_ps(1.0f);
+
+  /*decribe inf distance in z buffer*/
+  const simde__m256 inf =
+            simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
+
+#else
+#endif
 
   /*RGB(3 channels)*/
   constexpr static std::size_t numbers = 3;
@@ -273,10 +316,6 @@ private:
 
   /*to store final frame*/
   cv::Mat m_frameBuffer;
-
-  /*decribe inf distance in z buffer*/
-  const simde__m256 inf =
-      simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
 
   /*z buffer*/
   std::vector<float, Eigen::aligned_allocator<float>> m_zBuffer;
