@@ -1,8 +1,12 @@
-[submodule "eigen"]
-	path = eigen
-  url = https://github.com/PX4/eigen.git
-
-[submodule "spdlog"]
-	path = spdlog
+[submodule "external/eigen"]
+	path = external/eigen
+	url = https://github.com/PX4/eigen.git
+[submodule "external/spdlog"]
+	path = external/spdlog
 	url = https://github.com/gabime/spdlog.git
-
+[submodule "external/tinyobjloader"]
+	path = external/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git
+[submodule "external/ARM_NEON_2_x86_SSE"]
+	path = external/ARM_NEON_2_x86_SSE
+	url = https://github.com/intel/ARM_NEON_2_x86_SSE.git
