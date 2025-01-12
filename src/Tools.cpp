@@ -12,7 +12,7 @@ SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
           simde__m256 length = simde_mm256_sqrt_ps(simde_mm256_fmadd_ps(x, x, simde_mm256_fmadd_ps(y, y, simde_mm256_mul_ps(z, z))));
          
           //only filter lenth >0(GT) , then set mask to 1 
-          simde__m256 mask = simde_mm256_cmp_ps(length, zero, _CMP_GT_OQ);
+          simde__m256 mask = simde_mm256_cmp_ps(length, zero, SIMDE_CMP_GT_OQ);
 
           return  NormalSIMD(
                     simde_mm256_blendv_ps(zero, simde_mm256_div_ps(x, length), mask),

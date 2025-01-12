@@ -35,7 +35,6 @@
   }())
 
 #elif defined(__arm__) || defined(__aarch64__)
-#include <sse2neon.h>
 #define PREFETCH(address)                                                      \
   __builtin_prefetch(reinterpret_cast<const char *>(address), 0, 1)
 

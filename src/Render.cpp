@@ -477,16 +477,16 @@ SoftRasterizer::RenderingPipeline::insideTriangle(const simde__m256& x, const si
 
           // Check if all cross products have the same sign (positive or negative)
           simde__m256 zero = simde_mm256_set1_ps(0.0f);
-          simde__m256 signABP = simde_mm256_cmp_ps(crossABP, zero, _CMP_GT_OQ); // > 0
-          simde__m256 signBCP = simde_mm256_cmp_ps(crossBCP, zero, _CMP_GT_OQ); // > 0
-          simde__m256 signCAP = simde_mm256_cmp_ps(crossCAP, zero, _CMP_GT_OQ); // > 0
+          simde__m256 signABP = simde_mm256_cmp_ps(crossABP, zero, SIMDE_CMP_GT_OQ); // > 0
+          simde__m256 signBCP = simde_mm256_cmp_ps(crossBCP, zero, SIMDE_CMP_GT_OQ); // > 0
+          simde__m256 signCAP = simde_mm256_cmp_ps(crossCAP, zero, SIMDE_CMP_GT_OQ); // > 0
 
           // Combine the signs: all positive or all negative
           simde__m256 allPositive = simde_mm256_and_ps(simde_mm256_and_ps(signABP, signBCP), signCAP);
           simde__m256 allNegative = simde_mm256_and_ps(
-                    simde_mm256_and_ps(simde_mm256_cmp_ps(crossABP, zero, _CMP_LT_OQ),
-                              simde_mm256_cmp_ps(crossBCP, zero, _CMP_LT_OQ)),
-                    simde_mm256_cmp_ps(crossCAP, zero, _CMP_LT_OQ)
+                    simde_mm256_and_ps(simde_mm256_cmp_ps(crossABP, zero, SIMDE_CMP_LT_OQ),
+                              simde_mm256_cmp_ps(crossBCP, zero, SIMDE_CMP_LT_OQ)),
+                    simde_mm256_cmp_ps(crossCAP, zero, SIMDE_CMP_LT_OQ)
           );
 
           return simde_mm256_or_ps(allPositive, allNegative);
@@ -765,9 +765,9 @@ SoftRasterizer::RenderingPipeline::rasterizeTriangle(std::shared_ptr<SoftRasteri
                               auto [alpha, beta, gamma] = barycentric(point.x, point.y, triangle);
 
                               //if sum is zero, then it means the point is not inside the triangle!!!
-                              simde__m256 alpha_valid = simde_mm256_and_ps(simde_mm256_cmp_ps(alpha, zero, _CMP_GT_OQ), simde_mm256_cmp_ps(alpha, one, _CMP_LT_OQ));
-                              simde__m256 beta_valid = simde_mm256_and_ps(simde_mm256_cmp_ps(beta, zero, _CMP_GT_OQ), simde_mm256_cmp_ps(beta, one, _CMP_LT_OQ));
-                              simde__m256 gamma_valid = simde_mm256_and_ps(simde_mm256_cmp_ps(gamma, zero, _CMP_GT_OQ), simde_mm256_cmp_ps(gamma, one, _CMP_LT_OQ));
+                              simde__m256 alpha_valid = simde_mm256_and_ps(simde_mm256_cmp_ps(alpha, zero, SIMDE_CMP_GT_OQ), simde_mm256_cmp_ps(alpha, one, _CMP_LT_OQ));
+                              simde__m256 beta_valid = simde_mm256_and_ps(simde_mm256_cmp_ps(beta, zero, SIMDE_CMP_GT_OQ), simde_mm256_cmp_ps(beta, one, _CMP_LT_OQ));
+                              simde__m256 gamma_valid = simde_mm256_and_ps(simde_mm256_cmp_ps(gamma, zero, SIMDE_CMP_GT_OQ), simde_mm256_cmp_ps(gamma, one, _CMP_LT_OQ));
                               simde__m256 inside_mask = simde_mm256_and_ps(simde_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
 
                               /*when all points are not inside triangle! continue to next loop*/
@@ -779,7 +779,7 @@ SoftRasterizer::RenderingPipeline::rasterizeTriangle(std::shared_ptr<SoftRasteri
                               point.z =  simde_mm256_fmadd_ps(alpha, z0, simde_mm256_fmadd_ps(beta, z1, simde_mm256_mul_ps(gamma, z2)));
 
                              /*Comparing z-buffer value to determine update colour or not!*/
-                              simde__m256 mask = simde_mm256_and_ps(simde_mm256_cmp_ps(point.z, Original_Z, _CMP_LT_OQ), inside_mask);
+                              simde__m256 mask = simde_mm256_and_ps(simde_mm256_cmp_ps(point.z, Original_Z, SIMDE_CMP_LT_OQ), inside_mask);
 
                               if (simde_mm256_testz_ps(mask, mask)) {
                                         continue;
