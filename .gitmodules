@@ -7,6 +7,6 @@
 [submodule "external/tinyobjloader"]
 	path = external/tinyobjloader
 	url = https://github.com/tinyobjloader/tinyobjloader.git
-[submodule "external/ARM_NEON_2_x86_SSE"]
-	path = external/ARM_NEON_2_x86_SSE
-	url = https://github.com/intel/ARM_NEON_2_x86_SSE.git
+[submodule "external/sse2neon"]
+	path = external/sse2neon
+	url = https://github.com/DLTcollab/sse2neon.git
