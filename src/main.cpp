@@ -3,8 +3,6 @@
 #include <Render.hpp>
 #include <Tools.hpp>
 #include <Triangle.hpp>
-#include <atomic>
-#include <iostream>
 #include <opencv2/opencv.hpp>
 #include <spdlog/spdlog.h>
 
