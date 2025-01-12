@@ -1004,6 +1004,7 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 #endif
     }
 
+    //SSE Part!
     //for (; x + SSE - 1 < endX; x += SSE) {
     //          auto start_pos = y * m_width + x;
 
@@ -1020,8 +1021,6 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
     //                    _mm_loadu_ps(m_channels[1].ptr<float>(0) + start_pos);
     //          __m128 Original_Red =
     //                    _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
-
-
     //}
 
     for (; x < endX; ++x) {
