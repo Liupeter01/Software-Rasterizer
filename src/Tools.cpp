@@ -126,27 +126,28 @@ SoftRasterizer::NormalSIMD SoftRasterizer::Tools::interpolateNormal(
     const simde__m256 &alpha, const simde__m256 &beta, const simde__m256 &gamma,
     const Eigen::Vector3f &normal1, const Eigen::Vector3f &normal2,
     const Eigen::Vector3f &normal3) {
-  return NormalSIMD(simde_mm256_fmadd_ps(
-                        alpha, simde_mm256_set1_ps(normal1.x()),
-                        simde_mm256_fmadd_ps(
-                            beta, simde_mm256_set1_ps(normal2.x()),
-                            simde_mm256_mul_ps(
-                                gamma, simde_mm256_set1_ps(normal3.x())))),
-                    simde_mm256_fmadd_ps(
-                        alpha, simde_mm256_set1_ps(normal1.y()),
-                        simde_mm256_fmadd_ps(
-                            beta, simde_mm256_set1_ps(normal2.y()),
-                            simde_mm256_mul_ps(
-                                gamma, simde_mm256_set1_ps(normal3.y())))),
-                    simde_mm256_fmadd_ps(
-                        alpha, simde_mm256_set1_ps(normal1.z()),
-                        simde_mm256_fmadd_ps(
-                            beta, simde_mm256_set1_ps(normal2.z()),
-                            simde_mm256_mul_ps(
-                                gamma, simde_mm256_set1_ps(normal3.z()))))
 
-                        )
-      .normalized();
+          NormalSIMD normal;
+          auto a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.x()));
+          auto b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.x()));
+          auto c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.x()));
+
+          a = simde_mm256_add_ps(a, b);
+          normal.x = simde_mm256_add_ps(a, c);
+
+          a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.y()));
+          b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.y()));
+          c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.y()));
+          a = simde_mm256_add_ps(a, b);
+          normal.y = simde_mm256_add_ps(a, c);
+
+          a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.z()));
+          b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.z()));
+          c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.z()));
+          a = simde_mm256_add_ps(a, b);
+          normal.z = simde_mm256_add_ps(a, c);
+
+  return  normal.normalized();
 }
 
 Eigen::Vector2f SoftRasterizer::Tools::interpolateTexCoord(
