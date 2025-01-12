@@ -6,7 +6,6 @@
 #include <algorithm>
 
 namespace SoftRasterizer {
-
 #if defined(__x86_64__) || defined(_WIN64)
 struct PointSIMD {
   __m256 x, y, z;
@@ -277,6 +276,30 @@ struct Tools {
    */
   static Eigen::Matrix4f calculateProjectionMatrix(float fovy, float aspect,
                                                    float zNear, float zFar);
+
+  template<size_t Begin, size_t End, typename F>
+  static void static_for(F f) {
+            if constexpr (Begin < End) {
+                      std::integral_constant<size_t, Begin> compile_rt_int;
+                      f(compile_rt_int);
+                      static_for<Begin + 1, End, F>(f);
+            }
+  }
+
+  template <typename SimdType, typename ElementType = float>
+  constexpr static std::size_t num_elements_in_simd() {
+            if constexpr (std::is_same_v<SimdType, __m128>) {
+                      return sizeof(__m128) / sizeof(ElementType);
+            }
+            else if constexpr (std::is_same_v<SimdType, __m256>) {
+                      return sizeof(__m256) / sizeof(ElementType);
+            }
+            else {
+                      static_assert(std::is_same_v<SimdType, __m128> || std::is_same_v<SimdType, __m256>,
+                                "Unsupported SIMD type. Only __m128 and __m256 are supported.");
+                      return 0;  // Unreachable due to static_assert, but required for compilation.
+            }
+  }
 };
 } // namespace SoftRasterizer
 
