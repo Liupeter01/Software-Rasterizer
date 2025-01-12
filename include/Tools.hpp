@@ -3,7 +3,16 @@
 #define _TOOLS_HPP_
 #include <algorithm>
 #include <Eigen/Eigen>
-#include <NEON_2_SSE.h>
+
+#if defined(__x86_64__) || defined(_WIN64)
+#include <intrin.h> // Required for __cpuid intrinsic
+#include<immintrin.h>
+#include <xmmintrin.h>
+
+#elif defined(__arm__) || defined(__aarch64__)
+#include <sse2neon.h>
+#else
+#endif
 
 namespace SoftRasterizer {
           struct PointSIMD { 

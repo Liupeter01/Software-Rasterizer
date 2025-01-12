@@ -1,7 +1,16 @@
 #include <Shader.hpp>
 #include <Tools.hpp>
 #include <spdlog/spdlog.h>
-#include <NEON_2_SSE.h>
+
+#if defined(__x86_64__) || defined(_WIN64)
+#include <intrin.h> // Required for __cpuid intrinsic
+#include<immintrin.h>
+#include <xmmintrin.h>
+
+#elif defined(__arm__) || defined(__aarch64__)
+#include <sse2neon.h>
+#else
+#endif
 
 /*static variables*/
 Eigen::Vector3f SoftRasterizer::Shader::ka =

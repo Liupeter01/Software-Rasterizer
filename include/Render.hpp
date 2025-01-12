@@ -8,14 +8,21 @@
 #include <optional>
 #include <tuple>
 #include <unordered_map>
-#include <NEON_2_SSE.h>
+
+#if defined(__x86_64__) || defined(_WIN64)
+#include <intrin.h> // Required for __cpuid intrinsic
+#include<immintrin.h>
+#include <xmmintrin.h>
+
+#elif defined(__arm__) || defined(__aarch64__)
+#include <sse2neon.h>
+#else
+#endif
 
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
 
 #if defined(__x86_64__) || defined(_WIN64)
-#include <intrin.h> // Required for __cpuid intrinsic
-#include <xmmintrin.h>
 #define PREFETCH(address)                                                      \
   _mm_prefetch(reinterpret_cast<const char *>(address), _MM_HINT_T0)
 // Macro to define the CPUID call and store results
@@ -37,6 +44,7 @@
   }())
 
 #elif defined(__arm__) || defined(__aarch64__)
+#include <sse2neon.h>
 #define PREFETCH(address)                                                      \
   __builtin_prefetch(reinterpret_cast<const char *>(address), 0, 1)
 
