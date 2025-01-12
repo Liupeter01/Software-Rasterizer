@@ -160,20 +160,22 @@ SoftRasterizer::TexCoordSIMD SoftRasterizer::Tools::interpolateTexCoord(
     const simde__m256 &alpha, const simde__m256 &beta, const simde__m256 &gamma,
     const Eigen::Vector2f &textCoord1, const Eigen::Vector2f &textCoord2,
     const Eigen::Vector2f &textCoord3) {
+
+          // Return as a struct containing both components (x and y)
   TexCoordSIMD result;
+  auto a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(textCoord1.x()));
+  auto b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(textCoord2.x()));
+  auto c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.x()));
+  a = simde_mm256_add_ps(a, b);
+  result.u = simde_mm256_add_ps(a, c);
 
-  result.u = simde_mm256_fmadd_ps(
-      alpha, simde_mm256_set1_ps(textCoord1.x()),
-      simde_mm256_fmadd_ps(
-          beta, simde_mm256_set1_ps(textCoord2.x()),
-          simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.x()))));
-  result.v = simde_mm256_fmadd_ps(
-      alpha, simde_mm256_set1_ps(textCoord1.y()),
-      simde_mm256_fmadd_ps(
-          beta, simde_mm256_set1_ps(textCoord2.y()),
-          simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.y()))));
+  a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(textCoord1.y()));
+   b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(textCoord2.y()));
+  c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.y()));
+  a = simde_mm256_add_ps(a, b);
+  result.v = simde_mm256_add_ps(a, c);
 
-  // Return as a struct containing both components (x and y)
+
   return result;
 }
 
