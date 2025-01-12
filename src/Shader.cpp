@@ -2,16 +2,6 @@
 #include <Tools.hpp>
 #include <spdlog/spdlog.h>
 
-#if defined(__x86_64__) || defined(_WIN64)
-#include <intrin.h> // Required for __cpuid intrinsic
-#include<immintrin.h>
-#include <xmmintrin.h>
-
-#elif defined(__arm__) || defined(__aarch64__)
-#include <sse2neon.h>
-#else
-#endif
-
 /*static variables*/
 Eigen::Vector3f SoftRasterizer::Shader::ka =
     Eigen::Vector3f(0.005f, 0.005f, 0.005f);
@@ -136,14 +126,14 @@ SoftRasterizer::Shader::simd_normal_fragment_shader_impl(const Eigen::Vector3f& 
           const TexCoordSIMD& texcoord,
           ColorSIMD& colour)
 {
-          __m256 color = _mm256_set1_ps(255.f);
-          colour.r = _mm256_mul_ps(_mm256_add_ps(normal.x, one), point_five);
-          colour.g = _mm256_mul_ps(_mm256_add_ps(normal.y, one), point_five);
-          colour.b = _mm256_mul_ps(_mm256_add_ps(normal.z, one), point_five);
+          simde__m256 color = simde_mm256_set1_ps(255.f);
+          colour.r = simde_mm256_mul_ps(simde_mm256_add_ps(normal.x, one), point_five);
+          colour.g = simde_mm256_mul_ps(simde_mm256_add_ps(normal.y, one), point_five);
+          colour.b = simde_mm256_mul_ps(simde_mm256_add_ps(normal.z, one), point_five);
 
-          colour.r = _mm256_mul_ps( _mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
-          colour.g = _mm256_mul_ps( _mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
-          colour.b = _mm256_mul_ps( _mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
+          colour.r = simde_mm256_mul_ps( simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
+          colour.g = simde_mm256_mul_ps( simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
+          colour.b = simde_mm256_mul_ps( simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
 }
 
 void

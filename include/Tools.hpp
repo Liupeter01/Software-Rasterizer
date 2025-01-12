@@ -3,43 +3,34 @@
 #define _TOOLS_HPP_
 #include <algorithm>
 #include <Eigen/Eigen>
-
-#if defined(__x86_64__) || defined(_WIN64)
-#include <intrin.h> // Required for __cpuid intrinsic
-#include<immintrin.h>
-#include <xmmintrin.h>
-
-#elif defined(__arm__) || defined(__aarch64__)
-#include <sse2neon.h>
-#else
-#endif
+#include <Simd.hpp>
 
 namespace SoftRasterizer {
           struct PointSIMD { 
-                    __m256 x, y, z;
+                    simde__m256 x, y, z;
           };
 
           struct NormalSIMD {
-                    __m256 x, y, z;
+                    simde__m256 x, y, z;
                     NormalSIMD() = default;
-                    NormalSIMD(const __m256& _x, const __m256& _y, const __m256& _z);
+                    NormalSIMD(const simde__m256& _x, const simde__m256& _y, const simde__m256& _z);
 
                     // Normalizing all the vector components
                     NormalSIMD normalized();
 
-                    __m256 zero = _mm256_set1_ps(0.0f);
+                    simde__m256 zero = simde_mm256_set1_ps(0.0f);
           };
 
           struct TexCoordSIMD { 
-                    __m256 u, v; 
+                    simde__m256 u, v; 
           };
 
           struct ColorSIMD {
                     ColorSIMD();
-                    ColorSIMD(const  __m256& _r, const  __m256& _g, const  __m256& _b);
-                    __m256 r, g, b;
-                    const __m256 zero = _mm256_set1_ps(0.f);
-                    const __m256 one = _mm256_set1_ps(01.f);
+                    ColorSIMD(const  simde__m256& _r, const  simde__m256& _g, const  simde__m256& _b);
+                    simde__m256 r, g, b;
+                    const simde__m256 zero = simde_mm256_set1_ps(0.f);
+                    const simde__m256 one = simde_mm256_set1_ps(01.f);
 
           };
 
@@ -115,7 +106,7 @@ struct Tools {
                                            const Eigen::Vector3f &normal3);
 
   static NormalSIMD interpolateNormal(
-            const __m256& alpha, const __m256& beta, const __m256& gamma,
+            const simde__m256& alpha, const simde__m256& beta, const simde__m256& gamma,
             const Eigen::Vector3f& normal1, 
             const Eigen::Vector3f& normal2, 
             const Eigen::Vector3f& normal3);
@@ -126,7 +117,7 @@ struct Tools {
                                              const Eigen::Vector2f &textCoord2,
                                              const Eigen::Vector2f &textCoord3);
 
-  static TexCoordSIMD interpolateTexCoord(const __m256& alpha, const __m256& beta, const __m256& gamma, 
+  static TexCoordSIMD interpolateTexCoord(const simde__m256& alpha, const simde__m256& beta, const simde__m256& gamma, 
             const Eigen::Vector2f& textCoord1,
             const Eigen::Vector2f& textCoord2,
             const Eigen::Vector2f& textCoord3
