@@ -1,9 +1,9 @@
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
 #include <ObjLoader.hpp>
 #include <Tools.hpp>
 #include <iostream>
 #include <spdlog/spdlog.h>
+#include <tiny_obj_loader.h>
 #include <unordered_map>
 
 SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,

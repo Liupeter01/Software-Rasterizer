@@ -15,8 +15,8 @@ int main() {
   SoftRasterizer::RenderingPipeline render(1024, 1024);
 
   render.addShader("shader",
-            CONFIG_HOME "examples/models/spot/spot_texture.png",
-            SoftRasterizer::SHADERS_TYPE::NORMAL);
+                   CONFIG_HOME "examples/models/spot/spot_texture.png",
+                   SoftRasterizer::SHADERS_TYPE::NORMAL);
 
   render.addGraphicObj(
       CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",

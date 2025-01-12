@@ -3,11 +3,11 @@
 #define _RENDER_HPP_
 #include <ObjLoader.hpp>
 #include <Shader.hpp>
+#include <Simd.hpp>
 #include <Triangle.hpp>
 #include <algorithm>
 #include <optional>
 #include <tuple>
-#include <Simd.hpp>
 #include <unordered_map>
 
 /*Use for unrolling calculation*/
@@ -133,7 +133,6 @@ public:
                        const std::string &shaderName);
 
 private:
-
   /*------------------------------framebuffer-----------------------------------------*/
   /*|<----------------------------m_width------------------------------->|_________
      |*************************************************|      /\
@@ -170,8 +169,8 @@ private:
   static bool insideTriangle(const std::size_t x_pos, const std::size_t y_pos,
                              const SoftRasterizer::Triangle &triangle);
 
-  static simde__m256 insideTriangle(const simde__m256& x, const simde__m256& y, 
-            const SoftRasterizer::Triangle& triangle);
+  static simde__m256 insideTriangle(const simde__m256 &x, const simde__m256 &y,
+                                    const SoftRasterizer::Triangle &triangle);
 
   static std::optional<std::tuple<float, float, float>>
   linearBaryCentric(const std::size_t x_pos, const std::size_t y_pos,
@@ -182,21 +181,23 @@ private:
               const SoftRasterizer::Triangle &triangle);
 
   /**
-   * @brief Calculates the barycentric coordinates (alpha, beta, gamma) for a given point
-   *        (x_pos, y_pos) with respect to a triangle. Also checks if the point is inside
-   *        the triangle using the `insideTriangle` function and applies the result as a mask
-   *        to ensure the coordinates are only valid for points inside the triangle.
+   * @brief Calculates the barycentric coordinates (alpha, beta, gamma) for a
+   * given point (x_pos, y_pos) with respect to a triangle. Also checks if the
+   * point is inside the triangle using the `insideTriangle` function and
+   * applies the result as a mask to ensure the coordinates are only valid for
+   * points inside the triangle.
    *
    * @param x_pos SIMD register containing x positions of points.
    * @param y_pos SIMD register containing y positions of points.
-   * @param triangle The triangle whose barycentric coordinates are to be calculated.
-   * @return A tuple of three simde__m256 values representing the barycentric coordinates
-   *         (alpha, beta, gamma) for the point (x_pos, y_pos).
-   *         The coordinates are zeroed out for points outside the triangle using a mask.
+   * @param triangle The triangle whose barycentric coordinates are to be
+   * calculated.
+   * @return A tuple of three simde__m256 values representing the barycentric
+   * coordinates (alpha, beta, gamma) for the point (x_pos, y_pos). The
+   * coordinates are zeroed out for points outside the triangle using a mask.
    */
   static inline std::tuple<simde__m256, simde__m256, simde__m256>
-  barycentric(const simde__m256& x_pos, const simde__m256& y_pos,
-                      const SoftRasterizer::Triangle& triangle);
+  barycentric(const simde__m256 &x_pos, const simde__m256 &y_pos,
+              const SoftRasterizer::Triangle &triangle);
 
   /*Rasterize a triangle*/
   void rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader,
@@ -208,17 +209,15 @@ private:
   inline void writePixel(const long long x, const long long y,
                          const Eigen::Vector3i &color);
 
-  inline void writePixel(const long long start_pos,
-            const ColorSIMD& color);
+  inline void writePixel(const long long start_pos, const ColorSIMD &color);
 
-  inline void writePixel(const long long start_pos,
-            const simde__m256& r, const simde__m256& g, const simde__m256& b);
+  inline void writePixel(const long long start_pos, const simde__m256 &r,
+                         const simde__m256 &g, const simde__m256 &b);
 
   inline bool writeZBuffer(const long long x, const long long y,
                            const float depth);
 
-  inline void writeZBuffer(const long long start_pos,
-            const simde__m256& depth);
+  inline void writeZBuffer(const long long start_pos, const simde__m256 &depth);
 
   /*Bresenham algorithm*/
   void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,
@@ -270,13 +269,14 @@ private:
 
   /*RGB(3 channels)*/
   constexpr static std::size_t numbers = 3;
-  std::vector< cv::Mat> m_channels; 
+  std::vector<cv::Mat> m_channels;
 
   /*to store final frame*/
   cv::Mat m_frameBuffer;
 
   /*decribe inf distance in z buffer*/
-  const simde__m256 inf = simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
+  const simde__m256 inf =
+      simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
 
   /*z buffer*/
   std::vector<float, Eigen::aligned_allocator<float>> m_zBuffer;

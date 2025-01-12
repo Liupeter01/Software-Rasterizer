@@ -1,37 +1,31 @@
 #include <Tools.hpp>
 #include <spdlog/spdlog.h>
 
-SoftRasterizer::NormalSIMD::NormalSIMD(
-          const simde__m256& _x, const simde__m256& _y, const simde__m256& _z)
-          :x(_x), y(_y), z(_z)
-{
-}
+SoftRasterizer::NormalSIMD::NormalSIMD(const simde__m256 &_x,
+                                       const simde__m256 &_y,
+                                       const simde__m256 &_z)
+    : x(_x), y(_y), z(_z) {}
 
 // Normalizing all the vector components
 SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
-          simde__m256 length = simde_mm256_sqrt_ps(simde_mm256_fmadd_ps(x, x, simde_mm256_fmadd_ps(y, y, simde_mm256_mul_ps(z, z))));
-         
-          //only filter lenth >0(GT) , then set mask to 1 
-          simde__m256 mask = simde_mm256_cmp_ps(length, zero, SIMDE_CMP_GT_OQ);
+  simde__m256 length = simde_mm256_sqrt_ps(simde_mm256_fmadd_ps(
+      x, x, simde_mm256_fmadd_ps(y, y, simde_mm256_mul_ps(z, z))));
 
-          return  NormalSIMD(
-                    simde_mm256_blendv_ps(zero, simde_mm256_div_ps(x, length), mask),
-                    simde_mm256_blendv_ps(zero, simde_mm256_div_ps(y, length),  mask),
-                    simde_mm256_blendv_ps(zero, simde_mm256_div_ps(z, length), mask)
-          );
+  // only filter lenth >0(GT) , then set mask to 1
+  simde__m256 mask = simde_mm256_cmp_ps(length, zero, SIMDE_CMP_GT_OQ);
+
+  return NormalSIMD(
+      simde_mm256_blendv_ps(zero, simde_mm256_div_ps(x, length), mask),
+      simde_mm256_blendv_ps(zero, simde_mm256_div_ps(y, length), mask),
+      simde_mm256_blendv_ps(zero, simde_mm256_div_ps(z, length), mask));
 }
 
-SoftRasterizer::ColorSIMD::ColorSIMD(const  simde__m256& _r, const  simde__m256& _g, const  simde__m256& _b)
-          :r(_r), g(_g), b(_b)
-{
-}
+SoftRasterizer::ColorSIMD::ColorSIMD(const simde__m256 &_r,
+                                     const simde__m256 &_g,
+                                     const simde__m256 &_b)
+    : r(_r), g(_g), b(_b) {}
 
-SoftRasterizer::ColorSIMD::ColorSIMD::ColorSIMD()
-          :r(zero),
-          g(zero),
-          b(zero)
-{
-}
+SoftRasterizer::ColorSIMD::ColorSIMD::ColorSIMD() : r(zero), g(zero), b(zero) {}
 
 // degree to radian
 float SoftRasterizer::Tools::degreeToRadian(float degree) {
@@ -128,35 +122,31 @@ Eigen::Vector3f SoftRasterizer::Tools::interpolateNormal(
   return normal.normalized();
 }
 
-SoftRasterizer::NormalSIMD 
-SoftRasterizer::Tools::interpolateNormal(
-          const simde__m256& alpha, const simde__m256& beta, const simde__m256& gamma,
-          const Eigen::Vector3f& normal1, const Eigen::Vector3f& normal2, const Eigen::Vector3f& normal3)
-{
-          return NormalSIMD(
+SoftRasterizer::NormalSIMD SoftRasterizer::Tools::interpolateNormal(
+    const simde__m256 &alpha, const simde__m256 &beta, const simde__m256 &gamma,
+    const Eigen::Vector3f &normal1, const Eigen::Vector3f &normal2,
+    const Eigen::Vector3f &normal3) {
+  return NormalSIMD(simde_mm256_fmadd_ps(
+                        alpha, simde_mm256_set1_ps(normal1.x()),
+                        simde_mm256_fmadd_ps(
+                            beta, simde_mm256_set1_ps(normal2.x()),
+                            simde_mm256_mul_ps(
+                                gamma, simde_mm256_set1_ps(normal3.x())))),
                     simde_mm256_fmadd_ps(
-                              alpha, simde_mm256_set1_ps(normal1.x()),
-                              simde_mm256_fmadd_ps(
-                                        beta, simde_mm256_set1_ps(normal2.x()),
-                                        simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.x()))
-                              )
-                    ),
+                        alpha, simde_mm256_set1_ps(normal1.y()),
+                        simde_mm256_fmadd_ps(
+                            beta, simde_mm256_set1_ps(normal2.y()),
+                            simde_mm256_mul_ps(
+                                gamma, simde_mm256_set1_ps(normal3.y())))),
                     simde_mm256_fmadd_ps(
-                              alpha, simde_mm256_set1_ps(normal1.y()),
-                              simde_mm256_fmadd_ps(
-                                        beta, simde_mm256_set1_ps(normal2.y()),
-                                        simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.y()))
-                              )
-                    ),
-                    simde_mm256_fmadd_ps(
-                              alpha, simde_mm256_set1_ps(normal1.z()),
-                              simde_mm256_fmadd_ps(
-                                        beta, simde_mm256_set1_ps(normal2.z()),
-                                        simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.z()))
-                              )
-                    )
+                        alpha, simde_mm256_set1_ps(normal1.z()),
+                        simde_mm256_fmadd_ps(
+                            beta, simde_mm256_set1_ps(normal2.z()),
+                            simde_mm256_mul_ps(
+                                gamma, simde_mm256_set1_ps(normal3.z()))))
 
-          ).normalized();
+                        )
+      .normalized();
 }
 
 Eigen::Vector2f SoftRasterizer::Tools::interpolateTexCoord(
@@ -165,24 +155,25 @@ Eigen::Vector2f SoftRasterizer::Tools::interpolateTexCoord(
   return alpha * textCoord1 + beta * textCoord2 + gamma * textCoord3;
 }
 
-SoftRasterizer::TexCoordSIMD 
-SoftRasterizer::Tools::interpolateTexCoord(
-          const simde__m256& alpha, const simde__m256& beta, const simde__m256& gamma,
-          const Eigen::Vector2f& textCoord1,
-          const Eigen::Vector2f& textCoord2,
-          const Eigen::Vector2f& textCoord3)
-{
-          TexCoordSIMD result;
+SoftRasterizer::TexCoordSIMD SoftRasterizer::Tools::interpolateTexCoord(
+    const simde__m256 &alpha, const simde__m256 &beta, const simde__m256 &gamma,
+    const Eigen::Vector2f &textCoord1, const Eigen::Vector2f &textCoord2,
+    const Eigen::Vector2f &textCoord3) {
+  TexCoordSIMD result;
 
-          result.u = simde_mm256_fmadd_ps(alpha, simde_mm256_set1_ps(textCoord1.x()),
-                    simde_mm256_fmadd_ps(beta, simde_mm256_set1_ps(textCoord2.x()),
-                              simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.x()))));
-          result.v = simde_mm256_fmadd_ps(alpha, simde_mm256_set1_ps(textCoord1.y()), 
-                    simde_mm256_fmadd_ps(beta, simde_mm256_set1_ps(textCoord2.y()), 
-                              simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.y()))));
+  result.u = simde_mm256_fmadd_ps(
+      alpha, simde_mm256_set1_ps(textCoord1.x()),
+      simde_mm256_fmadd_ps(
+          beta, simde_mm256_set1_ps(textCoord2.x()),
+          simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.x()))));
+  result.v = simde_mm256_fmadd_ps(
+      alpha, simde_mm256_set1_ps(textCoord1.y()),
+      simde_mm256_fmadd_ps(
+          beta, simde_mm256_set1_ps(textCoord2.y()),
+          simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.y()))));
 
-          // Return as a struct containing both components (x and y)
-          return result;
+  // Return as a struct containing both components (x and y)
+  return result;
 }
 
 Eigen::Vector3f

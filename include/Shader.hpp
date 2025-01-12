@@ -1,14 +1,13 @@
 #pragma once
 #ifndef _SHADER_HPP_
 #define _SHADER_HPP_
-#include <array>
-#include <memory>
-#include <Simd.hpp>
-#include <functional>
 #include <Eigen/Eigen>
-#include <initializer_list>
+#include <Simd.hpp>
 #include <TextureLoader.hpp>
-
+#include <array>
+#include <functional>
+#include <initializer_list>
+#include <memory>
 
 namespace SoftRasterizer {
 
@@ -57,16 +56,13 @@ struct fragment_shader_payload {
 
 struct Shader {
 
-          using simd_shader = std::function<void(
-                    const Eigen::Vector3f&, const std::initializer_list<light_struct>&,
-                    const PointSIMD& ,
-                    NormalSIMD& ,
-                    const TexCoordSIMD& ,
-                    ColorSIMD&)>;
+  using simd_shader = std::function<void(
+      const Eigen::Vector3f &, const std::initializer_list<light_struct> &,
+      const PointSIMD &, NormalSIMD &, const TexCoordSIMD &, ColorSIMD &)>;
 
-          using standard_shader = std::function<Eigen::Vector3f(
-                    const Eigen::Vector3f&, const std::initializer_list<light_struct>&,
-                    const fragment_shader_payload&)>;
+  using standard_shader = std::function<Eigen::Vector3f(
+      const Eigen::Vector3f &, const std::initializer_list<light_struct> &,
+      const fragment_shader_payload &)>;
 
   static Eigen::Vector3f ka;
   static Eigen::Vector3f ks;
@@ -86,122 +82,107 @@ public:
                                         const fragment_shader_payload &payload);
 
   /*Use Fragment Shader*/
-  void applyFragmentShader(const Eigen::Vector3f& camera,
-                      const std::initializer_list<light_struct>& lights,
-                      const PointSIMD& point,
-                     NormalSIMD& normal,
-                      const TexCoordSIMD& texcoord,
-                      ColorSIMD& colour);
+  void applyFragmentShader(const Eigen::Vector3f &camera,
+                           const std::initializer_list<light_struct> &lights,
+                           const PointSIMD &point, NormalSIMD &normal,
+                           const TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   Eigen::Vector3f
   applyFragmentShader(const Eigen::Vector3f &camera,
                       const std::initializer_list<light_struct> &lights,
                       const fragment_shader_payload &payload);
 
-
 private:
   /*register multiple shader models*/
   void registerShaders();
 
-  void simd_normal_fragment_shader_impl(const Eigen::Vector3f& camera,
-            const std::initializer_list<light_struct>& lights,
-            const PointSIMD& point,
-           NormalSIMD& normal,
-            const TexCoordSIMD& texcoord,
-            ColorSIMD& colour);
+  void simd_normal_fragment_shader_impl(
+      const Eigen::Vector3f &camera,
+      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_texture_fragment_shader_impl(
-            const Eigen::Vector3f& camera,
-            const std::initializer_list<light_struct>& lights,
-            const PointSIMD& point,
-           NormalSIMD& normal,
-            const TexCoordSIMD& texcoord,
-            ColorSIMD& colour);
+      const Eigen::Vector3f &camera,
+      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
 
-  void simd_phong_fragment_shader_impl(const Eigen::Vector3f& camera,
-            const std::initializer_list<light_struct>& lights,
-            const PointSIMD& point,
-            NormalSIMD& normal,
-            const TexCoordSIMD& texcoord,
-            ColorSIMD& colour);
+  void simd_phong_fragment_shader_impl(
+      const Eigen::Vector3f &camera,
+      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_displacement_fragment_shader_impl(
-            const Eigen::Vector3f& camera,
-            const std::initializer_list<light_struct>& lights,
-            const PointSIMD& point,
-            NormalSIMD& normal,
-            const TexCoordSIMD& texcoord,
-            ColorSIMD& colour);
+      const Eigen::Vector3f &camera,
+      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
 
-  void simd_bump_fragment_shader_impl(const Eigen::Vector3f& camera,
-            const std::initializer_list<light_struct>& lights,
-            const PointSIMD& point,
-          NormalSIMD& normal,
-            const TexCoordSIMD& texcoord,
-            ColorSIMD& colour);
+  void simd_bump_fragment_shader_impl(
+      const Eigen::Vector3f &camera,
+      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   // Static function to compute the Blinn-Phong reflection model
   static Eigen::Vector3f
-            BlinnPhong(const Eigen::Vector3f& camera,
-                      const fragment_shader_payload& shading_point,
-                      const light_struct& light, const Eigen::Vector3f& ka,
-                      const Eigen::Vector3f& kd, const Eigen::Vector3f& ks,
-                      const float p);
+  BlinnPhong(const Eigen::Vector3f &camera,
+             const fragment_shader_payload &shading_point,
+             const light_struct &light, const Eigen::Vector3f &ka,
+             const Eigen::Vector3f &kd, const Eigen::Vector3f &ks,
+             const float p);
 
   /*Compute Bump Mapping*/
-  Eigen::Vector3f calcBumpMapping(const fragment_shader_payload& payload,
-            const float kh, const float kn);
+  Eigen::Vector3f calcBumpMapping(const fragment_shader_payload &payload,
+                                  const float kh, const float kn);
 
   /*Compute Displacement Mapping*/
   vertex_displacement
-            calcDisplacementMapping(const fragment_shader_payload& payload,
-                      const float kh, const float kn);
+  calcDisplacementMapping(const fragment_shader_payload &payload,
+                          const float kh, const float kn);
 
   /*Visualizing normal directions or checking surface normal directions in some
    * debugging scenarios*/
-  Eigen::Vector3f
-            standard_normal_fragment_shader_impl(const Eigen::Vector3f &camera,
-                              const std::initializer_list<light_struct> &lights,
-                              const fragment_shader_payload &payload);
+  Eigen::Vector3f standard_normal_fragment_shader_impl(
+      const Eigen::Vector3f &camera,
+      const std::initializer_list<light_struct> &lights,
+      const fragment_shader_payload &payload);
 
   Eigen::Vector3f standard_texture_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights,
       const fragment_shader_payload &payload);
 
-  Eigen::Vector3f
-            standard_phong_fragment_shader_impl(const Eigen::Vector3f &camera,
-                             const std::initializer_list<light_struct> &lights,
-                             const fragment_shader_payload &payload);
+  Eigen::Vector3f standard_phong_fragment_shader_impl(
+      const Eigen::Vector3f &camera,
+      const std::initializer_list<light_struct> &lights,
+      const fragment_shader_payload &payload);
 
   Eigen::Vector3f standard_displacement_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights,
       const fragment_shader_payload &payload);
 
-  Eigen::Vector3f
-            standard_bump_fragment_shader_impl(const Eigen::Vector3f &camera,
-                            const std::initializer_list<light_struct> &lights,
-                            const fragment_shader_payload &payload);
+  Eigen::Vector3f standard_bump_fragment_shader_impl(
+      const Eigen::Vector3f &camera,
+      const std::initializer_list<light_struct> &lights,
+      const fragment_shader_payload &payload);
 
-  public:
-            // Preparing constants for transformation
-            const simde__m256 zero = simde_mm256_set1_ps(0.0f);
-            const simde__m256 one = simde_mm256_set1_ps(1.0f);
-            const  simde__m256 two = simde_mm256_set1_ps(2.0f);
-            const  simde__m256 point_five = simde_mm256_set1_ps(0.5f);
+public:
+  // Preparing constants for transformation
+  const simde__m256 zero = simde_mm256_set1_ps(0.0f);
+  const simde__m256 one = simde_mm256_set1_ps(1.0f);
+  const simde__m256 two = simde_mm256_set1_ps(2.0f);
+  const simde__m256 point_five = simde_mm256_set1_ps(0.5f);
 
 private:
-  /*  
-  *   All Shader Type That You Could Choose
-  *       NORMAL shader_type normal_fragment_shader;
-  *       TEXTURE shader_type texture_fragment_shader;
-  *       PHONG shader_type phong_fragment_shader;
-  *       DISPLACEMENT shader_type displacement_fragment_shader;
-  *       BUMP shader_type bump_fragment_shader;
-  */
-  std::array<standard_shader, 5>standard_shaders;
-  std::array< simd_shader, 5>simd_shaders;
+  /*
+   *   All Shader Type That You Could Choose
+   *       NORMAL shader_type normal_fragment_shader;
+   *       TEXTURE shader_type texture_fragment_shader;
+   *       PHONG shader_type phong_fragment_shader;
+   *       DISPLACEMENT shader_type displacement_fragment_shader;
+   *       BUMP shader_type bump_fragment_shader;
+   */
+  std::array<standard_shader, 5> standard_shaders;
+  std::array<simd_shader, 5> simd_shaders;
 
   /*activitied shading method*/
   standard_shader m_standard;
