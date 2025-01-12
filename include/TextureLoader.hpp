@@ -70,10 +70,8 @@ public:
 
 #pragma omp parallel for
               for (int i = 0; i < num_elements; ++i) {
-                        cv::Vec3b color = m_texture.at<cv::Vec3b>(
-                                  std::max(std::size_t(0), std::min(y[i], m_height - 1)),
-                                  std::max(std::size_t(0), std::min(x[i], m_width - 1))
-                        );
+                        //we have already handle the space of y[i] and x[i] in another function
+                        cv::Vec3b color = m_texture.at<cv::Vec3b>(y[i], x[i]);
                         R_Block[i] = color[0]; // Red;
                         G_Block[i] = color[1]; // Green
                         B_Block[i] = color[2]; // Blue
