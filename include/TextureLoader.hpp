@@ -5,6 +5,7 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>  // Required for std::max and std::min
+#include <Tools.hpp>
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 
@@ -44,12 +45,13 @@ public:
                                   y[i.value] = _mm_extract_epi32(v_coord, i.value);
                                   });
               }
-              else if constexpr (std::is_same_v<  _simd, __m256>) {
 #if defined(__x86_64__) || defined(_WIN64)
+              else if constexpr (std::is_same_v<  _simd, __m256>) {
                         __m256i u_coord = _mm256_cvtps_epi32(u);
                         __m256i v_coord = _mm256_cvtps_epi32(v);
 
 #elif defined(__arm__) || defined(__aarch64__)
+              else if constexpr (std::is_same_v<  _simd, simde__m256>) {
                         simde__m256i u_coord = simde_mm256_cvtps_epi32(u);
                         simde__m256i v_coord = simde_mm256_cvtps_epi32(v);
 #else
@@ -65,7 +67,7 @@ public:
                                   y[i.value] = simde_mm256_extract_epi32(v_coord, i.value);
 #else
 #endif
-                                  });
+                        });
               }
 
 #pragma omp parallel for
