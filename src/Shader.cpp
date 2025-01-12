@@ -136,10 +136,15 @@ void SoftRasterizer::Shader::applyFragmentShader(
           texcoord.u = _mm256_mul_ps(texcoord.u, width_256);
           texcoord.v = _mm256_mul_ps(texcoord.v, height_256);
 
+          texcoord.u = _mm256_max_ps(zero, _mm256_min_ps(texcoord.u, _mm256_sub_ps(width_256, one)));
+          texcoord.v = _mm256_max_ps(zero, _mm256_min_ps(texcoord.v, _mm256_sub_ps(height_256, one)));
+
 #elif defined(__arm__) || defined(__aarch64__)
           texcoord.u = simde_mm256_mul_ps(texcoord.u, width_256);
           texcoord.v = simde_mm256_mul_ps(texcoord.v, height_256);
 
+          texcoord.u = simde_mm256_max_ps(zero, simde_mm256_min_ps(texcoord.u, simde_mm256_sub_ps(width_256, one)));
+          texcoord.v = simde_mm256_max_ps(zero, simde_mm256_min_ps(texcoord.v, simde_mm256_sub_ps(height_256, one)));
 #else
 #endif
 
