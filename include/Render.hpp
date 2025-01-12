@@ -221,13 +221,12 @@ private:
                            const float depth);
 
 #if defined(__x86_64__) || defined(_WIN64)
-  inline void writePixel(const long long start_pos, const __m256 &r,
-                         const __m256 &g, const __m256 &b);
+  template<typename _simd>
+  inline void writePixel(const long long start_pos, const _simd&r,
+                         const _simd&g, const _simd&b);
 
-  inline void writeZBuffer(const long long start_pos, const __m256 &depth);
-
-  static __m256 insideTriangle(const __m256 &x, const __m256 &y,
-                               const SoftRasterizer::Triangle &triangle);
+  template<typename _simd>
+  inline void writeZBuffer(const long long start_pos, const _simd&depth);
 
 #elif defined(__arm__) || defined(__aarch64__)
   inline void writePixel(const long long start_pos, const simde__m256 &r,
@@ -246,9 +245,10 @@ private:
                 const Eigen::Vector3i &color);
 
 private:
-  /*optimized*/
-  unsigned cache_line_size = 0;
-  std::size_t UNROLLING_FACTOR;
+          /*SIMD Support*/
+          constexpr static std::size_t AVX512 = 16;
+          constexpr static std::size_t AVX2 = 8;
+          constexpr static std::size_t SSE = 4;
 
   /*display resolution*/
   std::size_t m_width;

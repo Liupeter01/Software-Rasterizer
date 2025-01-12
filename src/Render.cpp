@@ -1,5 +1,6 @@
 ﻿#include <Render.hpp>
 #include <Tools.hpp>
+#include <type_traits>
 #include <opencv2/opencv.hpp>
 #include <spdlog/spdlog.h>
 
@@ -11,7 +12,7 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
     const Eigen::Matrix4f &view, const Eigen::Matrix4f &projection)
     : m_width(width), m_height(height), m_channels(numbers) /*set to three*/
       ,
-      m_frameBuffer(m_height, m_width, CV_32FC3), UNROLLING_FACTOR(8) {
+      m_frameBuffer(m_height, m_width, CV_32FC3) {
   /*set channel ammount to three!*/
   m_channels.resize(numbers);
 
@@ -47,8 +48,6 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
 
   /*init framebuffer*/
   clear(SoftRasterizer::Buffers::Color | SoftRasterizer::Buffers::Depth);
-
-  UNROLLING_FACTOR = 8;
 }
 
 SoftRasterizer::RenderingPipeline::~RenderingPipeline() {}
@@ -342,70 +341,34 @@ inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long x,
 }
 
 #if defined(__x86_64__) || defined(_WIN64)
-inline void
-SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos,
-                                              const __m256 &r, const __m256 &g,
-                                              const __m256 &b) {
-  _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-  _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-  _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+
+template<typename _simd>
+inline void 
+SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos, const _simd& r,
+          const _simd& g, const _simd& b)
+{
+          if constexpr (std::is_same_v<_simd, __m256>) {
+                    _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+                    _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+                    _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+          }
+          else if constexpr (std::is_same_v<_simd, __m128>) {
+                    _mm_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+                    _mm_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+                    _mm_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+          }
 }
 
+template<typename _simd>
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
-                                                const __m256 &depth) {
-  _mm256_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]), depth);
-}
-
-__m256 SoftRasterizer::RenderingPipeline::insideTriangle(
-    const __m256 &x, const __m256 &y,
-    const SoftRasterizer::Triangle &triangle) {
-
-  Eigen::Vector3f A = triangle.a();
-  Eigen::Vector3f B = triangle.b();
-  Eigen::Vector3f C = triangle.c();
-
-  A.z() = B.z() = C.z() = 1.0f;
-
-  // Load triangle vertex positions into SIMD registers
-  __m256 ax = _mm256_set1_ps(A.x());
-  __m256 ay = _mm256_set1_ps(A.y());
-  __m256 bx = _mm256_set1_ps(B.x());
-  __m256 by = _mm256_set1_ps(B.y());
-  __m256 cx = _mm256_set1_ps(C.x());
-  __m256 cy = _mm256_set1_ps(C.y());
-
-  // Vectors from point P (x_pos, y_pos) to each vertex
-  __m256 px = _mm256_add_ps(x, _mm256_set1_ps(0.5f));
-  __m256 py = _mm256_add_ps(y, _mm256_set1_ps(0.5f));
-
-  // Cross products (z-component only)
-  __m256 crossABP = _mm256_sub_ps(
-      _mm256_mul_ps(_mm256_sub_ps(bx, ax), _mm256_sub_ps(py, ay)),
-      _mm256_mul_ps(_mm256_sub_ps(by, ay), _mm256_sub_ps(px, ax)));
-
-  __m256 crossBCP = _mm256_sub_ps(
-      _mm256_mul_ps(_mm256_sub_ps(cx, bx), _mm256_sub_ps(py, by)),
-      _mm256_mul_ps(_mm256_sub_ps(cy, by), _mm256_sub_ps(px, bx)));
-
-  __m256 crossCAP = _mm256_sub_ps(
-      _mm256_mul_ps(_mm256_sub_ps(ax, cx), _mm256_sub_ps(py, cy)),
-      _mm256_mul_ps(_mm256_sub_ps(ay, cy), _mm256_sub_ps(px, cx)));
-
-  // Check if all cross products have the same sign (positive or negative)
-  __m256 zero = _mm256_set1_ps(0.0f);
-  __m256 signABP = _mm256_cmp_ps(crossABP, zero, _CMP_GT_OQ); // > 0
-  __m256 signBCP = _mm256_cmp_ps(crossBCP, zero, _CMP_GT_OQ); // > 0
-  __m256 signCAP = _mm256_cmp_ps(crossCAP, zero, _CMP_GT_OQ); // > 0
-
-  // Combine the signs: all positive or all negative
-  __m256 allPositive = _mm256_and_ps(_mm256_and_ps(signABP, signBCP), signCAP);
-  __m256 allNegative =
-      _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(crossABP, zero, _CMP_LT_OQ),
-                                  _mm256_cmp_ps(crossBCP, zero, _CMP_LT_OQ)),
-                    _mm256_cmp_ps(crossCAP, zero, _CMP_LT_OQ));
-
-  return _mm256_or_ps(allPositive, allNegative);
+                                                const _simd&depth) {
+          if constexpr (std::is_same_v<_simd, __m256>) {
+                    _mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+          }
+          else if constexpr (std::is_same_v<_simd, __m128>) {
+                    _mm_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+          }
 }
 
 #elif defined(__arm__) || defined(__aarch64__)
@@ -886,14 +849,13 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 #else
 #endif
 
-    for (x = startX; x + UNROLLING_FACTOR < endX;
-         x += UNROLLING_FACTOR) { // Loop unrolled by UNROLLING_FACTOR in x
+    for (x = startX; x + AVX2 - 1 < endX; x += AVX2) { // Loop unrolled by UNROLLING_FACTOR in x
       auto start_pos = y * m_width + x;
 
-      PREFETCH(&m_zBuffer[start_pos + UNROLLING_FACTOR]);
-      PREFETCH(m_channels[0].ptr<float>(0) + start_pos + UNROLLING_FACTOR);
-      PREFETCH(m_channels[1].ptr<float>(0) + start_pos + UNROLLING_FACTOR);
-      PREFETCH(m_channels[2].ptr<float>(0) + start_pos + UNROLLING_FACTOR);
+      //PREFETCH(&m_zBuffer[start_pos + AVX2]);
+      //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
+      //PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
+      //PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
 
 #if defined(__x86_64__) || defined(_WIN64)
       __m256 Original_Z =
@@ -1041,6 +1003,27 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 #else
 #endif
     }
+
+    for (; x + SSE - 1 < endX; x += SSE) {
+              auto start_pos = y * m_width + x;
+
+              //PREFETCH(&m_zBuffer[start_pos + AVX2]);
+              //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
+              //PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
+              //PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
+
+              __m128 Original_Z =
+                        _mm_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+              __m128 Original_Blue =
+                        _mm_loadu_ps(m_channels[2].ptr<float>(0) + start_pos);
+              __m128 Original_Green =
+                        _mm_loadu_ps(m_channels[1].ptr<float>(0) + start_pos);
+              __m128 Original_Red =
+                        _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
+
+
+    }
+
     for (; x < endX; ++x) {
       // Check if the point (currentX, currentY) is inside the triangle
       if (!insideTriangle(x + 0.5f, y + 0.5f, triangle)) {
