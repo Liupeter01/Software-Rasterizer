@@ -1,39 +1,36 @@
 #include <Tools.hpp>
 #include <spdlog/spdlog.h>
 
-SoftRasterizer::NormalSIMD::NormalSIMD(const __m256& _x, const __m256& _y, const __m256& _z)
+SoftRasterizer::NormalSIMD::NormalSIMD(
+          const __m256& _x, const __m256& _y, const __m256& _z)
           :x(_x), y(_y), z(_z)
 {
 }
 
 // Normalizing all the vector components
 SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
-          //  __m256 epsilon = _mm256_set1_ps(1e-6f);  
-          __m256 zero = _mm256_set1_ps(0.0f);
+          __m256 length = _mm256_sqrt_ps(_mm256_fmadd_ps(x, x, _mm256_fmadd_ps(y, y, _mm256_mul_ps(z, z))));
+         
+          //only filter lenth >0(GT) , then set mask to 1 
+          __m256 mask = _mm256_cmp_ps(length, zero, _CMP_GT_OQ);
 
-          __m256 length = _mm256_sqrt_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(x, x), _mm256_mul_ps(y, y)), _mm256_mul_ps(z, z)));
-
-          __m256 is_zero_length = _mm256_cmp_ps(length, zero, _CMP_EQ_OQ);
-
-          __m256 safe_length = _mm256_blendv_ps(length, _mm256_set1_ps(1.0f), is_zero_length);
-
-          __m256 nx = _mm256_div_ps(x, safe_length);
-          __m256 ny = _mm256_div_ps(y, safe_length);
-          __m256 nz = _mm256_div_ps(z, safe_length);
-
-          nx = _mm256_blendv_ps(nx, zero, is_zero_length);
-          ny = _mm256_blendv_ps(ny, zero, is_zero_length);
-          nz = _mm256_blendv_ps(nz, zero, is_zero_length);
-
-          return { nx, ny, nz };
+          return  NormalSIMD(
+                    _mm256_blendv_ps(zero, _mm256_div_ps(x, length), mask),
+                    _mm256_blendv_ps(zero, _mm256_div_ps(y, length),  mask),
+                    _mm256_blendv_ps(zero, _mm256_div_ps(z, length), mask)
+          );
 }
 
-SoftRasterizer::ColorSIMD::ColorSIMD(const  __m256& valid) {
-          r = g = b = _mm256_blendv_ps(_mm256_set1_ps(0.f), _mm256_set1_ps(1.0f), valid);
+SoftRasterizer::ColorSIMD::ColorSIMD(const  __m256& _r, const  __m256& _g, const  __m256& _b)
+          :r(_r), g(_g), b(_b)
+{
 }
 
-SoftRasterizer::ColorSIMD::ColorSIMD::ColorSIMD() {
-          r = g = b = _mm256_set1_ps(1.0f);
+SoftRasterizer::ColorSIMD::ColorSIMD::ColorSIMD()
+          :r(zero),
+          g(zero),
+          b(zero)
+{
 }
 
 // degree to radian
@@ -134,41 +131,32 @@ Eigen::Vector3f SoftRasterizer::Tools::interpolateNormal(
 SoftRasterizer::NormalSIMD 
 SoftRasterizer::Tools::interpolateNormal(
           const __m256& alpha, const __m256& beta, const __m256& gamma,
-          const Eigen::Vector3f& normal1, const Eigen::Vector3f& normal2, const Eigen::Vector3f& normal3,
-          const __m256&valid)
+          const Eigen::Vector3f& normal1, const Eigen::Vector3f& normal2, const Eigen::Vector3f& normal3)
 {
-          auto zero = _mm256_setzero_ps();
-
-          // Return as a struct containing all three components (x, y, z)
-          NormalSIMD result;
-
-          // Interpolate normals for each component (x, y, z)
-          result.x = _mm256_add_ps(
-                    _mm256_mul_ps(beta, _mm256_set1_ps(normal1.x())),
-                    _mm256_add_ps(
-                              _mm256_mul_ps(beta, _mm256_set1_ps(normal2.x())),
-                              _mm256_mul_ps(beta, _mm256_set1_ps(normal3.x()))
+          return NormalSIMD(
+                    _mm256_fmadd_ps(
+                              alpha, _mm256_set1_ps(normal1.x()),
+                              _mm256_fmadd_ps(
+                                        beta, _mm256_set1_ps(normal2.x()),
+                                        _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.x()))
+                              )
+                    ),
+                    _mm256_fmadd_ps(
+                              alpha, _mm256_set1_ps(normal1.y()),
+                              _mm256_fmadd_ps(
+                                        beta, _mm256_set1_ps(normal2.y()),
+                                        _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.y()))
+                              )
+                    ),
+                    _mm256_fmadd_ps(
+                              alpha, _mm256_set1_ps(normal1.z()),
+                              _mm256_fmadd_ps(
+                                        beta, _mm256_set1_ps(normal2.z()),
+                                        _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.z()))
+                              )
                     )
-          );
 
-          result.y = _mm256_add_ps(
-                    _mm256_mul_ps(beta, _mm256_set1_ps(normal1.y())),
-                    _mm256_add_ps(
-                              _mm256_mul_ps(beta, _mm256_set1_ps(normal2.y())),
-                              _mm256_mul_ps(beta, _mm256_set1_ps(normal3.y()))
-                    )
-          );
-
-          result.z = _mm256_add_ps(
-                    _mm256_mul_ps(beta, _mm256_set1_ps(normal1.z())),
-                    _mm256_add_ps(
-                              _mm256_mul_ps(beta, _mm256_set1_ps(normal2.z())),
-                              _mm256_mul_ps(beta, _mm256_set1_ps(normal3.z()))
-                    )
-          );
-
-          // Return as a struct containing all three components (x, y, z)
-          return result.normalized();
+          ).normalized();
 }
 
 Eigen::Vector2f SoftRasterizer::Tools::interpolateTexCoord(

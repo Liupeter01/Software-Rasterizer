@@ -6,7 +6,10 @@
 #include <externel/NEON_2_SSE.h>
 
 namespace SoftRasterizer {
-          struct PointSIMD { __m256 x, y, z, valid; };
+          struct PointSIMD { 
+                    __m256 x, y, z;
+          };
+
           struct NormalSIMD {
                     __m256 x, y, z;
                     NormalSIMD() = default;
@@ -14,12 +17,21 @@ namespace SoftRasterizer {
 
                     // Normalizing all the vector components
                     NormalSIMD normalized();
+
+                    __m256 zero = _mm256_set1_ps(0.0f);
           };
-          struct TexCoordSIMD { __m256 u, v;  };
+
+          struct TexCoordSIMD { 
+                    __m256 u, v; 
+          };
+
           struct ColorSIMD {
-                    ColorSIMD(const  __m256& valid);
                     ColorSIMD();
+                    ColorSIMD(const  __m256& _r, const  __m256& _g, const  __m256& _b);
                     __m256 r, g, b;
+                    const __m256 zero = _mm256_set1_ps(0.f);
+                    const __m256 one = _mm256_set1_ps(01.f);
+
           };
 
 struct Tools {
@@ -93,11 +105,11 @@ struct Tools {
                                            const Eigen::Vector3f &normal2,
                                            const Eigen::Vector3f &normal3);
 
-  static NormalSIMD interpolateNormal(const __m256& alpha, const __m256& beta, const __m256& gamma,
+  static NormalSIMD interpolateNormal(
+            const __m256& alpha, const __m256& beta, const __m256& gamma,
             const Eigen::Vector3f& normal1, 
             const Eigen::Vector3f& normal2, 
-            const Eigen::Vector3f& normal3,
-            const __m256& valid);
+            const Eigen::Vector3f& normal3);
 
   static Eigen::Vector2f interpolateTexCoord(float alpha, float beta,
                                              float gamma,
