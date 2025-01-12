@@ -8,8 +8,15 @@ SoftRasterizer::NormalSIMD::NormalSIMD(const simde__m256 &_x,
 
 // Normalizing all the vector components
 SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
-  simde__m256 length = simde_mm256_sqrt_ps(simde_mm256_fmadd_ps(
-      x, x, simde_mm256_fmadd_ps(y, y, simde_mm256_mul_ps(z, z))));
+  /*x^2 + y^2 + z^2*/
+  auto squre = simde_mm256_mul_ps(x, x);
+  auto squre_y = simde_mm256_mul_ps(y, y);
+  auto squre_z = simde_mm256_mul_ps(z, z);
+
+  squre_y = simde_mm256_add_ps(squre_y, squre_z);
+  squre = simde_mm256_add_ps(squre, squre_y);
+
+  simde__m256 length = simde_mm256_sqrt_ps(squre);
 
   // only filter lenth >0(GT) , then set mask to 1
   simde__m256 mask = simde_mm256_cmp_ps(length, zero, SIMDE_CMP_GT_OQ);
