@@ -1,3 +1,4 @@
+#include "Shader.hpp"
 #include <Eigen/Eigen>
 #include <ObjLoader.hpp>
 #include <Render.hpp>
@@ -14,7 +15,7 @@ int main() {
 
   render.addShader("shader",
                    CONFIG_HOME "examples/models/spot/spot_texture.png",
-                   SoftRasterizer::SHADERS_TYPE::NORMAL);
+                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
   render.addGraphicObj(
       CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",

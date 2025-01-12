@@ -9,8 +9,8 @@
 #include <xmmintrin.h >
 
 #elif defined(__arm__) || defined(__aarch64__)
-#include <sse2neon.h>
 #include <arm/neon.h>
+#include <sse2neon.h>
 
 #else
 #endif

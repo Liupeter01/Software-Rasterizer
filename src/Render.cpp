@@ -1,8 +1,8 @@
 ﻿#include <Render.hpp>
 #include <Tools.hpp>
-#include <type_traits>
 #include <opencv2/opencv.hpp>
 #include <spdlog/spdlog.h>
+#include <type_traits>
 
 SoftRasterizer::RenderingPipeline::RenderingPipeline()
     : RenderingPipeline(800, 600) {}
@@ -342,33 +342,29 @@ inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long x,
 
 #if defined(__x86_64__) || defined(_WIN64)
 
-template<typename _simd>
-inline void 
-SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos, const _simd& r,
-          const _simd& g, const _simd& b)
-{
-          if constexpr (std::is_same_v<_simd, __m256>) {
-                    _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-                    _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-                    _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
-          }
-          else if constexpr (std::is_same_v<_simd, __m128>) {
-                    _mm_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-                    _mm_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-                    _mm_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
-          }
+template <typename _simd>
+inline void SoftRasterizer::RenderingPipeline::writePixel(
+    const long long start_pos, const _simd &r, const _simd &g, const _simd &b) {
+  if constexpr (std::is_same_v<_simd, __m256>) {
+    _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+    _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+    _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+  } else if constexpr (std::is_same_v<_simd, __m128>) {
+    _mm_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+    _mm_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+    _mm_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+  }
 }
 
-template<typename _simd>
+template <typename _simd>
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
-                                                const _simd&depth) {
-          if constexpr (std::is_same_v<_simd, __m256>) {
-                    _mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
-          }
-          else if constexpr (std::is_same_v<_simd, __m128>) {
-                    _mm_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
-          }
+                                                const _simd &depth) {
+  if constexpr (std::is_same_v<_simd, __m256>) {
+    _mm256_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]), depth);
+  } else if constexpr (std::is_same_v<_simd, __m128>) {
+    _mm_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]), depth);
+  }
 }
 
 #elif defined(__arm__) || defined(__aarch64__)
@@ -849,13 +845,14 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 #else
 #endif
 
-    for (x = startX; x + AVX2 - 1 < endX; x += AVX2) { // Loop unrolled by UNROLLING_FACTOR in x
+    for (x = startX; x + AVX2 - 1 < endX;
+         x += AVX2) { // Loop unrolled by UNROLLING_FACTOR in x
       auto start_pos = y * m_width + x;
 
-      //PREFETCH(&m_zBuffer[start_pos + AVX2]);
-      //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
-      //PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
-      //PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
+      // PREFETCH(&m_zBuffer[start_pos + AVX2]);
+      // PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
+      // PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
+      // PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
 
 #if defined(__x86_64__) || defined(_WIN64)
       __m256 Original_Z =
@@ -1004,9 +1001,9 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 #endif
     }
 
-    //SSE Part!
-    //for (; x + SSE - 1 < endX; x += SSE) {
-    //          auto start_pos = y * m_width + x;
+    // SSE Part!
+    // for (; x + SSE - 1 < endX; x += SSE) {
+    //           auto start_pos = y * m_width + x;
 
     //          //PREFETCH(&m_zBuffer[start_pos + AVX2]);
     //          //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);

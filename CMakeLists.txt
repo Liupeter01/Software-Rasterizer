@@ -13,6 +13,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Ox")
   else()
+
   endif()
 endif()
 
@@ -40,13 +41,11 @@ add_subdirectory(external/spdlog)
 add_subdirectory(external/tinyobjloader)
 
 add_executable(Software-Rasterizer ${source_file} ${header_file})
-target_include_directories(Software-Rasterizer PUBLIC include external/simde/simde external/sse2neon
-                                                      ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} 
-eigen
-spdlog
-tinyobjloader
-)
+target_include_directories(
+  Software-Rasterizer PUBLIC include external/simde/simde external/sse2neon
+                             ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} eigen
+                                                 spdlog tinyobjloader)
 
 # Enable OpenMP
 find_package(OpenMP)

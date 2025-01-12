@@ -23,21 +23,21 @@ SoftRasterizer::Shader::Shader(const std::string &path)
 SoftRasterizer::Shader::Shader(std::shared_ptr<TextureLoader> _loader)
     : texture(_loader) {
 
-          /*calculate __m256 width and height*/
+  /*calculate __m256 width and height*/
 #if defined(__x86_64__) || defined(_WIN64)
-          width_256 = _mm256_set1_ps(texture->m_width);
-          height_256 = _mm256_set1_ps(texture->m_height);
+  width_256 = _mm256_set1_ps(texture->m_width);
+  height_256 = _mm256_set1_ps(texture->m_height);
 
 #elif defined(__arm__) || defined(__aarch64__)
-          width_256 = simde_mm256_set1_ps(texture->m_width);
-          height_256 = simde_mm256_set1_ps(texture->m_height);
+  width_256 = simde_mm256_set1_ps(texture->m_width);
+  height_256 = simde_mm256_set1_ps(texture->m_height);
 
 #else
 #endif
 
-           /*calculate __m128 width and height*/
-          width_128 = _mm_set1_ps(texture->m_width);
-          height_128 = _mm_set1_ps(texture->m_height);
+  /*calculate __m128 width and height*/
+  width_128 = _mm_set1_ps(texture->m_width);
+  height_128 = _mm_set1_ps(texture->m_height);
 
   registerShaders();
 }
@@ -133,18 +133,23 @@ void SoftRasterizer::Shader::applyFragmentShader(
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
 
 #if defined(__x86_64__) || defined(_WIN64)
-          texcoord.u = _mm256_mul_ps(texcoord.u, width_256);
-          texcoord.v = _mm256_mul_ps(texcoord.v, height_256);
+  texcoord.u = _mm256_mul_ps(texcoord.u, width_256);
+  texcoord.v = _mm256_mul_ps(texcoord.v, height_256);
 
-          texcoord.u = _mm256_max_ps(zero, _mm256_min_ps(texcoord.u, _mm256_sub_ps(width_256, one)));
-          texcoord.v = _mm256_max_ps(zero, _mm256_min_ps(texcoord.v, _mm256_sub_ps(height_256, one)));
+  texcoord.u = _mm256_max_ps(
+      zero, _mm256_min_ps(texcoord.u, _mm256_sub_ps(width_256, one)));
+  texcoord.v = _mm256_max_ps(
+      zero, _mm256_min_ps(texcoord.v, _mm256_sub_ps(height_256, one)));
 
 #elif defined(__arm__) || defined(__aarch64__)
-          texcoord.u = simde_mm256_mul_ps(texcoord.u, width_256);
-          texcoord.v = simde_mm256_mul_ps(texcoord.v, height_256);
+  texcoord.u = simde_mm256_mul_ps(texcoord.u, width_256);
+  texcoord.v = simde_mm256_mul_ps(texcoord.v, height_256);
 
-          texcoord.u = simde_mm256_max_ps(zero, simde_mm256_min_ps(texcoord.u, simde_mm256_sub_ps(width_256, one)));
-          texcoord.v = simde_mm256_max_ps(zero, simde_mm256_min_ps(texcoord.v, simde_mm256_sub_ps(height_256, one)));
+  texcoord.u = simde_mm256_max_ps(
+      zero, simde_mm256_min_ps(texcoord.u, simde_mm256_sub_ps(width_256, one)));
+  texcoord.v = simde_mm256_max_ps(
+      zero,
+      simde_mm256_min_ps(texcoord.v, simde_mm256_sub_ps(height_256, one)));
 #else
 #endif
 
@@ -191,7 +196,7 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
     const std::initializer_list<light_struct> &lights, const PointSIMD &point,
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
 
-          auto [R, G, B] = texture->getTextureColor(texcoord.u, texcoord.v);
+  auto [R, G, B] = texture->getTextureColor(texcoord.u, texcoord.v);
 
   for (const auto &light : lights) {
   }

@@ -104,12 +104,12 @@ private:
   void simd_texture_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal,TexCoordSIMD &texcoord, ColorSIMD &colour);
+      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_phong_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal,TexCoordSIMD &texcoord, ColorSIMD &colour);
+      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_displacement_fragment_shader_impl(
       const Eigen::Vector3f &camera,
@@ -166,11 +166,11 @@ private:
       const fragment_shader_payload &payload);
 
 public:
-          const __m128 zero_128 = _mm_set1_ps(0.0f);
-          const __m128 one_128 = _mm_set1_ps(1.0f);
-          const __m128 two_128 = _mm_set1_ps(2.0f);
-          const __m128 point_five_128 = _mm_set1_ps(0.5f);
-          __m128 width_128, height_128;
+  const __m128 zero_128 = _mm_set1_ps(0.0f);
+  const __m128 one_128 = _mm_set1_ps(1.0f);
+  const __m128 two_128 = _mm_set1_ps(2.0f);
+  const __m128 point_five_128 = _mm_set1_ps(0.5f);
+  __m128 width_128, height_128;
 
   // Preparing constants for transformation
 #if defined(__x86_64__) || defined(_WIN64)
@@ -179,7 +179,7 @@ public:
   const __m256 two = _mm256_set1_ps(2.0f);
   const __m256 point_five = _mm256_set1_ps(0.5f);
 
-  //change uv coordinates
+  // change uv coordinates
   __m256 width_256, height_256;
 
 #elif defined(__arm__) || defined(__aarch64__)
