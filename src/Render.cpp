@@ -802,9 +802,15 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
       }
 
       // Compute the z_interpolated using the blend operation
-      point.z = simde_mm256_fmadd_ps(
-          alpha, z0,
-          simde_mm256_fmadd_ps(beta, z1, simde_mm256_mul_ps(gamma, z2)));
+     //point.z = simde_mm256_fmadd_ps(
+      //    alpha, z0,
+      //    simde_mm256_fmadd_ps(beta, z1, simde_mm256_mul_ps(gamma, z2)));
+      auto alpha_z = simde_mm256_mul_ps(alpha, z0);
+      auto beta_z = simde_mm256_mul_ps(beta, z1);
+      auto gamma_z = simde_mm256_mul_ps(gamma, z2);
+
+      alpha_z = simde_mm256_add_ps(alpha_z, beta_z);
+      point.z = simde_mm256_add_ps(alpha_z, gamma_z);
 
       /*Comparing z-buffer value to determine update colour or not!*/
       simde__m256 mask = simde_mm256_and_ps(
