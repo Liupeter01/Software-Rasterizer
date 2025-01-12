@@ -8,6 +8,7 @@
 #include <optional>
 #include <tuple>
 #include <unordered_map>
+#include <externel/NEON_2_SSE.h>
 
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
@@ -89,6 +90,9 @@ protected:
   void setProjectionMatrix(const Eigen::Matrix4f &projection);
   void setViewMatrix(const Eigen::Matrix4f &view);
 
+  void clearFrameBuffer();
+  void clearZDepth();
+
 public:
   void clear(SoftRasterizer::Buffers flags);
 
@@ -131,7 +135,6 @@ public:
                        const std::string &shaderName);
 
 private:
-  std::vector<Eigen::Vector3f> &getFrameBuffer() { return m_frameBuffer; }
 
   /*------------------------------framebuffer-----------------------------------------*/
   /*|<----------------------------m_width------------------------------->|_________
@@ -169,13 +172,33 @@ private:
   static bool insideTriangle(const std::size_t x_pos, const std::size_t y_pos,
                              const SoftRasterizer::Triangle &triangle);
 
+  static __m256 insideTriangle(const __m256& x, const __m256& y, 
+            const SoftRasterizer::Triangle& triangle);
+
   static std::optional<std::tuple<float, float, float>>
   linearBaryCentric(const std::size_t x_pos, const std::size_t y_pos,
                     const Eigen::Vector2i min, const Eigen::Vector2i max);
 
-  static inline std::optional<std::tuple<float, float, float>>
+  static inline std::tuple<float, float, float>
   barycentric(const std::size_t x_pos, const std::size_t y_pos,
               const SoftRasterizer::Triangle &triangle);
+
+  /**
+   * @brief Calculates the barycentric coordinates (alpha, beta, gamma) for a given point
+   *        (x_pos, y_pos) with respect to a triangle. Also checks if the point is inside
+   *        the triangle using the `insideTriangle` function and applies the result as a mask
+   *        to ensure the coordinates are only valid for points inside the triangle.
+   *
+   * @param x_pos SIMD register containing x positions of points.
+   * @param y_pos SIMD register containing y positions of points.
+   * @param triangle The triangle whose barycentric coordinates are to be calculated.
+   * @return A tuple of three __m256 values representing the barycentric coordinates
+   *         (alpha, beta, gamma) for the point (x_pos, y_pos).
+   *         The coordinates are zeroed out for points outside the triangle using a mask.
+   */
+  static inline std::tuple<__m256, __m256, __m256>
+  barycentric(const __m256& x_pos, const __m256& y_pos,
+                      const SoftRasterizer::Triangle& triangle);
 
   /*Rasterize a triangle*/
   void rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader,
@@ -183,11 +206,21 @@ private:
 
   inline void writePixel(const long long x, const long long y,
                          const Eigen::Vector3f &color);
+
   inline void writePixel(const long long x, const long long y,
                          const Eigen::Vector3i &color);
 
+  inline void writePixel(const long long start_pos,
+            const ColorSIMD& color);
+
+  inline void writePixel(const long long start_pos,
+            const __m256& r, const __m256& g, const __m256& b);
+
   inline bool writeZBuffer(const long long x, const long long y,
                            const float depth);
+
+  inline void writeZBuffer(const long long start_pos,
+            const __m256& depth);
 
   /*Bresenham algorithm*/
   void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,
@@ -196,8 +229,6 @@ private:
 private:
   /*optimized*/
   unsigned cache_line_size = 0;
-
-  std::size_t BLOCK_SIZE = 64;
   std::size_t UNROLLING_FACTOR;
 
   /*display resolution*/
@@ -227,13 +258,30 @@ private:
   float m_far = 100.0f;
   Eigen::Matrix4f m_projection;
 
+  // controls the stretching/compression of the  & shifts the range
+  float scale;
+  float offset;
+  __m256 scale_simd;
+  __m256 offset_simd;
+
   /*Transform normalized coordinates into screen space coordinates*/
   Eigen::Matrix4f m_ndcToScreenMatrix;
 
-  std::vector<Eigen::Vector3f> m_frameBuffer;
+  const __m256 zero = _mm256_set1_ps(0.0f);
+  const __m256 one = _mm256_set1_ps(1.0f);
+
+  /*RGB(3 channels)*/
+  constexpr static std::size_t numbers = 3;
+  std::vector< cv::Mat> m_channels; 
+
+  /*to store final frame*/
+  cv::Mat m_frameBuffer;
+
+  /*decribe inf distance in z buffer*/
+  const __m256 inf = _mm256_set1_ps(std::numeric_limits<float>::infinity());
 
   /*z buffer*/
-  std::vector<float> m_zBuffer;
+  std::vector<float, Eigen::aligned_allocator<float>> m_zBuffer;
 };
 } // namespace SoftRasterizer
 
