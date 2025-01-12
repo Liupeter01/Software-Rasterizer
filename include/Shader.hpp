@@ -58,7 +58,7 @@ struct Shader {
 
   using simd_shader = std::function<void(
       const Eigen::Vector3f &, const std::initializer_list<light_struct> &,
-      const PointSIMD &, NormalSIMD &, const TexCoordSIMD &, ColorSIMD &)>;
+      const PointSIMD &, NormalSIMD &, TexCoordSIMD &, ColorSIMD &)>;
 
   using standard_shader = std::function<Eigen::Vector3f(
       const Eigen::Vector3f &, const std::initializer_list<light_struct> &,
@@ -85,7 +85,7 @@ public:
   void applyFragmentShader(const Eigen::Vector3f &camera,
                            const std::initializer_list<light_struct> &lights,
                            const PointSIMD &point, NormalSIMD &normal,
-                           const TexCoordSIMD &texcoord, ColorSIMD &colour);
+                           TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   Eigen::Vector3f
   applyFragmentShader(const Eigen::Vector3f &camera,
@@ -99,27 +99,27 @@ private:
   void simd_normal_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
+      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_texture_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
+      NormalSIMD &normal,TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_phong_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
+      NormalSIMD &normal,TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_displacement_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
+      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_bump_fragment_shader_impl(
       const Eigen::Vector3f &camera,
       const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour);
+      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   // Static function to compute the Blinn-Phong reflection model
   static Eigen::Vector3f
@@ -166,6 +166,12 @@ private:
       const fragment_shader_payload &payload);
 
 public:
+          const __m128 zero_128 = _mm_set1_ps(0.0f);
+          const __m128 one_128 = _mm_set1_ps(1.0f);
+          const __m128 two_128 = _mm_set1_ps(2.0f);
+          const __m128 point_five_128 = _mm_set1_ps(0.5f);
+          __m128 width_128, height_128;
+
   // Preparing constants for transformation
 #if defined(__x86_64__) || defined(_WIN64)
   const __m256 zero = _mm256_set1_ps(0.0f);
@@ -173,11 +179,16 @@ public:
   const __m256 two = _mm256_set1_ps(2.0f);
   const __m256 point_five = _mm256_set1_ps(0.5f);
 
+  //change uv coordinates
+  __m256 width_256, height_256;
+
 #elif defined(__arm__) || defined(__aarch64__)
   const simde__m256 zero = simde_mm256_set1_ps(0.0f);
   const simde__m256 one = simde_mm256_set1_ps(1.0f);
   const simde__m256 two = simde_mm256_set1_ps(2.0f);
   const simde__m256 point_five = simde_mm256_set1_ps(0.5f);
+
+  simde__m256 width_256, height_256;
 
 #else
 #endif

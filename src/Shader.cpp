@@ -22,6 +22,23 @@ SoftRasterizer::Shader::Shader(const std::string &path)
 
 SoftRasterizer::Shader::Shader(std::shared_ptr<TextureLoader> _loader)
     : texture(_loader) {
+
+          /*calculate __m256 width and height*/
+#if defined(__x86_64__) || defined(_WIN64)
+          width_256 = _mm256_set1_ps(texture->m_width);
+          height_256 = _mm256_set1_ps(texture->m_height);
+
+#elif defined(__arm__) || defined(__aarch64__)
+          width_256 = simde_mm256_set1_ps(texture->m_width);
+          height_256 = simde_mm256_set1_ps(texture->m_height);
+
+#else
+#endif
+
+           /*calculate __m128 width and height*/
+          width_128 = _mm_set1_ps(texture->m_width);
+          height_128 = _mm_set1_ps(texture->m_height);
+
   registerShaders();
 }
 
@@ -107,14 +124,24 @@ Eigen::Vector3f SoftRasterizer::Shader::applyFragmentShader(
     const Eigen::Vector3f &camera,
     const std::initializer_list<light_struct> &lights,
     const fragment_shader_payload &payload) {
-
   return m_standard(camera, lights, payload);
 }
 
 void SoftRasterizer::Shader::applyFragmentShader(
     const Eigen::Vector3f &camera,
     const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-    NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour) {
+    NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
+
+#if defined(__x86_64__) || defined(_WIN64)
+          texcoord.u = _mm256_mul_ps(texcoord.u, width_256);
+          texcoord.v = _mm256_mul_ps(texcoord.v, height_256);
+
+#elif defined(__arm__) || defined(__aarch64__)
+          texcoord.u = simde_mm256_mul_ps(texcoord.u, width_256);
+          texcoord.v = simde_mm256_mul_ps(texcoord.v, height_256);
+
+#else
+#endif
 
   m_simd(camera, lights, point, normal, texcoord, colour);
 }
@@ -122,7 +149,7 @@ void SoftRasterizer::Shader::applyFragmentShader(
 void SoftRasterizer::Shader::simd_normal_fragment_shader_impl(
     const Eigen::Vector3f &camera,
     const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-    NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour) {
+    NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
 
 #if defined(__x86_64__) || defined(_WIN64)
   __m256 color = _mm256_set1_ps(255.f);
@@ -157,7 +184,10 @@ void SoftRasterizer::Shader::simd_normal_fragment_shader_impl(
 void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
     const Eigen::Vector3f &camera,
     const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-    NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour) {
+    NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
+
+          auto [R, G, B] = texture->getTextureColor(texcoord.u, texcoord.v);
+
   for (const auto &light : lights) {
   }
 }
@@ -165,7 +195,7 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
 void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
     const Eigen::Vector3f &camera,
     const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-    NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour) {
+    NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
   for (const auto &light : lights) {
   }
 }
@@ -173,7 +203,7 @@ void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
 void SoftRasterizer::Shader::simd_displacement_fragment_shader_impl(
     const Eigen::Vector3f &camera,
     const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-    NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour) {
+    NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
   for (const auto &light : lights) {
   }
 }
@@ -181,7 +211,7 @@ void SoftRasterizer::Shader::simd_displacement_fragment_shader_impl(
 void SoftRasterizer::Shader::simd_bump_fragment_shader_impl(
     const Eigen::Vector3f &camera,
     const std::initializer_list<light_struct> &lights, const PointSIMD &point,
-    NormalSIMD &normal, const TexCoordSIMD &texcoord, ColorSIMD &colour) {
+    NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
   for (const auto &light : lights) {
   }
 }
