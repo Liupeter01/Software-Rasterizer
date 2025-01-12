@@ -291,12 +291,19 @@ struct Tools {
             if constexpr (std::is_same_v<SimdType, __m128>) {
                       return sizeof(__m128) / sizeof(ElementType);
             }
+#if defined(__x86_64__) || defined(_WIN64)
             else if constexpr (std::is_same_v<SimdType, __m256>) {
                       return sizeof(__m256) / sizeof(ElementType);
             }
+#elif defined(__arm__) || defined(__aarch64__)
+            else if constexpr (std::is_same_v<SimdType, simde__m256>) {
+                      return sizeof(simde__m256) / sizeof(ElementType);
+            }
+#else
+#endif
             else {
-                      static_assert(std::is_same_v<SimdType, __m128> || std::is_same_v<SimdType, __m256>,
-                                "Unsupported SIMD type. Only __m128 and __m256 are supported.");
+
+                      static_assert("Unsupported SIMD type. Only __m128 and __m256 are supported.");
                       return 0;  // Unreachable due to static_assert, but required for compilation.
             }
   }
