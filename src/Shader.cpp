@@ -1,7 +1,7 @@
 #include <Shader.hpp>
 #include <Tools.hpp>
 #include <spdlog/spdlog.h>
-#include <externel/NEON_2_SSE.h>
+#include <NEON_2_SSE.h>
 
 /*static variables*/
 Eigen::Vector3f SoftRasterizer::Shader::ka =

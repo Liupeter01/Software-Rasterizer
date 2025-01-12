@@ -3,7 +3,7 @@
 #define _TOOLS_HPP_
 #include <algorithm>
 #include <Eigen/Eigen>
-#include <externel/NEON_2_SSE.h>
+#include <NEON_2_SSE.h>
 
 namespace SoftRasterizer {
           struct PointSIMD { 

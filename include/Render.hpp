@@ -8,7 +8,7 @@
 #include <optional>
 #include <tuple>
 #include <unordered_map>
-#include <externel/NEON_2_SSE.h>
+#include <NEON_2_SSE.h>
 
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
