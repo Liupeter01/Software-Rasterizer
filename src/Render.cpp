@@ -1004,25 +1004,25 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 #endif
     }
 
-    for (; x + SSE - 1 < endX; x += SSE) {
-              auto start_pos = y * m_width + x;
+    //for (; x + SSE - 1 < endX; x += SSE) {
+    //          auto start_pos = y * m_width + x;
 
-              //PREFETCH(&m_zBuffer[start_pos + AVX2]);
-              //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
-              //PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
-              //PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
+    //          //PREFETCH(&m_zBuffer[start_pos + AVX2]);
+    //          //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
+    //          //PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
+    //          //PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
 
-              __m128 Original_Z =
-                        _mm_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
-              __m128 Original_Blue =
-                        _mm_loadu_ps(m_channels[2].ptr<float>(0) + start_pos);
-              __m128 Original_Green =
-                        _mm_loadu_ps(m_channels[1].ptr<float>(0) + start_pos);
-              __m128 Original_Red =
-                        _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
+    //          __m128 Original_Z =
+    //                    _mm_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+    //          __m128 Original_Blue =
+    //                    _mm_loadu_ps(m_channels[2].ptr<float>(0) + start_pos);
+    //          __m128 Original_Green =
+    //                    _mm_loadu_ps(m_channels[1].ptr<float>(0) + start_pos);
+    //          __m128 Original_Red =
+    //                    _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
 
 
-    }
+    //}
 
     for (; x < endX; ++x) {
       // Check if the point (currentX, currentY) is inside the triangle
