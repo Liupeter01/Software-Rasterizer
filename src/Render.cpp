@@ -588,16 +588,17 @@ SoftRasterizer::RenderingPipeline::barycentric(
 
   // Compute area of triangle ABC (cross product of AB ¡Á AC)
   simde__m256 areaABC =
-      simde_mm256_fmsub_ps(ABx, ACy, simde_mm256_mul_ps(ACx, ABy)); // AB x AC
+  simde_mm256_sub_ps(simde_mm256_mul_ps(ABx, ACy), simde_mm256_mul_ps(ACx, ABy)); // AB x AC
+
   simde__m256 inverse = simde_mm256_rcp_ps(areaABC);
 
   // Compute area of triangle PBC (cross product of PB ¡Á PC)
   simde__m256 areaPBC =
-      simde_mm256_fmsub_ps(PBx, PCy, simde_mm256_mul_ps(PCx, PBy)); // PB ¡Á PC
+  simde_mm256_sub_ps(simde_mm256_mul_ps(PBx, PCy), simde_mm256_mul_ps(PCx, PBy)); // PB ¡Á PC
 
   // Compute area of triangle PCA (cross product of PC ¡Á PA)
   simde__m256 areaPCA =
-      simde_mm256_fmsub_ps(PCx, PAy, simde_mm256_mul_ps(PAx, PCy)); // PC ¡Á PA
+       simde_mm256_sub_ps(simde_mm256_mul_ps(PCx, PAy), simde_mm256_mul_ps(PAx, PCy)); // PC ¡Á PA
 
   // Barycentric coordinates
   simde__m256 alpha = simde_mm256_mul_ps(areaPBC, inverse);
