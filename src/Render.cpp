@@ -785,13 +785,13 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
       // if sum is zero, then it means the point is not inside the triangle!!!
       simde__m256 alpha_valid =
           simde_mm256_and_ps(simde_mm256_cmp_ps(alpha, zero, SIMDE_CMP_GT_OQ),
-                             simde_mm256_cmp_ps(alpha, one, _CMP_LT_OQ));
+                             simde_mm256_cmp_ps(alpha, one, SIMDE_CMP_LT_OQ));
       simde__m256 beta_valid =
           simde_mm256_and_ps(simde_mm256_cmp_ps(beta, zero, SIMDE_CMP_GT_OQ),
-                             simde_mm256_cmp_ps(beta, one, _CMP_LT_OQ));
+                             simde_mm256_cmp_ps(beta, one, SIMDE_CMP_LT_OQ));
       simde__m256 gamma_valid =
           simde_mm256_and_ps(simde_mm256_cmp_ps(gamma, zero, SIMDE_CMP_GT_OQ),
-                             simde_mm256_cmp_ps(gamma, one, _CMP_LT_OQ));
+                             simde_mm256_cmp_ps(gamma, one, SIMDE_CMP_LT_OQ));
       simde__m256 inside_mask = simde_mm256_and_ps(
           simde_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
 
