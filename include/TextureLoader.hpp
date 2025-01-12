@@ -88,8 +88,9 @@ public:
                                   _mm_mul_ps(_mm_loadu_ps(B_Block.data()), inverse)
                         };
               }
-              else if constexpr (std::is_same_v<_simd, __m256>) {
+
 #if defined(__x86_64__) || defined(_WIN64)
+              else if constexpr (std::is_same_v<_simd, __m256>) {
                         __m256 inverse = _mm256_rcp_ps(_mm256_set1_ps(255.0f));
                         return {
                                          _mm256_mul_ps(_mm256_loadu_ps(R_Block.data()),inverse),
@@ -98,6 +99,7 @@ public:
                         };
 
 #elif defined(__arm__) || defined(__aarch64__)
+              else if constexpr (std::is_same_v<_simd, simde__m256>) {
                         simde__m256 inverse = simde_mm256_rcp_ps(simde_mm256_set1_ps(255.0f));
                         return {
                                                   simde_mm256_mul_ps(simde_mm256_loadu_ps(R_Block.data()),inverse),
