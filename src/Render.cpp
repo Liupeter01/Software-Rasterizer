@@ -10,8 +10,8 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
     const std::size_t width, const std::size_t height,
     const Eigen::Matrix4f &view, const Eigen::Matrix4f &projection)
     : m_width(width), m_height(height), m_channels(numbers) /*set to three*/
-      ,m_frameBuffer(m_height, m_width, CV_32FC3)
-      , UNROLLING_FACTOR(8) {
+      ,
+      m_frameBuffer(m_height, m_width, CV_32FC3), UNROLLING_FACTOR(8) {
   /*set channel ammount to three!*/
   m_channels.resize(numbers);
 
@@ -280,7 +280,7 @@ void SoftRasterizer::RenderingPipeline::setProjectionMatrix(float fovy,
 
 #if defined(__x86_64__) || defined(_WIN64)
   scale_simd = _mm256_set1_ps(scale);
-  offset_simd =_mm256_set1_ps(offset);
+  offset_simd = _mm256_set1_ps(offset);
 
 #elif defined(__arm__) || defined(__aarch64__)
   scale_simd = simde_mm256_set1_ps(scale);
@@ -342,150 +342,147 @@ inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long x,
 }
 
 #if defined(__x86_64__) || defined(_WIN64)
-inline void SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos,
-          const __m256& r, const __m256& g, const __m256& b)
-{
-          _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r);//R
-          _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g);//G
-          _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b);//B
+inline void
+SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos,
+                                              const __m256 &r, const __m256 &g,
+                                              const __m256 &b) {
+  _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+  _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+  _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
 }
 
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
-          const __m256& depth) {
-          _mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+                                                const __m256 &depth) {
+  _mm256_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]), depth);
 }
 
-__m256
-SoftRasterizer::RenderingPipeline::insideTriangle(const __m256& x, const __m256& y,
-          const SoftRasterizer::Triangle& triangle) {
+__m256 SoftRasterizer::RenderingPipeline::insideTriangle(
+    const __m256 &x, const __m256 &y,
+    const SoftRasterizer::Triangle &triangle) {
 
-          Eigen::Vector3f A = triangle.a();
-          Eigen::Vector3f B = triangle.b();
-          Eigen::Vector3f C = triangle.c();
+  Eigen::Vector3f A = triangle.a();
+  Eigen::Vector3f B = triangle.b();
+  Eigen::Vector3f C = triangle.c();
 
-          A.z() = B.z() = C.z() = 1.0f;
+  A.z() = B.z() = C.z() = 1.0f;
 
-          // Load triangle vertex positions into SIMD registers
-          __m256 ax = _mm256_set1_ps(A.x());
-          __m256 ay = _mm256_set1_ps(A.y());
-          __m256 bx = _mm256_set1_ps(B.x());
-          __m256 by = _mm256_set1_ps(B.y());
-          __m256 cx = _mm256_set1_ps(C.x());
-          __m256 cy = _mm256_set1_ps(C.y());
+  // Load triangle vertex positions into SIMD registers
+  __m256 ax = _mm256_set1_ps(A.x());
+  __m256 ay = _mm256_set1_ps(A.y());
+  __m256 bx = _mm256_set1_ps(B.x());
+  __m256 by = _mm256_set1_ps(B.y());
+  __m256 cx = _mm256_set1_ps(C.x());
+  __m256 cy = _mm256_set1_ps(C.y());
 
-          // Vectors from point P (x_pos, y_pos) to each vertex
-          __m256 px = _mm256_add_ps(x, _mm256_set1_ps(0.5f));
-          __m256 py = _mm256_add_ps(y, _mm256_set1_ps(0.5f));
+  // Vectors from point P (x_pos, y_pos) to each vertex
+  __m256 px = _mm256_add_ps(x, _mm256_set1_ps(0.5f));
+  __m256 py = _mm256_add_ps(y, _mm256_set1_ps(0.5f));
 
-          // Cross products (z-component only)
-          __m256 crossABP = _mm256_sub_ps(
-                    _mm256_mul_ps(_mm256_sub_ps(bx, ax), _mm256_sub_ps(py, ay)),
-                    _mm256_mul_ps(_mm256_sub_ps(by, ay), _mm256_sub_ps(px, ax))
-          );
+  // Cross products (z-component only)
+  __m256 crossABP = _mm256_sub_ps(
+      _mm256_mul_ps(_mm256_sub_ps(bx, ax), _mm256_sub_ps(py, ay)),
+      _mm256_mul_ps(_mm256_sub_ps(by, ay), _mm256_sub_ps(px, ax)));
 
-          __m256 crossBCP = _mm256_sub_ps(
-                    _mm256_mul_ps(_mm256_sub_ps(cx, bx), _mm256_sub_ps(py, by)),
-                    _mm256_mul_ps(_mm256_sub_ps(cy, by), _mm256_sub_ps(px, bx))
-          );
+  __m256 crossBCP = _mm256_sub_ps(
+      _mm256_mul_ps(_mm256_sub_ps(cx, bx), _mm256_sub_ps(py, by)),
+      _mm256_mul_ps(_mm256_sub_ps(cy, by), _mm256_sub_ps(px, bx)));
 
-          __m256 crossCAP = _mm256_sub_ps(
-                    _mm256_mul_ps(_mm256_sub_ps(ax, cx), _mm256_sub_ps(py, cy)),
-                    _mm256_mul_ps(_mm256_sub_ps(ay, cy), _mm256_sub_ps(px, cx))
-          );
+  __m256 crossCAP = _mm256_sub_ps(
+      _mm256_mul_ps(_mm256_sub_ps(ax, cx), _mm256_sub_ps(py, cy)),
+      _mm256_mul_ps(_mm256_sub_ps(ay, cy), _mm256_sub_ps(px, cx)));
 
-          // Check if all cross products have the same sign (positive or negative)
-          __m256 zero = _mm256_set1_ps(0.0f);
-          __m256 signABP = _mm256_cmp_ps(crossABP, zero, _CMP_GT_OQ); // > 0
-          __m256 signBCP = _mm256_cmp_ps(crossBCP, zero, _CMP_GT_OQ); // > 0
-          __m256 signCAP = _mm256_cmp_ps(crossCAP, zero, _CMP_GT_OQ); // > 0
+  // Check if all cross products have the same sign (positive or negative)
+  __m256 zero = _mm256_set1_ps(0.0f);
+  __m256 signABP = _mm256_cmp_ps(crossABP, zero, _CMP_GT_OQ); // > 0
+  __m256 signBCP = _mm256_cmp_ps(crossBCP, zero, _CMP_GT_OQ); // > 0
+  __m256 signCAP = _mm256_cmp_ps(crossCAP, zero, _CMP_GT_OQ); // > 0
 
-          // Combine the signs: all positive or all negative
-          __m256 allPositive = _mm256_and_ps(_mm256_and_ps(signABP, signBCP), signCAP);
-          __m256 allNegative = _mm256_and_ps(
-                    _mm256_and_ps(_mm256_cmp_ps(crossABP, zero, _CMP_LT_OQ),
-                              _mm256_cmp_ps(crossBCP, zero, _CMP_LT_OQ)),
-                    _mm256_cmp_ps(crossCAP, zero, _CMP_LT_OQ)
-          );
+  // Combine the signs: all positive or all negative
+  __m256 allPositive = _mm256_and_ps(_mm256_and_ps(signABP, signBCP), signCAP);
+  __m256 allNegative =
+      _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(crossABP, zero, _CMP_LT_OQ),
+                                  _mm256_cmp_ps(crossBCP, zero, _CMP_LT_OQ)),
+                    _mm256_cmp_ps(crossCAP, zero, _CMP_LT_OQ));
 
-          return _mm256_or_ps(allPositive, allNegative);
+  return _mm256_or_ps(allPositive, allNegative);
 }
 
 #elif defined(__arm__) || defined(__aarch64__)
 inline void SoftRasterizer::RenderingPipeline::writePixel(
-          const long long start_pos, const simde__m256& r, const simde__m256& g,
-          const simde__m256& b) {
-          simde_mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-          simde_mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-          simde_mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+    const long long start_pos, const simde__m256 &r, const simde__m256 &g,
+    const simde__m256 &b) {
+  simde_mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+  simde_mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+  simde_mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
 }
 
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
-          const simde__m256& depth) {
-          simde_mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]),
-                    depth);
+                                                const simde__m256 &depth) {
+  simde_mm256_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]),
+                        depth);
 }
 
 simde__m256 SoftRasterizer::RenderingPipeline::insideTriangle(
-          const simde__m256& x, const simde__m256& y,
-          const SoftRasterizer::Triangle& triangle) {
+    const simde__m256 &x, const simde__m256 &y,
+    const SoftRasterizer::Triangle &triangle) {
 
-          Eigen::Vector3f A = triangle.a();
-          Eigen::Vector3f B = triangle.b();
-          Eigen::Vector3f C = triangle.c();
+  Eigen::Vector3f A = triangle.a();
+  Eigen::Vector3f B = triangle.b();
+  Eigen::Vector3f C = triangle.c();
 
-          A.z() = B.z() = C.z() = 1.0f;
+  A.z() = B.z() = C.z() = 1.0f;
 
-          // Load triangle vertex positions into SIMD registers
-          simde__m256 ax = simde_mm256_set1_ps(A.x());
-          simde__m256 ay = simde_mm256_set1_ps(A.y());
-          simde__m256 bx = simde_mm256_set1_ps(B.x());
-          simde__m256 by = simde_mm256_set1_ps(B.y());
-          simde__m256 cx = simde_mm256_set1_ps(C.x());
-          simde__m256 cy = simde_mm256_set1_ps(C.y());
+  // Load triangle vertex positions into SIMD registers
+  simde__m256 ax = simde_mm256_set1_ps(A.x());
+  simde__m256 ay = simde_mm256_set1_ps(A.y());
+  simde__m256 bx = simde_mm256_set1_ps(B.x());
+  simde__m256 by = simde_mm256_set1_ps(B.y());
+  simde__m256 cx = simde_mm256_set1_ps(C.x());
+  simde__m256 cy = simde_mm256_set1_ps(C.y());
 
-          // Vectors from point P (x_pos, y_pos) to each vertex
-          simde__m256 px = simde_mm256_add_ps(x, simde_mm256_set1_ps(0.5f));
-          simde__m256 py = simde_mm256_add_ps(y, simde_mm256_set1_ps(0.5f));
+  // Vectors from point P (x_pos, y_pos) to each vertex
+  simde__m256 px = simde_mm256_add_ps(x, simde_mm256_set1_ps(0.5f));
+  simde__m256 py = simde_mm256_add_ps(y, simde_mm256_set1_ps(0.5f));
 
-          // Cross products (z-component only)
-          simde__m256 crossABP =
-                    simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(bx, ax),
-                              simde_mm256_sub_ps(py, ay)),
-                              simde_mm256_mul_ps(simde_mm256_sub_ps(by, ay),
-                                        simde_mm256_sub_ps(px, ax)));
+  // Cross products (z-component only)
+  simde__m256 crossABP =
+      simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(bx, ax),
+                                            simde_mm256_sub_ps(py, ay)),
+                         simde_mm256_mul_ps(simde_mm256_sub_ps(by, ay),
+                                            simde_mm256_sub_ps(px, ax)));
 
-          simde__m256 crossBCP =
-                    simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(cx, bx),
-                              simde_mm256_sub_ps(py, by)),
-                              simde_mm256_mul_ps(simde_mm256_sub_ps(cy, by),
-                                        simde_mm256_sub_ps(px, bx)));
+  simde__m256 crossBCP =
+      simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(cx, bx),
+                                            simde_mm256_sub_ps(py, by)),
+                         simde_mm256_mul_ps(simde_mm256_sub_ps(cy, by),
+                                            simde_mm256_sub_ps(px, bx)));
 
-          simde__m256 crossCAP =
-                    simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(ax, cx),
-                              simde_mm256_sub_ps(py, cy)),
-                              simde_mm256_mul_ps(simde_mm256_sub_ps(ay, cy),
-                                        simde_mm256_sub_ps(px, cx)));
+  simde__m256 crossCAP =
+      simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(ax, cx),
+                                            simde_mm256_sub_ps(py, cy)),
+                         simde_mm256_mul_ps(simde_mm256_sub_ps(ay, cy),
+                                            simde_mm256_sub_ps(px, cx)));
 
-          // Check if all cross products have the same sign (positive or negative)
-          simde__m256 zero = simde_mm256_set1_ps(0.0f);
-          simde__m256 signABP =
-                    simde_mm256_cmp_ps(crossABP, zero, SIMDE_CMP_GT_OQ); // > 0
-          simde__m256 signBCP =
-                    simde_mm256_cmp_ps(crossBCP, zero, SIMDE_CMP_GT_OQ); // > 0
-          simde__m256 signCAP =
-                    simde_mm256_cmp_ps(crossCAP, zero, SIMDE_CMP_GT_OQ); // > 0
+  // Check if all cross products have the same sign (positive or negative)
+  simde__m256 zero = simde_mm256_set1_ps(0.0f);
+  simde__m256 signABP =
+      simde_mm256_cmp_ps(crossABP, zero, SIMDE_CMP_GT_OQ); // > 0
+  simde__m256 signBCP =
+      simde_mm256_cmp_ps(crossBCP, zero, SIMDE_CMP_GT_OQ); // > 0
+  simde__m256 signCAP =
+      simde_mm256_cmp_ps(crossCAP, zero, SIMDE_CMP_GT_OQ); // > 0
 
-          // Combine the signs: all positive or all negative
-          simde__m256 allPositive =
-                    simde_mm256_and_ps(simde_mm256_and_ps(signABP, signBCP), signCAP);
-          simde__m256 allNegative = simde_mm256_and_ps(
-                    simde_mm256_and_ps(simde_mm256_cmp_ps(crossABP, zero, SIMDE_CMP_LT_OQ),
-                              simde_mm256_cmp_ps(crossBCP, zero, SIMDE_CMP_LT_OQ)),
-                    simde_mm256_cmp_ps(crossCAP, zero, SIMDE_CMP_LT_OQ));
+  // Combine the signs: all positive or all negative
+  simde__m256 allPositive =
+      simde_mm256_and_ps(simde_mm256_and_ps(signABP, signBCP), signCAP);
+  simde__m256 allNegative = simde_mm256_and_ps(
+      simde_mm256_and_ps(simde_mm256_cmp_ps(crossABP, zero, SIMDE_CMP_LT_OQ),
+                         simde_mm256_cmp_ps(crossBCP, zero, SIMDE_CMP_LT_OQ)),
+      simde_mm256_cmp_ps(crossCAP, zero, SIMDE_CMP_LT_OQ));
 
-          return simde_mm256_or_ps(allPositive, allNegative);
+  return simde_mm256_or_ps(allPositive, allNegative);
 }
 
 #else
@@ -641,99 +638,99 @@ SoftRasterizer::RenderingPipeline::barycentric(
 #if defined(__x86_64__) || defined(_WIN64)
 inline std::tuple<__m256, __m256, __m256>
 SoftRasterizer::RenderingPipeline::barycentric(
-          const __m256& x_pos, const __m256& y_pos,
-          const SoftRasterizer::Triangle& triangle) {
+    const __m256 &x_pos, const __m256 &y_pos,
+    const SoftRasterizer::Triangle &triangle) {
 
-          const Eigen::Vector3f A = triangle.a();
-          const Eigen::Vector3f B = triangle.b();
-          const Eigen::Vector3f C = triangle.c();
+  const Eigen::Vector3f A = triangle.a();
+  const Eigen::Vector3f B = triangle.b();
+  const Eigen::Vector3f C = triangle.c();
 
-          __m256 ax = _mm256_set1_ps(A.x()), ay = _mm256_set1_ps(A.y());
-          __m256 bx = _mm256_set1_ps(B.x()), by = _mm256_set1_ps(B.y());
-          __m256 cx = _mm256_set1_ps(C.x()), cy = _mm256_set1_ps(C.y());
+  __m256 ax = _mm256_set1_ps(A.x()), ay = _mm256_set1_ps(A.y());
+  __m256 bx = _mm256_set1_ps(B.x()), by = _mm256_set1_ps(B.y());
+  __m256 cx = _mm256_set1_ps(C.x()), cy = _mm256_set1_ps(C.y());
 
-          // Edges
-          __m256 ABx = _mm256_sub_ps(bx, ax), ABy = _mm256_sub_ps(by, ay);
-          __m256 ACx = _mm256_sub_ps(cx, ax), ACy = _mm256_sub_ps(cy, ay);
-          __m256 PBx = _mm256_sub_ps(bx, x_pos), PBy = _mm256_sub_ps(by, y_pos);
-          __m256 PCx = _mm256_sub_ps(cx, x_pos), PCy = _mm256_sub_ps(cy, y_pos);
-          __m256 PAx = _mm256_sub_ps(ax, x_pos), PAy = _mm256_sub_ps(ay, y_pos);
+  // Edges
+  __m256 ABx = _mm256_sub_ps(bx, ax), ABy = _mm256_sub_ps(by, ay);
+  __m256 ACx = _mm256_sub_ps(cx, ax), ACy = _mm256_sub_ps(cy, ay);
+  __m256 PBx = _mm256_sub_ps(bx, x_pos), PBy = _mm256_sub_ps(by, y_pos);
+  __m256 PCx = _mm256_sub_ps(cx, x_pos), PCy = _mm256_sub_ps(cy, y_pos);
+  __m256 PAx = _mm256_sub_ps(ax, x_pos), PAy = _mm256_sub_ps(ay, y_pos);
 
-          // Compute area of triangle ABC (cross product of AB ¡Á AC)
-          __m256 areaABC = _mm256_fmsub_ps(ABx, ACy, _mm256_mul_ps(ACx, ABy));  // AB x AC
-          __m256 inverse = _mm256_rcp_ps(areaABC);
+  // Compute area of triangle ABC (cross product of AB ¡Á AC)
+  __m256 areaABC =
+      _mm256_fmsub_ps(ABx, ACy, _mm256_mul_ps(ACx, ABy)); // AB x AC
+  __m256 inverse = _mm256_rcp_ps(areaABC);
 
-          // Compute area of triangle PBC (cross product of PB ¡Á PC)
-          __m256 areaPBC = _mm256_fmsub_ps(PBx, PCy, _mm256_mul_ps(PCx, PBy)); // PB ¡Á PC
+  // Compute area of triangle PBC (cross product of PB ¡Á PC)
+  __m256 areaPBC =
+      _mm256_fmsub_ps(PBx, PCy, _mm256_mul_ps(PCx, PBy)); // PB ¡Á PC
 
-          // Compute area of triangle PCA (cross product of PC ¡Á PA)
-          __m256 areaPCA = _mm256_fmsub_ps(PCx, PAy, _mm256_mul_ps(PAx, PCy));  // PC ¡Á PA
+  // Compute area of triangle PCA (cross product of PC ¡Á PA)
+  __m256 areaPCA =
+      _mm256_fmsub_ps(PCx, PAy, _mm256_mul_ps(PAx, PCy)); // PC ¡Á PA
 
-          // Barycentric coordinates
-          __m256 alpha = _mm256_mul_ps(areaPBC, inverse);
-          __m256 beta = _mm256_mul_ps(areaPCA, inverse);
+  // Barycentric coordinates
+  __m256 alpha = _mm256_mul_ps(areaPBC, inverse);
+  __m256 beta = _mm256_mul_ps(areaPCA, inverse);
 
-          return  std::tuple<__m256, __m256, __m256>(
-                    alpha,
-                    beta,
-                    _mm256_sub_ps(_mm256_set1_ps(1.0f), _mm256_add_ps(alpha, beta))
-          );
+  return std::tuple<__m256, __m256, __m256>(
+      alpha, beta,
+      _mm256_sub_ps(_mm256_set1_ps(1.0f), _mm256_add_ps(alpha, beta)));
 }
 
 #elif defined(__arm__) || defined(__aarch64__)
 
 inline std::tuple<simde__m256, simde__m256, simde__m256>
 SoftRasterizer::RenderingPipeline::barycentric(
-          const simde__m256& x_pos, const simde__m256& y_pos,
-          const SoftRasterizer::Triangle& triangle) {
+    const simde__m256 &x_pos, const simde__m256 &y_pos,
+    const SoftRasterizer::Triangle &triangle) {
 
-          const Eigen::Vector3f A = triangle.a();
-          const Eigen::Vector3f B = triangle.b();
-          const Eigen::Vector3f C = triangle.c();
+  const Eigen::Vector3f A = triangle.a();
+  const Eigen::Vector3f B = triangle.b();
+  const Eigen::Vector3f C = triangle.c();
 
-          simde__m256 ax = simde_mm256_set1_ps(A.x()), ay = simde_mm256_set1_ps(A.y());
-          simde__m256 bx = simde_mm256_set1_ps(B.x()), by = simde_mm256_set1_ps(B.y());
-          simde__m256 cx = simde_mm256_set1_ps(C.x()), cy = simde_mm256_set1_ps(C.y());
+  simde__m256 ax = simde_mm256_set1_ps(A.x()), ay = simde_mm256_set1_ps(A.y());
+  simde__m256 bx = simde_mm256_set1_ps(B.x()), by = simde_mm256_set1_ps(B.y());
+  simde__m256 cx = simde_mm256_set1_ps(C.x()), cy = simde_mm256_set1_ps(C.y());
 
-          // Edges
-          simde__m256 ABx = simde_mm256_sub_ps(bx, ax),
-                    ABy = simde_mm256_sub_ps(by, ay);
-          simde__m256 ACx = simde_mm256_sub_ps(cx, ax),
-                    ACy = simde_mm256_sub_ps(cy, ay);
-          simde__m256 PBx = simde_mm256_sub_ps(bx, x_pos),
-                    PBy = simde_mm256_sub_ps(by, y_pos);
-          simde__m256 PCx = simde_mm256_sub_ps(cx, x_pos),
-                    PCy = simde_mm256_sub_ps(cy, y_pos);
-          simde__m256 PAx = simde_mm256_sub_ps(ax, x_pos),
-                    PAy = simde_mm256_sub_ps(ay, y_pos);
+  // Edges
+  simde__m256 ABx = simde_mm256_sub_ps(bx, ax),
+              ABy = simde_mm256_sub_ps(by, ay);
+  simde__m256 ACx = simde_mm256_sub_ps(cx, ax),
+              ACy = simde_mm256_sub_ps(cy, ay);
+  simde__m256 PBx = simde_mm256_sub_ps(bx, x_pos),
+              PBy = simde_mm256_sub_ps(by, y_pos);
+  simde__m256 PCx = simde_mm256_sub_ps(cx, x_pos),
+              PCy = simde_mm256_sub_ps(cy, y_pos);
+  simde__m256 PAx = simde_mm256_sub_ps(ax, x_pos),
+              PAy = simde_mm256_sub_ps(ay, y_pos);
 
-          // Compute area of triangle ABC (cross product of AB × AC)
-          simde__m256 areaABC = simde_mm256_sub_ps(
-                    simde_mm256_mul_ps(ABx, ACy), simde_mm256_mul_ps(ACx, ABy)); // AB x AC
+  // Compute area of triangle ABC (cross product of AB × AC)
+  simde__m256 areaABC = simde_mm256_sub_ps(
+      simde_mm256_mul_ps(ABx, ACy), simde_mm256_mul_ps(ACx, ABy)); // AB x AC
 
-          simde__m256 inverse = simde_mm256_rcp_ps(areaABC);
+  simde__m256 inverse = simde_mm256_rcp_ps(areaABC);
 
-          // Compute area of triangle PBC (cross product of PB × PC)
-          simde__m256 areaPBC = simde_mm256_sub_ps(
-                    simde_mm256_mul_ps(PBx, PCy), simde_mm256_mul_ps(PCx, PBy)); // PB × PC
+  // Compute area of triangle PBC (cross product of PB × PC)
+  simde__m256 areaPBC = simde_mm256_sub_ps(
+      simde_mm256_mul_ps(PBx, PCy), simde_mm256_mul_ps(PCx, PBy)); // PB × PC
 
-          // Compute area of triangle PCA (cross product of PC × PA)
-          simde__m256 areaPCA = simde_mm256_sub_ps(
-                    simde_mm256_mul_ps(PCx, PAy), simde_mm256_mul_ps(PAx, PCy)); // PC × PA
+  // Compute area of triangle PCA (cross product of PC × PA)
+  simde__m256 areaPCA = simde_mm256_sub_ps(
+      simde_mm256_mul_ps(PCx, PAy), simde_mm256_mul_ps(PAx, PCy)); // PC × PA
 
-          // Barycentric coordinates
-          simde__m256 alpha = simde_mm256_mul_ps(areaPBC, inverse);
-          simde__m256 beta = simde_mm256_mul_ps(areaPCA, inverse);
+  // Barycentric coordinates
+  simde__m256 alpha = simde_mm256_mul_ps(areaPBC, inverse);
+  simde__m256 beta = simde_mm256_mul_ps(areaPCA, inverse);
 
-          return std::tuple<simde__m256, simde__m256, simde__m256>(
-                    alpha, beta,
-                    simde_mm256_sub_ps(simde_mm256_set1_ps(1.0f),
-                              simde_mm256_add_ps(alpha, beta)));
+  return std::tuple<simde__m256, simde__m256, simde__m256>(
+      alpha, beta,
+      simde_mm256_sub_ps(simde_mm256_set1_ps(1.0f),
+                         simde_mm256_add_ps(alpha, beta)));
 }
 
 #else
 #endif
-
 
 void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
   if ((type != SoftRasterizer::Primitive::LINES) &&
@@ -847,8 +844,8 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 
   // Assuming payloads[0..2] are stored in __m256 types
 #if defined(__x86_64__) || defined(_WIN64)
-  __m256 z0 =_mm256_set1_ps(A_Point.z());
- __m256 z1 = _mm256_set1_ps(B_Point.z());
+  __m256 z0 = _mm256_set1_ps(A_Point.z());
+  __m256 z1 = _mm256_set1_ps(B_Point.z());
   __m256 z2 = _mm256_set1_ps(C_Point.z());
 
 #elif defined(__arm__) || defined(__aarch64__)
@@ -899,28 +896,34 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
       PREFETCH(m_channels[2].ptr<float>(0) + start_pos + UNROLLING_FACTOR);
 
 #if defined(__x86_64__) || defined(_WIN64)
-      __m256 Original_Z = _mm256_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
-      __m256 Original_Blue = _mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos);
-      __m256 Original_Green = _mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos);
-      __m256 Original_Red = _mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
+      __m256 Original_Z =
+          _mm256_loadu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]));
+      __m256 Original_Blue =
+          _mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos);
+      __m256 Original_Green =
+          _mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos);
+      __m256 Original_Red =
+          _mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
 
       // Initial x values for 8 points
-      point.x = _mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f, x + 2.f, x + 1.f, x + 0.f);
-      //point.x = _mm256_set_ps(x + 0.f, x + 1.f, x + 2.f, x + 3.f, x + 4.f, x + 5.f, x + 6.f, x + 7.f);
+      point.x = _mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f,
+                              x + 2.f, x + 1.f, x + 0.f);
+      // point.x = _mm256_set_ps(x + 0.f, x + 1.f, x + 2.f, x + 3.f, x + 4.f, x
+      // + 5.f, x + 6.f, x + 7.f);
 
 #elif defined(__arm__) || defined(__aarch64__)
       simde__m256 Original_Z = simde_mm256_loadu_ps(
-                reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+          reinterpret_cast<float *>(&m_zBuffer[start_pos]));
       simde__m256 Original_Blue =
-                simde_mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos);
+          simde_mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos);
       simde__m256 Original_Green =
-                simde_mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos);
+          simde_mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos);
       simde__m256 Original_Red =
-                simde_mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
+          simde_mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
 
       // Initial x values for 8 points
       point.x = simde_mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f,
-                x + 2.f, x + 1.f, x + 0.f);
+                                   x + 2.f, x + 1.f, x + 0.f);
       // point.x = simde_mm256_set_ps(x + 0.f, x + 1.f, x + 2.f, x + 3.f, x
       // + 4.f, x + 5.f, x + 6.f, x + 7.f);
 
@@ -940,44 +943,50 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
       auto [alpha, beta, gamma] = barycentric(point.x, point.y, triangle);
 
 #if defined(__x86_64__) || defined(_WIN64)
-      //if sum is zero, then it means the point is not inside the triangle!!!
-      __m256 alpha_valid = _mm256_and_ps(_mm256_cmp_ps(alpha, zero, _CMP_GT_OQ), _mm256_cmp_ps(alpha, one, _CMP_LT_OQ));
-      __m256 beta_valid = _mm256_and_ps(_mm256_cmp_ps(beta, zero, _CMP_GT_OQ), _mm256_cmp_ps(beta, one, _CMP_LT_OQ));
-      __m256 gamma_valid = _mm256_and_ps(_mm256_cmp_ps(gamma, zero, _CMP_GT_OQ), _mm256_cmp_ps(gamma, one, _CMP_LT_OQ));
-      __m256 inside_mask = _mm256_and_ps(_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
+      // if sum is zero, then it means the point is not inside the triangle!!!
+      __m256 alpha_valid = _mm256_and_ps(_mm256_cmp_ps(alpha, zero, _CMP_GT_OQ),
+                                         _mm256_cmp_ps(alpha, one, _CMP_LT_OQ));
+      __m256 beta_valid = _mm256_and_ps(_mm256_cmp_ps(beta, zero, _CMP_GT_OQ),
+                                        _mm256_cmp_ps(beta, one, _CMP_LT_OQ));
+      __m256 gamma_valid = _mm256_and_ps(_mm256_cmp_ps(gamma, zero, _CMP_GT_OQ),
+                                         _mm256_cmp_ps(gamma, one, _CMP_LT_OQ));
+      __m256 inside_mask =
+          _mm256_and_ps(_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
 
       /*when all points are not inside triangle! continue to next loop*/
       if (_mm256_testz_ps(inside_mask, inside_mask)) {
-                continue;
+        continue;
       }
 
       // Compute the z_interpolated using the blend operation
-      point.z = _mm256_fmadd_ps(alpha, z0, _mm256_fmadd_ps(beta, z1, _mm256_mul_ps(gamma, z2)));
+      point.z = _mm256_fmadd_ps(
+          alpha, z0, _mm256_fmadd_ps(beta, z1, _mm256_mul_ps(gamma, z2)));
 
       /*Comparing z-buffer value to determine update colour or not!*/
-      __m256 mask = _mm256_and_ps(_mm256_cmp_ps(point.z, Original_Z, _CMP_LT_OQ), inside_mask);
+      __m256 mask = _mm256_and_ps(
+          _mm256_cmp_ps(point.z, Original_Z, _CMP_LT_OQ), inside_mask);
 
       if (_mm256_testz_ps(mask, mask)) {
-                continue;
+        continue;
       }
 
 #elif defined(__arm__) || defined(__aarch64__)
       // if sum is zero, then it means the point is not inside the triangle!!!
       simde__m256 alpha_valid =
-                simde_mm256_and_ps(simde_mm256_cmp_ps(alpha, zero, SIMDE_CMP_GT_OQ),
-                          simde_mm256_cmp_ps(alpha, one, SIMDE_CMP_LT_OQ));
+          simde_mm256_and_ps(simde_mm256_cmp_ps(alpha, zero, SIMDE_CMP_GT_OQ),
+                             simde_mm256_cmp_ps(alpha, one, SIMDE_CMP_LT_OQ));
       simde__m256 beta_valid =
-                simde_mm256_and_ps(simde_mm256_cmp_ps(beta, zero, SIMDE_CMP_GT_OQ),
-                          simde_mm256_cmp_ps(beta, one, SIMDE_CMP_LT_OQ));
+          simde_mm256_and_ps(simde_mm256_cmp_ps(beta, zero, SIMDE_CMP_GT_OQ),
+                             simde_mm256_cmp_ps(beta, one, SIMDE_CMP_LT_OQ));
       simde__m256 gamma_valid =
-                simde_mm256_and_ps(simde_mm256_cmp_ps(gamma, zero, SIMDE_CMP_GT_OQ),
-                          simde_mm256_cmp_ps(gamma, one, SIMDE_CMP_LT_OQ));
+          simde_mm256_and_ps(simde_mm256_cmp_ps(gamma, zero, SIMDE_CMP_GT_OQ),
+                             simde_mm256_cmp_ps(gamma, one, SIMDE_CMP_LT_OQ));
       simde__m256 inside_mask = simde_mm256_and_ps(
-                simde_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
+          simde_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
 
       /*when all points are not inside triangle! continue to next loop*/
       if (simde_mm256_testz_ps(inside_mask, inside_mask)) {
-                continue;
+        continue;
       }
 
       // Compute the z_interpolated using the blend operation
@@ -993,11 +1002,11 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 
       /*Comparing z-buffer value to determine update colour or not!*/
       simde__m256 mask = simde_mm256_and_ps(
-                simde_mm256_cmp_ps(point.z, Original_Z, SIMDE_CMP_LT_OQ),
-                inside_mask);
+          simde_mm256_cmp_ps(point.z, Original_Z, SIMDE_CMP_LT_OQ),
+          inside_mask);
 
       if (simde_mm256_testz_ps(mask, mask)) {
-                continue;
+        continue;
       }
 
 #else
@@ -1019,21 +1028,18 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 
 #if defined(__x86_64__) || defined(_WIN64)
       writeZBuffer(start_pos, _mm256_blendv_ps(Original_Z, point.z, mask));
-      writePixel(start_pos,
-                _mm256_blendv_ps(Original_Red, color.r, mask),
-                _mm256_blendv_ps(Original_Green, color.g, mask),
-                _mm256_blendv_ps(Original_Blue, color.b, mask)
-      );
+      writePixel(start_pos, _mm256_blendv_ps(Original_Red, color.r, mask),
+                 _mm256_blendv_ps(Original_Green, color.g, mask),
+                 _mm256_blendv_ps(Original_Blue, color.b, mask));
 
 #elif defined(__arm__) || defined(__aarch64__)
       writeZBuffer(start_pos, simde_mm256_blendv_ps(Original_Z, point.z, mask));
       writePixel(start_pos, simde_mm256_blendv_ps(Original_Red, color.r, mask),
-                simde_mm256_blendv_ps(Original_Green, color.g, mask),
-                simde_mm256_blendv_ps(Original_Blue, color.b, mask));
+                 simde_mm256_blendv_ps(Original_Green, color.g, mask),
+                 simde_mm256_blendv_ps(Original_Blue, color.b, mask));
 
 #else
 #endif
-
     }
     for (; x < endX; ++x) {
       // Check if the point (currentX, currentY) is inside the triangle

@@ -2,66 +2,59 @@
 #include <spdlog/spdlog.h>
 
 #if defined(__x86_64__) || defined(_WIN64)
-SoftRasterizer::NormalSIMD::NormalSIMD(const __m256& _x,
-          const __m256& _y,
-          const __m256& _z)
-          : x(_x), y(_y), z(_z) {
-}
+SoftRasterizer::NormalSIMD::NormalSIMD(const __m256 &_x, const __m256 &_y,
+                                       const __m256 &_z)
+    : x(_x), y(_y), z(_z) {}
 
 // Normalizing all the vector components
 SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
-          __m256 length = _mm256_sqrt_ps(_mm256_fmadd_ps(x, x, _mm256_fmadd_ps(y, y, _mm256_mul_ps(z, z))));
+  __m256 length = _mm256_sqrt_ps(
+      _mm256_fmadd_ps(x, x, _mm256_fmadd_ps(y, y, _mm256_mul_ps(z, z))));
 
-          //only filter lenth >0(GT) , then set mask to 1 
-          __m256 mask = _mm256_cmp_ps(length, zero, _CMP_GT_OQ);
+  // only filter lenth >0(GT) , then set mask to 1
+  __m256 mask = _mm256_cmp_ps(length, zero, _CMP_GT_OQ);
 
-          return  NormalSIMD(
-                    _mm256_blendv_ps(zero, _mm256_div_ps(x, length), mask),
+  return NormalSIMD(_mm256_blendv_ps(zero, _mm256_div_ps(x, length), mask),
                     _mm256_blendv_ps(zero, _mm256_div_ps(y, length), mask),
-                    _mm256_blendv_ps(zero, _mm256_div_ps(z, length), mask)
-          );
+                    _mm256_blendv_ps(zero, _mm256_div_ps(z, length), mask));
 }
 
-SoftRasterizer::ColorSIMD::ColorSIMD(const __m256& _r,
-          const __m256& _g,
-          const __m256& _b)
-          : r(_r), g(_g), b(_b) {
-}
+SoftRasterizer::ColorSIMD::ColorSIMD(const __m256 &_r, const __m256 &_g,
+                                     const __m256 &_b)
+    : r(_r), g(_g), b(_b) {}
 
 #elif defined(__arm__) || defined(__aarch64__)
 #include <arm/neon.h>
-SoftRasterizer::NormalSIMD::NormalSIMD(const simde__m256& _x,
-          const simde__m256& _y,
-          const simde__m256& _z)
-          : x(_x), y(_y), z(_z) {
-}
+SoftRasterizer::NormalSIMD::NormalSIMD(const simde__m256 &_x,
+                                       const simde__m256 &_y,
+                                       const simde__m256 &_z)
+    : x(_x), y(_y), z(_z) {}
 
 // Normalizing all the vector components
 SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
-          /*x^2 + y^2 + z^2*/
-          auto squre = simde_mm256_mul_ps(x, x);
-          auto squre_y = simde_mm256_mul_ps(y, y);
-          auto squre_z = simde_mm256_mul_ps(z, z);
+  /*x^2 + y^2 + z^2*/
+  auto squre = simde_mm256_mul_ps(x, x);
+  auto squre_y = simde_mm256_mul_ps(y, y);
+  auto squre_z = simde_mm256_mul_ps(z, z);
 
-          squre_y = simde_mm256_add_ps(squre_y, squre_z);
-          squre = simde_mm256_add_ps(squre, squre_y);
+  squre_y = simde_mm256_add_ps(squre_y, squre_z);
+  squre = simde_mm256_add_ps(squre, squre_y);
 
-          simde__m256 length = simde_mm256_sqrt_ps(squre);
+  simde__m256 length = simde_mm256_sqrt_ps(squre);
 
-          // only filter lenth >0(GT) , then set mask to 1
-          simde__m256 mask = simde_mm256_cmp_ps(length, zero, SIMDE_CMP_GT_OQ);
+  // only filter lenth >0(GT) , then set mask to 1
+  simde__m256 mask = simde_mm256_cmp_ps(length, zero, SIMDE_CMP_GT_OQ);
 
-          return NormalSIMD(
-                    simde_mm256_blendv_ps(zero, simde_mm256_div_ps(x, length), mask),
-                    simde_mm256_blendv_ps(zero, simde_mm256_div_ps(y, length), mask),
-                    simde_mm256_blendv_ps(zero, simde_mm256_div_ps(z, length), mask));
+  return NormalSIMD(
+      simde_mm256_blendv_ps(zero, simde_mm256_div_ps(x, length), mask),
+      simde_mm256_blendv_ps(zero, simde_mm256_div_ps(y, length), mask),
+      simde_mm256_blendv_ps(zero, simde_mm256_div_ps(z, length), mask));
 }
 
-SoftRasterizer::ColorSIMD::ColorSIMD(const simde__m256& _r,
-          const simde__m256& _g,
-          const simde__m256& _b)
-          : r(_r), g(_g), b(_b) {
-}
+SoftRasterizer::ColorSIMD::ColorSIMD(const simde__m256 &_r,
+                                     const simde__m256 &_g,
+                                     const simde__m256 &_b)
+    : r(_r), g(_g), b(_b) {}
 
 #else
 #endif
@@ -165,102 +158,97 @@ Eigen::Vector3f SoftRasterizer::Tools::interpolateNormal(
 
 #if defined(__x86_64__) || defined(_WIN64)
 SoftRasterizer::NormalSIMD SoftRasterizer::Tools::interpolateNormal(
-          const __m256& alpha, const __m256& beta, const __m256& gamma,
-          const Eigen::Vector3f& normal1, const Eigen::Vector3f& normal2,
-          const Eigen::Vector3f& normal3) 
-{
-          return NormalSIMD(
+    const __m256 &alpha, const __m256 &beta, const __m256 &gamma,
+    const Eigen::Vector3f &normal1, const Eigen::Vector3f &normal2,
+    const Eigen::Vector3f &normal3) {
+  return NormalSIMD(_mm256_fmadd_ps(
+                        alpha, _mm256_set1_ps(normal1.x()),
+                        _mm256_fmadd_ps(
+                            beta, _mm256_set1_ps(normal2.x()),
+                            _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.x())))),
                     _mm256_fmadd_ps(
-                              alpha, _mm256_set1_ps(normal1.x()),
-                              _mm256_fmadd_ps(
-                                        beta, _mm256_set1_ps(normal2.x()),
-                                        _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.x()))
-                              )
-                    ),
+                        alpha, _mm256_set1_ps(normal1.y()),
+                        _mm256_fmadd_ps(
+                            beta, _mm256_set1_ps(normal2.y()),
+                            _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.y())))),
                     _mm256_fmadd_ps(
-                              alpha, _mm256_set1_ps(normal1.y()),
-                              _mm256_fmadd_ps(
-                                        beta, _mm256_set1_ps(normal2.y()),
-                                        _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.y()))
-                              )
-                    ),
-                    _mm256_fmadd_ps(
-                              alpha, _mm256_set1_ps(normal1.z()),
-                              _mm256_fmadd_ps(
-                                        beta, _mm256_set1_ps(normal2.z()),
-                                        _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.z()))
-                              )
-                    )
+                        alpha, _mm256_set1_ps(normal1.z()),
+                        _mm256_fmadd_ps(
+                            beta, _mm256_set1_ps(normal2.z()),
+                            _mm256_mul_ps(gamma, _mm256_set1_ps(normal3.z()))))
 
-          ).normalized();
+                        )
+      .normalized();
 }
 
 SoftRasterizer::TexCoordSIMD SoftRasterizer::Tools::interpolateTexCoord(
-          const __m256& alpha, const __m256& beta, const __m256& gamma,
-          const Eigen::Vector2f& textCoord1, const Eigen::Vector2f& textCoord2,
-          const Eigen::Vector2f& textCoord3) {
-          TexCoordSIMD result;
+    const __m256 &alpha, const __m256 &beta, const __m256 &gamma,
+    const Eigen::Vector2f &textCoord1, const Eigen::Vector2f &textCoord2,
+    const Eigen::Vector2f &textCoord3) {
+  TexCoordSIMD result;
 
-          result.u = _mm256_fmadd_ps(alpha, _mm256_set1_ps(textCoord1.x()),
-                    _mm256_fmadd_ps(beta, _mm256_set1_ps(textCoord2.x()),
-                              _mm256_mul_ps(gamma, _mm256_set1_ps(textCoord3.x()))));
-          result.v = _mm256_fmadd_ps(alpha, _mm256_set1_ps(textCoord1.y()),
-                    _mm256_fmadd_ps(beta, _mm256_set1_ps(textCoord2.y()),
-                              _mm256_mul_ps(gamma, _mm256_set1_ps(textCoord3.y()))));
+  result.u = _mm256_fmadd_ps(
+      alpha, _mm256_set1_ps(textCoord1.x()),
+      _mm256_fmadd_ps(beta, _mm256_set1_ps(textCoord2.x()),
+                      _mm256_mul_ps(gamma, _mm256_set1_ps(textCoord3.x()))));
+  result.v = _mm256_fmadd_ps(
+      alpha, _mm256_set1_ps(textCoord1.y()),
+      _mm256_fmadd_ps(beta, _mm256_set1_ps(textCoord2.y()),
+                      _mm256_mul_ps(gamma, _mm256_set1_ps(textCoord3.y()))));
 
-          // Return as a struct containing both components (x and y)
-          return result;
+  // Return as a struct containing both components (x and y)
+  return result;
 }
 
 #elif defined(__arm__) || defined(__aarch64__)
 SoftRasterizer::NormalSIMD SoftRasterizer::Tools::interpolateNormal(
-          const simde__m256& alpha, const simde__m256& beta, const simde__m256& gamma,
-          const Eigen::Vector3f& normal1, const Eigen::Vector3f& normal2,
-          const Eigen::Vector3f& normal3) {
+    const simde__m256 &alpha, const simde__m256 &beta, const simde__m256 &gamma,
+    const Eigen::Vector3f &normal1, const Eigen::Vector3f &normal2,
+    const Eigen::Vector3f &normal3) {
 
-          NormalSIMD normal;
-          auto a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.x()));
-          auto b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.x()));
-          auto c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.x()));
+  NormalSIMD normal;
+  auto a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.x()));
+  auto b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.x()));
+  auto c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.x()));
 
-          a = simde_mm256_add_ps(a, b);
-          normal.x = simde_mm256_add_ps(a, c);
+  a = simde_mm256_add_ps(a, b);
+  normal.x = simde_mm256_add_ps(a, c);
 
-          a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.y()));
-          b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.y()));
-          c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.y()));
-          a = simde_mm256_add_ps(a, b);
-          normal.y = simde_mm256_add_ps(a, c);
+  a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.y()));
+  b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.y()));
+  c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.y()));
+  a = simde_mm256_add_ps(a, b);
+  normal.y = simde_mm256_add_ps(a, c);
 
-          a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.z()));
-          b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.z()));
-          c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.z()));
-          a = simde_mm256_add_ps(a, b);
-          normal.z = simde_mm256_add_ps(a, c);
+  a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(normal1.z()));
+  b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(normal2.z()));
+  c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(normal3.z()));
+  a = simde_mm256_add_ps(a, b);
+  normal.z = simde_mm256_add_ps(a, c);
 
-          return normal.normalized();
+  return normal.normalized();
 }
 
 SoftRasterizer::TexCoordSIMD SoftRasterizer::Tools::interpolateTexCoord(
-          const simde__m256& alpha, const simde__m256& beta, const simde__m256& gamma,
-          const Eigen::Vector2f& textCoord1, const Eigen::Vector2f& textCoord2,
-          const Eigen::Vector2f& textCoord3) {
+    const simde__m256 &alpha, const simde__m256 &beta, const simde__m256 &gamma,
+    const Eigen::Vector2f &textCoord1, const Eigen::Vector2f &textCoord2,
+    const Eigen::Vector2f &textCoord3) {
 
-          // Return as a struct containing both components (x and y)
-          TexCoordSIMD result;
-          auto a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(textCoord1.x()));
-          auto b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(textCoord2.x()));
-          auto c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.x()));
-          a = simde_mm256_add_ps(a, b);
-          result.u = simde_mm256_add_ps(a, c);
+  // Return as a struct containing both components (x and y)
+  TexCoordSIMD result;
+  auto a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(textCoord1.x()));
+  auto b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(textCoord2.x()));
+  auto c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.x()));
+  a = simde_mm256_add_ps(a, b);
+  result.u = simde_mm256_add_ps(a, c);
 
-          a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(textCoord1.y()));
-          b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(textCoord2.y()));
-          c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.y()));
-          a = simde_mm256_add_ps(a, b);
-          result.v = simde_mm256_add_ps(a, c);
+  a = simde_mm256_mul_ps(alpha, simde_mm256_set1_ps(textCoord1.y()));
+  b = simde_mm256_mul_ps(beta, simde_mm256_set1_ps(textCoord2.y()));
+  c = simde_mm256_mul_ps(gamma, simde_mm256_set1_ps(textCoord3.y()));
+  a = simde_mm256_add_ps(a, b);
+  result.v = simde_mm256_add_ps(a, c);
 
-          return result;
+  return result;
 }
 
 #else

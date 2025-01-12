@@ -193,18 +193,17 @@ private:
    * coordinates are zeroed out for points outside the triangle using a mask.
    */
 #if defined(__x86_64__) || defined(_WIN64)
-  static inline std::tuple<__m256,__m256, __m256>
-            barycentric(const __m256& x_pos, const __m256& y_pos,
-                      const SoftRasterizer::Triangle& triangle);
+  static inline std::tuple<__m256, __m256, __m256>
+  barycentric(const __m256 &x_pos, const __m256 &y_pos,
+              const SoftRasterizer::Triangle &triangle);
 
 #elif defined(__arm__) || defined(__aarch64__)
   static inline std::tuple<simde__m256, simde__m256, simde__m256>
-            barycentric(const simde__m256& x_pos, const simde__m256& y_pos,
-                      const SoftRasterizer::Triangle& triangle);
+  barycentric(const simde__m256 &x_pos, const simde__m256 &y_pos,
+              const SoftRasterizer::Triangle &triangle);
 
 #else
 #endif
-
 
   /*Rasterize a triangle*/
   void rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader,
@@ -222,22 +221,22 @@ private:
                            const float depth);
 
 #if defined(__x86_64__) || defined(_WIN64)
-  inline void writePixel(const long long start_pos, const __m256& r,
-            const __m256& g, const __m256& b);
+  inline void writePixel(const long long start_pos, const __m256 &r,
+                         const __m256 &g, const __m256 &b);
 
-  inline void writeZBuffer(const long long start_pos, const __m256& depth);
+  inline void writeZBuffer(const long long start_pos, const __m256 &depth);
 
-  static __m256 insideTriangle(const __m256& x, const __m256& y,
-            const SoftRasterizer::Triangle& triangle);
+  static __m256 insideTriangle(const __m256 &x, const __m256 &y,
+                               const SoftRasterizer::Triangle &triangle);
 
 #elif defined(__arm__) || defined(__aarch64__)
-  inline void writePixel(const long long start_pos, const simde__m256& r,
-            const simde__m256& g, const simde__m256& b);
+  inline void writePixel(const long long start_pos, const simde__m256 &r,
+                         const simde__m256 &g, const simde__m256 &b);
 
-  inline void writeZBuffer(const long long start_pos, const simde__m256& depth);
+  inline void writeZBuffer(const long long start_pos, const simde__m256 &depth);
 
-  static simde__m256 insideTriangle(const simde__m256& x, const simde__m256& y,
-            const SoftRasterizer::Triangle& triangle);
+  static simde__m256 insideTriangle(const simde__m256 &x, const simde__m256 &y,
+                                    const SoftRasterizer::Triangle &triangle);
 
 #else
 #endif
@@ -293,8 +292,7 @@ private:
   const __m256 one = _mm256_set1_ps(1.0f);
 
   /*decribe inf distance in z buffer*/
-  const __m256 inf =
-            _mm256_set1_ps(std::numeric_limits<float>::infinity());
+  const __m256 inf = _mm256_set1_ps(std::numeric_limits<float>::infinity());
 
 #elif defined(__arm__) || defined(__aarch64__)
   simde__m256 scale_simd;
@@ -305,7 +303,7 @@ private:
 
   /*decribe inf distance in z buffer*/
   const simde__m256 inf =
-            simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
+      simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
 
 #else
 #endif
