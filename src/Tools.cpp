@@ -19,6 +19,11 @@ SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
                     _mm256_blendv_ps(zero, _mm256_div_ps(z, length), mask));
 }
 
+SoftRasterizer::ColorSIMD::ColorSIMD()
+          :r(_mm256_set1_ps(1.0f)), g(_mm256_set1_ps(1.0f)), b(_mm256_set1_ps(1.0f))
+{
+}
+
 SoftRasterizer::ColorSIMD::ColorSIMD(const __m256 &_r, const __m256 &_g,
                                      const __m256 &_b)
     : r(_r), g(_g), b(_b) {}
@@ -51,6 +56,11 @@ SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
       simde_mm256_blendv_ps(zero, simde_mm256_div_ps(z, length), mask));
 }
 
+SoftRasterizer::ColorSIMD::ColorSIMD()
+          :r(simde_mm256_set1_ps(1.0f)), g(simde_mm256_set1_ps(1.0f)), b(simde_mm256_set1_ps(1.0f))
+{
+}
+
 SoftRasterizer::ColorSIMD::ColorSIMD(const simde__m256 &_r,
                                      const simde__m256 &_g,
                                      const simde__m256 &_b)
@@ -58,8 +68,6 @@ SoftRasterizer::ColorSIMD::ColorSIMD(const simde__m256 &_r,
 
 #else
 #endif
-
-SoftRasterizer::ColorSIMD::ColorSIMD::ColorSIMD() : r(zero), g(zero), b(zero) {}
 
 // degree to radian
 float SoftRasterizer::Tools::degreeToRadian(float degree) {

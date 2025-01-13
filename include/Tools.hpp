@@ -27,11 +27,11 @@ struct TexCoordSIMD {
 };
 
 struct ColorSIMD {
-  ColorSIMD();
+          ColorSIMD();
   ColorSIMD(const __m256 &_r, const __m256 &_g, const __m256 &_b);
   __m256 r, g, b;
   const __m256 zero = _mm256_set1_ps(0.f);
-  const __m256 one = _mm256_set1_ps(01.f);
+  const __m256 one = _mm256_set1_ps(1.f);
 };
 
 #elif defined(__arm__) || defined(__aarch64__)
