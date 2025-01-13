@@ -40,12 +40,15 @@ public:
       __m128i u_coord = _mm_cvtps_epi32(u);
       __m128i v_coord = _mm_cvtps_epi32(v);
 
-      Tools::static_for<0, num_elements>([this, &u_coord, &v_coord, &R_Block, &G_Block, &B_Block](auto i) {
-                cv::Vec3b color = m_texture.at<cv::Vec3b>(_mm_extract_epi32(v_coord, i.value), _mm_extract_epi32(u_coord, i.value));
-                R_Block[i.value] = static_cast<float>(color.val[0]); // Red;
-                G_Block[i.value] = static_cast<float>(color.val[1]); // Green
-                B_Block[i.value] = static_cast<float>(color.val[2]); // Blue
-                });
+      Tools::static_for<0, num_elements>(
+          [this, &u_coord, &v_coord, &R_Block, &G_Block, &B_Block](auto i) {
+            cv::Vec3b color =
+                m_texture.at<cv::Vec3b>(_mm_extract_epi32(v_coord, i.value),
+                                        _mm_extract_epi32(u_coord, i.value));
+            R_Block[i.value] = static_cast<float>(color.val[0]); // Red;
+            G_Block[i.value] = static_cast<float>(color.val[1]); // Green
+            B_Block[i.value] = static_cast<float>(color.val[2]); // Blue
+          });
     }
 #if defined(__x86_64__) || defined(_WIN64)
     else if constexpr (std::is_same_v<_simd, __m256>) {
@@ -59,46 +62,51 @@ public:
 #else
 #endif
 
-      Tools::static_for<0, num_elements>([this, &u_coord, &v_coord, &R_Block, &G_Block, &B_Block](auto i) {
+      Tools::static_for<0, num_elements>(
+          [this, &u_coord, &v_coord, &R_Block, &G_Block, &B_Block](auto i) {
 #if defined(__x86_64__) || defined(_WIN64)
-                cv::Vec3b color = m_texture.at<cv::Vec3b>(_mm256_extract_epi32(v_coord, i.value), _mm256_extract_epi32(u_coord, i.value));
-                R_Block[i.value] = static_cast<float>(color.val[0]); // Red;
-                G_Block[i.value] = static_cast<float>(color.val[1]); // Green
-                B_Block[i.value] = static_cast<float>(color.val[2]); // Blue
+            cv::Vec3b color =
+                m_texture.at<cv::Vec3b>(_mm256_extract_epi32(v_coord, i.value),
+                                        _mm256_extract_epi32(u_coord, i.value));
+            R_Block[i.value] = static_cast<float>(color.val[0]); // Red;
+            G_Block[i.value] = static_cast<float>(color.val[1]); // Green
+            B_Block[i.value] = static_cast<float>(color.val[2]); // Blue
 
 #elif defined(__arm__) || defined(__aarch64__)
-        cv::Vec3b color = m_texture.at<cv::Vec3b>(simde_mm256_extract_epi32(v_coord, i.value), simde_mm256_extract_epi32(u_coord, i.value));
-        R_Block[i.value] = static_cast<float>(color.val[0]); // Red;
-        G_Block[i.value] = static_cast<float>(color.val[1]); // Green
-        B_Block[i.value] = static_cast<float>(color.val[2]); // Blue
+            cv::Vec3b color = m_texture.at<cv::Vec3b>(
+                simde_mm256_extract_epi32(v_coord, i.value),
+                simde_mm256_extract_epi32(u_coord, i.value));
+            R_Block[i.value] = static_cast<float>(color.val[0]); // Red;
+            G_Block[i.value] = static_cast<float>(color.val[1]); // Green
+            B_Block[i.value] = static_cast<float>(color.val[2]); // Blue
 #else
 #endif
-      });
+          });
     }
 
     _simd inverse;
 
     if constexpr (std::is_same_v<_simd, __m128>) {
-              inverse = _mm_rcp_ps(_mm_set1_ps(255.0f));
-      return {_mm_mul_ps(_mm_loadu_ps(R_Block.data()),  inverse),
-              _mm_mul_ps(_mm_loadu_ps(G_Block.data()),  inverse),
-              _mm_mul_ps(_mm_loadu_ps(B_Block.data()),  inverse)};
+      inverse = _mm_rcp_ps(_mm_set1_ps(255.0f));
+      return {_mm_mul_ps(_mm_loadu_ps(R_Block.data()), inverse),
+              _mm_mul_ps(_mm_loadu_ps(G_Block.data()), inverse),
+              _mm_mul_ps(_mm_loadu_ps(B_Block.data()), inverse)};
     }
 
 #if defined(__x86_64__) || defined(_WIN64)
     else if constexpr (std::is_same_v<_simd, __m256>) {
-              inverse = _mm256_rcp_ps(_mm256_set1_ps(255.0f));
-      return {_mm256_mul_ps(_mm256_loadu_ps(R_Block.data()),  inverse),
-              _mm256_mul_ps(_mm256_loadu_ps(G_Block.data()),  inverse),
-              _mm256_mul_ps(_mm256_loadu_ps(B_Block.data()),  inverse)};
+      inverse = _mm256_rcp_ps(_mm256_set1_ps(255.0f));
+      return {_mm256_mul_ps(_mm256_loadu_ps(R_Block.data()), inverse),
+              _mm256_mul_ps(_mm256_loadu_ps(G_Block.data()), inverse),
+              _mm256_mul_ps(_mm256_loadu_ps(B_Block.data()), inverse)};
 
 #elif defined(__arm__) || defined(__aarch64__)
     else if constexpr (std::is_same_v<_simd, simde__m256>) {
-              inverse = simde_mm256_rcp_ps(simde_mm256_set1_ps(255.0f));
+      inverse = simde_mm256_rcp_ps(simde_mm256_set1_ps(255.0f));
       return {
-          simde_mm256_mul_ps(simde_mm256_loadu_ps(R_Block.data()),   inverse),
-          simde_mm256_mul_ps(simde_mm256_loadu_ps(G_Block.data()),   inverse),
-          simde_mm256_mul_ps(simde_mm256_loadu_ps(B_Block.data()),   inverse)};
+          simde_mm256_mul_ps(simde_mm256_loadu_ps(R_Block.data()), inverse),
+          simde_mm256_mul_ps(simde_mm256_loadu_ps(G_Block.data()), inverse),
+          simde_mm256_mul_ps(simde_mm256_loadu_ps(B_Block.data()), inverse)};
 #else
 #endif
     }

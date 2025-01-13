@@ -233,33 +233,34 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
   colour.r = colour.g = colour.b = zero;
 
   for (const auto &light : lights) {
-            auto [Lr, Lg, Lb] = BlinnPhong(
-                      normal,
-                      ka_r, ka_g, ka_b,
-                      R, G, B,
-                      ks_r, ks_g, ks_b,
-                      camera_x, camera_y, camera_z,
+    auto [Lr, Lg, Lb] = BlinnPhong(
+        normal, ka_r, ka_g, ka_b, R, G, B, ks_r, ks_g, ks_b, camera_x, camera_y,
+        camera_z,
 #if defined(__x86_64__) || defined(_WIN64)
-                      _mm256_set1_ps(light.position.x()), _mm256_set1_ps(light.position.y()), _mm256_set1_ps(light.position.z()),
-                      _mm256_set1_ps(light.intensity.x()), _mm256_set1_ps(light.intensity.y()), _mm256_set1_ps(light.intensity.z()),
+        _mm256_set1_ps(light.position.x()), _mm256_set1_ps(light.position.y()),
+        _mm256_set1_ps(light.position.z()), _mm256_set1_ps(light.intensity.x()),
+        _mm256_set1_ps(light.intensity.y()),
+        _mm256_set1_ps(light.intensity.z()),
 #elif defined(__arm__) || defined(__aarch64__)
-                      simde_mm256_set1_ps(light.position.x()), simde_mm256_set1_ps(light.position.y()), simde_mm256_set1_ps(light.position.z()),
-                      simde_mm256_set1_ps(light.intensity.x()), simde_mm256_set1_ps(light.intensity.y()), simde_mm256_set1_ps(light.intensity.z()),
+        simde_mm256_set1_ps(light.position.x()),
+        simde_mm256_set1_ps(light.position.y()),
+        simde_mm256_set1_ps(light.position.z()),
+        simde_mm256_set1_ps(light.intensity.x()),
+        simde_mm256_set1_ps(light.intensity.y()),
+        simde_mm256_set1_ps(light.intensity.z()),
 #else
 #endif
-                      point.x, point.y, point.z,
-                      p_simd
-            );
+        point.x, point.y, point.z, p_simd);
 
 #if defined(__x86_64__) || defined(_WIN64)
-            colour.r = _mm256_add_ps(colour.r, Lr);
-            colour.g = _mm256_add_ps(colour.g, Lg);
-            colour.b = _mm256_add_ps(colour.b, Lb);
+    colour.r = _mm256_add_ps(colour.r, Lr);
+    colour.g = _mm256_add_ps(colour.g, Lg);
+    colour.b = _mm256_add_ps(colour.b, Lb);
 
 #elif defined(__arm__) || defined(__aarch64__)
-            colour.r = simde_mm256_add_ps(colour.r, Lr);
-            colour.g = simde_mm256_add_ps(colour.g, Lg);
-            colour.b = simde_mm256_add_ps(colour.b, Lb);
+    colour.r = simde_mm256_add_ps(colour.r, Lr);
+    colour.g = simde_mm256_add_ps(colour.g, Lg);
+    colour.b = simde_mm256_add_ps(colour.b, Lb);
 #else
 #endif
   }
@@ -267,20 +268,20 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
 #if defined(__x86_64__) || defined(_WIN64)
   __m256 color = _mm256_set1_ps(255.f);
   colour.r =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
   colour.g =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
   colour.b =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
 
 #elif defined(__arm__) || defined(__aarch64__)
   simde__m256 color = simde_mm256_set1_ps(255.f);
   colour.r = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
   colour.g = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
   colour.b = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
 
 #else
 #endif
@@ -292,93 +293,94 @@ void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
 
 #if defined(__x86_64__) || defined(_WIN64)
-          auto ka_r = _mm256_set1_ps(ka.x());
-          auto ka_g = _mm256_set1_ps(ka.y());
-          auto ka_b = _mm256_set1_ps(ka.z());
+  auto ka_r = _mm256_set1_ps(ka.x());
+  auto ka_g = _mm256_set1_ps(ka.y());
+  auto ka_b = _mm256_set1_ps(ka.z());
 
-          auto ks_r = _mm256_set1_ps(ks.x());
-          auto ks_g = _mm256_set1_ps(ks.y());
-          auto ks_b = _mm256_set1_ps(ks.z());
+  auto ks_r = _mm256_set1_ps(ks.x());
+  auto ks_g = _mm256_set1_ps(ks.y());
+  auto ks_b = _mm256_set1_ps(ks.z());
 
-          auto camera_x = _mm256_set1_ps(camera.x());
-          auto camera_y = _mm256_set1_ps(camera.y());
-          auto camera_z = _mm256_set1_ps(camera.z());
+  auto camera_x = _mm256_set1_ps(camera.x());
+  auto camera_y = _mm256_set1_ps(camera.y());
+  auto camera_z = _mm256_set1_ps(camera.z());
 
-          auto p_simd = _mm256_set1_ps(p);
+  auto p_simd = _mm256_set1_ps(p);
 
 #elif defined(__arm__) || defined(__aarch64__)
-          auto ka_r = simde_mm256_set1_ps(ka.x());
-          auto ka_g = simde_mm256_set1_ps(ka.y());
-          auto ka_b = simde_mm256_set1_ps(ka.z());
+  auto ka_r = simde_mm256_set1_ps(ka.x());
+  auto ka_g = simde_mm256_set1_ps(ka.y());
+  auto ka_b = simde_mm256_set1_ps(ka.z());
 
-          auto ks_r = simde_mm256_set1_ps(ks.x());
-          auto ks_g = simde_mm256_set1_ps(ks.y());
-          auto ks_b = simde_mm256_set1_ps(ks.z());
+  auto ks_r = simde_mm256_set1_ps(ks.x());
+  auto ks_g = simde_mm256_set1_ps(ks.y());
+  auto ks_b = simde_mm256_set1_ps(ks.z());
 
-          auto camera_x = simde_mm256_set1_ps(camera.x());
-          auto camera_y = simde_mm256_set1_ps(camera.y());
-          auto camera_z = simde_mm256_set1_ps(camera.z());
+  auto camera_x = simde_mm256_set1_ps(camera.x());
+  auto camera_y = simde_mm256_set1_ps(camera.y());
+  auto camera_z = simde_mm256_set1_ps(camera.z());
 
-          auto p_simd = simde_mm256_set1_ps(p);
+  auto p_simd = simde_mm256_set1_ps(p);
 #else
 #endif
 
-          auto kd_r = colour.r;
-          auto kd_g = colour.g;
-          auto kd_b = colour.b;
+  auto kd_r = colour.r;
+  auto kd_g = colour.g;
+  auto kd_b = colour.b;
 
-          colour.r = colour.g = colour.b = zero;
+  colour.r = colour.g = colour.b = zero;
 
-          for (const auto& light : lights) {
+  for (const auto &light : lights) {
 
-                    auto [Lr, Lg, Lb] = BlinnPhong(
-                              normal,
-                              ka_r, ka_g, ka_b,
-                              kd_r, kd_g, kd_b,
-                              ks_r, ks_g, ks_b,
-                              camera_x, camera_y, camera_z,
+    auto [Lr, Lg, Lb] = BlinnPhong(
+        normal, ka_r, ka_g, ka_b, kd_r, kd_g, kd_b, ks_r, ks_g, ks_b, camera_x,
+        camera_y, camera_z,
 #if defined(__x86_64__) || defined(_WIN64)
-                              _mm256_set1_ps(light.position.x()), _mm256_set1_ps(light.position.y()), _mm256_set1_ps(light.position.z()),
-                              _mm256_set1_ps(light.intensity.x()), _mm256_set1_ps(light.intensity.y()), _mm256_set1_ps(light.intensity.z()),
+        _mm256_set1_ps(light.position.x()), _mm256_set1_ps(light.position.y()),
+        _mm256_set1_ps(light.position.z()), _mm256_set1_ps(light.intensity.x()),
+        _mm256_set1_ps(light.intensity.y()),
+        _mm256_set1_ps(light.intensity.z()),
 #elif defined(__arm__) || defined(__aarch64__)
-                              simde_mm256_set1_ps(light.position.x()), simde_mm256_set1_ps(light.position.y()), simde_mm256_set1_ps(light.position.z()),
-                              simde_mm256_set1_ps(light.intensity.x()), simde_mm256_set1_ps(light.intensity.y()), simde_mm256_set1_ps(light.intensity.z()),
+        simde_mm256_set1_ps(light.position.x()),
+        simde_mm256_set1_ps(light.position.y()),
+        simde_mm256_set1_ps(light.position.z()),
+        simde_mm256_set1_ps(light.intensity.x()),
+        simde_mm256_set1_ps(light.intensity.y()),
+        simde_mm256_set1_ps(light.intensity.z()),
 #else
 #endif
-                              point.x, point.y, point.z,
-                              p_simd
-                    );
+        point.x, point.y, point.z, p_simd);
 
 #if defined(__x86_64__) || defined(_WIN64)
-                    colour.r = _mm256_add_ps(colour.r, Lr);
-                    colour.g = _mm256_add_ps(colour.g, Lg);
-                    colour.b = _mm256_add_ps(colour.b, Lb);
+    colour.r = _mm256_add_ps(colour.r, Lr);
+    colour.g = _mm256_add_ps(colour.g, Lg);
+    colour.b = _mm256_add_ps(colour.b, Lb);
 
 #elif defined(__arm__) || defined(__aarch64__)
-                    colour.r = simde_mm256_add_ps(colour.r, Lr);
-                    colour.g = simde_mm256_add_ps(colour.g, Lg);
-                    colour.b = simde_mm256_add_ps(colour.b, Lb);
+    colour.r = simde_mm256_add_ps(colour.r, Lr);
+    colour.g = simde_mm256_add_ps(colour.g, Lg);
+    colour.b = simde_mm256_add_ps(colour.b, Lb);
 #else
 #endif
-          }
+  }
 
 #if defined(__x86_64__) || defined(_WIN64)
-          __m256 color = _mm256_set1_ps(255.f);
-          colour.r =
-                    _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
-          colour.g =
-                    _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
-          colour.b =
-                    _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
+  __m256 color = _mm256_set1_ps(255.f);
+  colour.r =
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
+  colour.g =
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
+  colour.b =
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
 
 #elif defined(__arm__) || defined(__aarch64__)
-          simde__m256 color = simde_mm256_set1_ps(255.f);
-          colour.r = simde_mm256_mul_ps(
-                    simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
-          colour.g = simde_mm256_mul_ps(
-                    simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
-          colour.b = simde_mm256_mul_ps(
-                    simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
+  simde__m256 color = simde_mm256_set1_ps(255.f);
+  colour.r = simde_mm256_mul_ps(
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
+  colour.g = simde_mm256_mul_ps(
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
+  colour.b = simde_mm256_mul_ps(
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
 
 #else
 #endif
@@ -394,20 +396,20 @@ void SoftRasterizer::Shader::simd_displacement_fragment_shader_impl(
 #if defined(__x86_64__) || defined(_WIN64)
   __m256 color = _mm256_set1_ps(255.f);
   colour.r =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
   colour.g =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
   colour.b =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
 
 #elif defined(__arm__) || defined(__aarch64__)
   simde__m256 color = simde_mm256_set1_ps(255.f);
   colour.r = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
   colour.g = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
   colour.b = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
 
 #else
 #endif
@@ -423,20 +425,20 @@ void SoftRasterizer::Shader::simd_bump_fragment_shader_impl(
 #if defined(__x86_64__) || defined(_WIN64)
   __m256 color = _mm256_set1_ps(255.f);
   colour.r =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
   colour.g =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
   colour.b =
-            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
+      _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
 
 #elif defined(__arm__) || defined(__aarch64__)
   simde__m256 color = simde_mm256_set1_ps(255.f);
   colour.r = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
   colour.g = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
   colour.b = simde_mm256_mul_ps(
-            simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
+      simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
 
 #else
 #endif

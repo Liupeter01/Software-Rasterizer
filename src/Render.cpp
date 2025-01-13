@@ -494,8 +494,7 @@ SoftRasterizer::RenderingPipeline::calculateBoundingBox(
   return std::pair<Eigen::Vector2i, Eigen::Vector2i>(min, max);
 }
 
-inline bool 
-SoftRasterizer::RenderingPipeline::insideTriangle(
+inline bool SoftRasterizer::RenderingPipeline::insideTriangle(
     const std::size_t x_pos, const std::size_t y_pos,
     const SoftRasterizer::Triangle &triangle) {
   const Eigen::Vector3f P = {static_cast<float>(x_pos),
@@ -618,11 +617,11 @@ SoftRasterizer::RenderingPipeline::barycentric(
   __m256 PAx = _mm256_sub_ps(ax, x_pos), PAy = _mm256_sub_ps(ay, y_pos);
 
   // Compute area of triangle ABC (cross product of AB ¡Á AC)
-  __m256 inverse = _mm256_rcp_ps(_mm256_fmsub_ps(ABx, ACy, _mm256_mul_ps(ACx, ABy))); // AB x AC
+  __m256 inverse = _mm256_rcp_ps(
+      _mm256_fmsub_ps(ABx, ACy, _mm256_mul_ps(ACx, ABy))); // AB x AC
 
   // Compute area of triangle PBC (cross product of PB ¡Á PC)
-  __m256 areaPBC =
-      _mm256_fmsub_ps(PBx, PCy, _mm256_mul_ps(PCx, PBy)); // PBxPC
+  __m256 areaPBC = _mm256_fmsub_ps(PBx, PCy, _mm256_mul_ps(PCx, PBy)); // PBxPC
 
   // Compute area of triangle PCA (cross product of PC ¡Á PA)
   __m256 areaPCA =
@@ -633,7 +632,7 @@ SoftRasterizer::RenderingPipeline::barycentric(
   __m256 beta = _mm256_mul_ps(areaPCA, inverse);
   __m256 gamma = _mm256_sub_ps(one, _mm256_add_ps(alpha, beta));
 
-  return { alpha, beta,gamma };
+  return {alpha, beta, gamma};
 }
 
 #elif defined(__arm__) || defined(__aarch64__)
@@ -824,12 +823,12 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   long long endY = (max.y() > m_height ? m_height : max.y());
 
   auto prefetch_value = startY * m_width + endX;
-   PREFETCH(&m_zBuffer[prefetch_value]);
-   PREFETCH(m_channels[0].ptr<float>(0) + prefetch_value);
-   PREFETCH(m_channels[1].ptr<float>(0) + prefetch_value);
-   PREFETCH(m_channels[2].ptr<float>(0) + prefetch_value);
+  PREFETCH(&m_zBuffer[prefetch_value]);
+  PREFETCH(m_channels[0].ptr<float>(0) + prefetch_value);
+  PREFETCH(m_channels[1].ptr<float>(0) + prefetch_value);
+  PREFETCH(m_channels[2].ptr<float>(0) + prefetch_value);
 
-//#pragma omp parallel for schedule(dynamic)
+// #pragma omp parallel for schedule(dynamic)
 #pragma omp parallel for collapse(2)
   for (auto y = startY; y < endY; y++) {
 
@@ -849,10 +848,10 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
          x += AVX2) { // Loop unrolled by UNROLLING_FACTOR in x
       auto start_pos = y * m_width + x;
 
-       PREFETCH(&m_zBuffer[start_pos + AVX2]);
-       PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
-       PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
-       PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
+      PREFETCH(&m_zBuffer[start_pos + AVX2]);
+      PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
+      PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
+      PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
 
 #if defined(__x86_64__) || defined(_WIN64)
       __m256 Original_Z =

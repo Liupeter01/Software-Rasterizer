@@ -1,14 +1,15 @@
 #pragma once
+#include "x86/svml.h"
 #ifndef _SHADER_HPP_
 #define _SHADER_HPP_
 #include <Eigen/Eigen>
 #include <Simd.hpp>
 #include <TextureLoader.hpp>
 #include <array>
-#include <tuple>
 #include <functional>
 #include <initializer_list>
 #include <memory>
+#include <tuple>
 
 namespace SoftRasterizer {
 
@@ -97,175 +98,191 @@ private:
   /*register multiple shader models*/
   void registerShaders();
 
-  template<typename _simd>
-  static std::tuple<_simd, _simd,_simd> BlinnPhong(
-            NormalSIMD& normal,
-            const _simd& ka_r, const _simd& ka_g, const _simd& ka_b,
-            const _simd& kd_r, const _simd& kd_g, const _simd& kd_b,
-            const _simd& ks_r, const _simd& ks_g, const _simd& ks_b,
-            const _simd& camera_x, const _simd& camera_y, const _simd& camera_z,
-            const _simd& light_pos_x, const _simd& light_pos_y, const _simd& light_pos_z,
-            const _simd& light_intense_x, const _simd& light_intense_y, const _simd& light_intense_z,
-            const _simd& shading_pointx, const _simd& shading_pointy, const _simd& shading_pointz,
-            const _simd& _p) {
+  template <typename _simd>
+  static std::tuple<_simd, _simd, _simd>
+  BlinnPhong(NormalSIMD &normal, const _simd &ka_r, const _simd &ka_g,
+             const _simd &ka_b, const _simd &kd_r, const _simd &kd_g,
+             const _simd &kd_b, const _simd &ks_r, const _simd &ks_g,
+             const _simd &ks_b, const _simd &camera_x, const _simd &camera_y,
+             const _simd &camera_z, const _simd &light_pos_x,
+             const _simd &light_pos_y, const _simd &light_pos_z,
+             const _simd &light_intense_x, const _simd &light_intense_y,
+             const _simd &light_intense_z, const _simd &shading_pointx,
+             const _simd &shading_pointy, const _simd &shading_pointz,
+             const _simd &_p) {
 
-            _simd zero;                
-            _simd distribution_x, distribution_y, distribution_z;
+    _simd zero;
+    _simd distribution_x, distribution_y, distribution_z;
 
-            if constexpr (std::is_same_v<_simd, __m128>) {
-            }
+    if constexpr (std::is_same_v<_simd, __m128>) {
+    }
 #if defined(__x86_64__) || defined(_WIN64)
-            else if constexpr (std::is_same_v<_simd, __m256>) {
-                      zero = _mm256_setzero_ps();
+    else if constexpr (std::is_same_v<_simd, __m256>) {
+      zero = _mm256_setzero_ps();
 
-                      NormalSIMD light_dir(
-                                _mm256_sub_ps(light_pos_x, shading_pointx),
-                                _mm256_sub_ps(light_pos_y, shading_pointy),
-                                _mm256_sub_ps(light_pos_z, shading_pointz)
-                      );
+      NormalSIMD light_dir(_mm256_sub_ps(light_pos_x, shading_pointx),
+                           _mm256_sub_ps(light_pos_y, shading_pointy),
+                           _mm256_sub_ps(light_pos_z, shading_pointz));
 
-                      //sqrt(x^2 + y^2)
-                      _simd distanceSquared = _mm256_rcp_ps(_mm256_sqrt_ps(
-                                _mm256_fmadd_ps(light_dir.x, light_dir.x, _mm256_mul_ps(light_dir.y, light_dir.y))
-                      ));
+      // sqrt(x^2 + y^2)
+      _simd distanceSquared = _mm256_rcp_ps(_mm256_sqrt_ps(_mm256_fmadd_ps(
+          light_dir.x, light_dir.x, _mm256_mul_ps(light_dir.y, light_dir.y))));
 
-                      distribution_x = _mm256_mul_ps(light_intense_x, distanceSquared);
-                      distribution_y = _mm256_mul_ps(light_intense_y, distanceSquared);
-                      distribution_z = _mm256_mul_ps(light_intense_z, distanceSquared);
+      distribution_x = _mm256_mul_ps(light_intense_x, distanceSquared);
+      distribution_y = _mm256_mul_ps(light_intense_y, distanceSquared);
+      distribution_z = _mm256_mul_ps(light_intense_z, distanceSquared);
 
-                      // Specular reflection (Blinn-Phong) shadingpoint -> Camera(Your eye)
-                    //halfway vector: you have to do normalzied!!!!!
-                      NormalSIMD h = NormalSIMD(
-                                _mm256_add_ps(light_dir.x, _mm256_sub_ps(camera_x, shading_pointx)),
-                                _mm256_add_ps(light_dir.y, _mm256_sub_ps(camera_y, shading_pointy)),
-                                _mm256_add_ps(light_dir.z, _mm256_sub_ps(camera_z, shading_pointz))).normalized();
+      // Specular reflection (Blinn-Phong) shadingpoint -> Camera(Your eye)
+      // halfway vector: you have to do normalzied!!!!!
+      NormalSIMD h =
+          NormalSIMD(_mm256_add_ps(light_dir.x,
+                                   _mm256_sub_ps(camera_x, shading_pointx)),
+                     _mm256_add_ps(light_dir.y,
+                                   _mm256_sub_ps(camera_y, shading_pointy)),
+                     _mm256_add_ps(light_dir.z,
+                                   _mm256_sub_ps(camera_z, shading_pointz)))
+              .normalized();
 
 #elif defined(__arm__) || defined(__aarch64__)
-            else if constexpr (std::is_same_v<_simd, simde__m256>) {
-                      zero = simde_mm256_setzero_ps();
+    else if constexpr (std::is_same_v<_simd, simde__m256>) {
+      zero = simde_mm256_setzero_ps();
 
-                      NormalSIMD light_dir(
-                                simde_mm256_sub_ps(light_pos_x, shading_pointx),
-                                simde_mm256_sub_ps(light_pos_y, shading_pointy),
-                                simde_mm256_sub_ps(light_pos_z, shading_pointz)
-                      );
+      NormalSIMD light_dir(simde_mm256_sub_ps(light_pos_x, shading_pointx),
+                           simde_mm256_sub_ps(light_pos_y, shading_pointy),
+                           simde_mm256_sub_ps(light_pos_z, shading_pointz));
 
-                      auto tempy = simde_mm256_mul_ps(light_dir.y, light_dir.y);
-                      auto tempx = simde_mm256_mul_ps(light_dir.x, light_dir.x);
+      auto tempy = simde_mm256_mul_ps(light_dir.y, light_dir.y);
+      auto tempx = simde_mm256_mul_ps(light_dir.x, light_dir.x);
 
-                      //sqrt(x^2 + y^2)
-                      _simd distanceSquared = simde_mm256_rcp_ps(simde_mm256_sqrt_ps(
-                                simde_mm256_add_ps(tempy, tempx)
-                      ));
+      // sqrt(x^2 + y^2)
+      _simd distanceSquared = simde_mm256_rcp_ps(
+          simde_mm256_sqrt_ps(simde_mm256_add_ps(tempy, tempx)));
 
-                      distribution_x = simde_mm256_mul_ps(light_intense_x, distanceSquared);
-                      distribution_y = simde_mm256_mul_ps(light_intense_y, distanceSquared);
-                      distribution_z = simde_mm256_mul_ps(light_intense_z, distanceSquared);
+      distribution_x = simde_mm256_mul_ps(light_intense_x, distanceSquared);
+      distribution_y = simde_mm256_mul_ps(light_intense_y, distanceSquared);
+      distribution_z = simde_mm256_mul_ps(light_intense_z, distanceSquared);
 
-                      // Specular reflection (Blinn-Phong) shadingpoint -> Camera(Your eye)
-                    //halfway vector: you have to do normalzied!!!!!
-                      NormalSIMD h = NormalSIMD(
-                                simde_mm256_add_ps(light_dir.x, simde_mm256_sub_ps(camera_x, shading_pointx)),
-                                simde_mm256_add_ps(light_dir.y, simde_mm256_sub_ps(camera_y, shading_pointy)),
-                                simde_mm256_add_ps(light_dir.z, simde_mm256_sub_ps(camera_z, shading_pointz))).normalized();
+      // Specular reflection (Blinn-Phong) shadingpoint -> Camera(Your eye)
+      // halfway vector: you have to do normalzied!!!!!
+      NormalSIMD h =
+          NormalSIMD(
+              simde_mm256_add_ps(light_dir.x,
+                                 simde_mm256_sub_ps(camera_x, shading_pointx)),
+              simde_mm256_add_ps(light_dir.y,
+                                 simde_mm256_sub_ps(camera_y, shading_pointy)),
+              simde_mm256_add_ps(light_dir.z,
+                                 simde_mm256_sub_ps(camera_z, shading_pointz)))
+              .normalized();
 
 #else
 #endif
 
-                      //you have to do normalzied!!!!!
-                      NormalSIMD light_dir_normalized = light_dir.normalized();
+      // you have to do normalzied!!!!!
+      NormalSIMD light_dir_normalized = light_dir.normalized();
 
 #if defined(__x86_64__) || defined(_WIN64)
-                      // Diffuse reflection (Lambertian reflectance)  dot(light, normal) = x * x + y * y + z * z
-                      _simd cosAlpha = _mm256_max_ps(zero, _mm256_fmadd_ps(light_dir_normalized.x, normal.x,
-                                _mm256_fmadd_ps(light_dir_normalized.y, normal.y, _mm256_mul_ps(light_dir_normalized.z, normal.z)
-                                )));
+      // Diffuse reflection (Lambertian reflectance)  dot(light, normal) = x * x
+      // + y * y + z * z
+      _simd cosAlpha = _mm256_max_ps(
+          zero,
+          _mm256_fmadd_ps(light_dir_normalized.x, normal.x,
+                          _mm256_fmadd_ps(light_dir_normalized.y, normal.y,
+                                          _mm256_mul_ps(light_dir_normalized.z,
+                                                        normal.z))));
 
-                      //std::pow(cosTheta, p);
-                      _simd cosTheta = _mm256_pow_ps(_mm256_max_ps(zero, _mm256_fmadd_ps(
-                                h.x, normal.x, _mm256_fmadd_ps(h.y, normal.y, _mm256_mul_ps(h.z, normal.z)))), _p);
+      // std::pow(cosTheta, p);
+      _simd cosTheta = _mm256_pow_ps(
+          _mm256_max_ps(
+              zero,
+              _mm256_fmadd_ps(h.x, normal.x,
+                              _mm256_fmadd_ps(h.y, normal.y,
+                                              _mm256_mul_ps(h.z, normal.z)))),
+          _p);
 
-                      // Combine all lighting components (La + Ld + Ls) * Kd
+      // Combine all lighting components (La + Ld + Ls) * Kd
 
-                      _simd kd_dist_x = _mm256_mul_ps(distribution_x, kd_r);
-                      _simd ks_dist_x = _mm256_mul_ps(distribution_x, ks_r);
-                      _simd kd_dist_y = _mm256_mul_ps(distribution_y, kd_g);
-                      _simd ks_dist_y = _mm256_mul_ps(distribution_y, ks_g);
-                      _simd kd_dist_z = _mm256_mul_ps(distribution_z, kd_b);
-                      _simd ks_dist_z = _mm256_mul_ps(distribution_z, ks_b);
+      _simd kd_dist_x = _mm256_mul_ps(distribution_x, kd_r);
+      _simd ks_dist_x = _mm256_mul_ps(distribution_x, ks_r);
+      _simd kd_dist_y = _mm256_mul_ps(distribution_y, kd_g);
+      _simd ks_dist_y = _mm256_mul_ps(distribution_y, ks_g);
+      _simd kd_dist_z = _mm256_mul_ps(distribution_z, kd_b);
+      _simd ks_dist_z = _mm256_mul_ps(distribution_z, ks_b);
 
-                      return {
-                              _mm256_mul_ps(kd_r, _mm256_fmadd_ps(
-                                  ka_r, light_intense_x,
-                                  _mm256_fmadd_ps(kd_dist_x, cosAlpha, _mm256_mul_ps(ks_dist_x, cosTheta))
-                              )),
+      return {
+          _mm256_mul_ps(
+              kd_r, _mm256_fmadd_ps(
+                        ka_r, light_intense_x,
+                        _mm256_fmadd_ps(kd_dist_x, cosAlpha,
+                                        _mm256_mul_ps(ks_dist_x, cosTheta)))),
 
-                             _mm256_mul_ps(kd_g, _mm256_fmadd_ps(
-                                  ka_g, light_intense_y,
-                                  _mm256_fmadd_ps(kd_dist_y, cosAlpha, _mm256_mul_ps(ks_dist_y, cosTheta))
-                              )),
+          _mm256_mul_ps(
+              kd_g, _mm256_fmadd_ps(
+                        ka_g, light_intense_y,
+                        _mm256_fmadd_ps(kd_dist_y, cosAlpha,
+                                        _mm256_mul_ps(ks_dist_y, cosTheta)))),
 
-                             _mm256_mul_ps(kd_b, _mm256_fmadd_ps(
-                                  ka_b, light_intense_z,
-                                  _mm256_fmadd_ps(kd_dist_z, cosAlpha, _mm256_mul_ps(ks_dist_z, cosTheta))
-                              ))
-                      };
-                   
+          _mm256_mul_ps(
+              kd_b, _mm256_fmadd_ps(
+                        ka_b, light_intense_z,
+                        _mm256_fmadd_ps(kd_dist_z, cosAlpha,
+                                        _mm256_mul_ps(ks_dist_z, cosTheta))))};
+
 #elif defined(__arm__) || defined(__aarch64__)
-                      // Diffuse reflection (Lambertian reflectance)  dot(light, normal) = x * x + y * y + z * z
+      // Diffuse reflection (Lambertian reflectance)  dot(light, normal) = x * x
+      // + y * y + z * z
 
-                      auto tempz = simde_mm256_mul_ps(light_dir_normalized.z, normal.z);
-                      tempy = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
-                      tempx = simde_mm256_mul_ps(light_dir_normalized.x, normal.x);
+      auto tempz = simde_mm256_mul_ps(light_dir_normalized.z, normal.z);
+      tempy = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
+      tempx = simde_mm256_mul_ps(light_dir_normalized.x, normal.x);
 
-                      _simd cosAlpha = simde_mm256_max_ps(zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz));
+      _simd cosAlpha = simde_mm256_max_ps(
+          zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz));
 
-                      //std::pow(cosTheta, p);
-                      tempz = simde_mm256_mul_ps(h.z, normal.z);
-                      tempy = simde_mm256_mul_ps(h.y, normal.y);
-                      tempx = simde_mm256_mul_ps(h.x, normal.x);
+      // std::pow(cosTheta, p);
+      tempz = simde_mm256_mul_ps(h.z, normal.z);
+      tempy = simde_mm256_mul_ps(h.y, normal.y);
+      tempx = simde_mm256_mul_ps(h.x, normal.x);
 
-                      _simd cosTheta = simde_mm256_max_ps(zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz));
+      _simd cosTheta = simde_mm256_pow_ps(
+          simde_mm256_max_ps(
+              zero,
+              simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz)),
+          _p);
 
-                      // Combine all lighting components (La + Ld + Ls) * Kd
-                      _simd kd_dist_x = simde_mm256_mul_ps(distribution_x, kd_r);
-                      _simd ks_dist_x = simde_mm256_mul_ps(distribution_x, ks_r);
-                      _simd kd_dist_y = simde_mm256_mul_ps(distribution_y, kd_g);
-                      _simd ks_dist_y = simde_mm256_mul_ps(distribution_y, ks_g);
-                      _simd kd_dist_z = simde_mm256_mul_ps(distribution_z, kd_b);
-                      _simd ks_dist_z = simde_mm256_mul_ps(distribution_z, ks_b);
+      // Combine all lighting components (La + Ld + Ls) * Kd
+      _simd kd_dist_x = simde_mm256_mul_ps(distribution_x, kd_r);
+      _simd ks_dist_x = simde_mm256_mul_ps(distribution_x, ks_r);
+      _simd kd_dist_y = simde_mm256_mul_ps(distribution_y, kd_g);
+      _simd ks_dist_y = simde_mm256_mul_ps(distribution_y, ks_g);
+      _simd kd_dist_z = simde_mm256_mul_ps(distribution_z, kd_b);
+      _simd ks_dist_z = simde_mm256_mul_ps(distribution_z, ks_b);
 
-                      auto Constant_x = simde_mm256_mul_ps(ka_r, light_intense_x);
-                      auto Theta_x = simde_mm256_mul_ps(ks_dist_x, cosTheta);
-                      auto Alpha_x = simde_mm256_mul_ps(kd_dist_x, cosAlpha);
+      auto Constant_x = simde_mm256_mul_ps(ka_r, light_intense_x);
+      auto Theta_x = simde_mm256_mul_ps(ks_dist_x, cosTheta);
+      auto Alpha_x = simde_mm256_mul_ps(kd_dist_x, cosAlpha);
 
-                      auto Constant_y = simde_mm256_mul_ps(ka_g, light_intense_y);
-                      auto Theta_y = simde_mm256_mul_ps(ks_dist_y, cosTheta);
-                      auto Alpha_y = simde_mm256_mul_ps(kd_dist_y, cosAlpha);
+      auto Constant_y = simde_mm256_mul_ps(ka_g, light_intense_y);
+      auto Theta_y = simde_mm256_mul_ps(ks_dist_y, cosTheta);
+      auto Alpha_y = simde_mm256_mul_ps(kd_dist_y, cosAlpha);
 
-                      auto Constant_z = simde_mm256_mul_ps(ka_b, light_intense_z);
-                      auto Theta_z = simde_mm256_mul_ps(ks_dist_z, cosTheta);
-                      auto Alpha_z = simde_mm256_mul_ps(kd_dist_z, cosAlpha);
+      auto Constant_z = simde_mm256_mul_ps(ka_b, light_intense_z);
+      auto Theta_z = simde_mm256_mul_ps(ks_dist_z, cosTheta);
+      auto Alpha_z = simde_mm256_mul_ps(kd_dist_z, cosAlpha);
 
-                      return {
-                              simde_mm256_mul_ps(kd_r, simde_mm256_add_ps(
-                                 Constant_x,
-                                  simde_mm256_add_ps(Theta_x, Alpha_x)
-                              )),
+      return {simde_mm256_mul_ps(
+                  kd_r, simde_mm256_add_ps(
+                            Constant_x, simde_mm256_add_ps(Theta_x, Alpha_x))),
 
-                             simde_mm256_mul_ps(kd_g,simde_mm256_add_ps(
-                                 Constant_y,
-                                  simde_mm256_add_ps(Theta_y, Alpha_y)
-                              )),
+              simde_mm256_mul_ps(
+                  kd_g, simde_mm256_add_ps(
+                            Constant_y, simde_mm256_add_ps(Theta_y, Alpha_y))),
 
-                             simde_mm256_mul_ps(kd_b, simde_mm256_add_ps(
-                                 Constant_z,
-                                  simde_mm256_add_ps(Theta_z, Alpha_z)
-                              ))
-                      };
+              simde_mm256_mul_ps(
+                  kd_b, simde_mm256_add_ps(
+                            Constant_z, simde_mm256_add_ps(Theta_z, Alpha_z)))};
 #else
 #endif
-            }
+    }
   }
 
   void simd_normal_fragment_shader_impl(

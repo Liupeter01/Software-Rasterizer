@@ -9,10 +9,11 @@
 #include <xmmintrin.h >
 
 #elif defined(__arm__) || defined(__aarch64__)
-#include <x86/avx.h>
-#include <x86/svml.h>
 #include <arm/neon.h>
 #include <sse2neon.h>
+#include <x86/avx.h>
+#include <x86/fma.h>
+#include <x86/svml.h>
 
 #else
 #endif
