@@ -210,7 +210,7 @@ private:
                                   _mm256_fmadd_ps(kd_dist_z, cosAlpha, _mm256_mul_ps(ks_dist_z, cosTheta))
                               ))
                       };
-
+                   
 #elif defined(__arm__) || defined(__aarch64__)
                       // Diffuse reflection (Lambertian reflectance)  dot(light, normal) = x * x + y * y + z * z
 
@@ -224,7 +224,10 @@ private:
                       tempz = simde_mm256_mul_ps(h.z, normal.z);
                       tempy = simde_mm256_mul_ps(h.y, normal.y);
                       tempx = simde_mm256_mul_ps(h.x, normal.x);
-                      _simd cosTheta = simde_mm256_pow_ps(simde_mm256_max_ps(zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz)), _p);
+
+                      _simd cosTheta = simde_mm256_max_ps(zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz));
+                      // cosTheta = simde_mm256_pow_ps(cosTheta, _p);
+                      cosTheta = simde_mm256_exp_ps( simde_mm256_mul_ps(simde_mm256_log_ps(cosTheta), _p));
 
                       // Combine all lighting components (La + Ld + Ls) * Kd
 
