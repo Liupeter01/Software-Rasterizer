@@ -226,11 +226,8 @@ private:
                       tempx = simde_mm256_mul_ps(h.x, normal.x);
 
                       _simd cosTheta = simde_mm256_max_ps(zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz));
-                      // cosTheta = simde_mm256_pow_ps(cosTheta, _p);
-                      //cosTheta = simde_mm256_exp_ps( simde_mm256_mul_ps(simde_mm256_log_ps(cosTheta), _p));
 
                       // Combine all lighting components (La + Ld + Ls) * Kd
-
                       _simd kd_dist_x = simde_mm256_mul_ps(distribution_x, kd_r);
                       _simd ks_dist_x = simde_mm256_mul_ps(distribution_x, ks_r);
                       _simd kd_dist_y = simde_mm256_mul_ps(distribution_y, kd_g);
@@ -240,15 +237,15 @@ private:
 
                       auto Constant_x = simde_mm256_mul_ps(ka_r, light_intense_x);
                       auto Theta_x = simde_mm256_mul_ps(ks_dist_x, cosTheta);
-                      auto Alpha_x = simde_mm256_mul_ps(ks_dist_x, cosAlpha);
+                      auto Alpha_x = simde_mm256_mul_ps(kd_dist_x, cosAlpha);
 
                       auto Constant_y = simde_mm256_mul_ps(ka_g, light_intense_y);
                       auto Theta_y = simde_mm256_mul_ps(ks_dist_y, cosTheta);
-                      auto Alpha_y = simde_mm256_mul_ps(ks_dist_y, cosAlpha);
+                      auto Alpha_y = simde_mm256_mul_ps(kd_dist_y, cosAlpha);
 
                       auto Constant_z = simde_mm256_mul_ps(ka_b, light_intense_z);
                       auto Theta_z = simde_mm256_mul_ps(ks_dist_z, cosTheta);
-                      auto Alpha_z = simde_mm256_mul_ps(ks_dist_z, cosAlpha);
+                      auto Alpha_z = simde_mm256_mul_ps(kd_dist_z, cosAlpha);
 
                       return {
                               simde_mm256_mul_ps(kd_r, simde_mm256_add_ps(
