@@ -819,8 +819,8 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   long long startX = (min.x() >= 0 ? min.x() : 0);
   long long startY = (min.y() >= 0 ? min.y() : 0);
 
-  long long endX = (max.x() > m_width ? m_width : max.x());
-  long long endY = (max.y() > m_height ? m_height : max.y());
+  long long endX = (max.x() < m_width  ? max.x() : m_width - 1);
+  long long endY = (max.y() < m_height ?  max.y(): m_height );
 
   auto prefetch_value = startY * m_width + endX;
   PREFETCH(&m_zBuffer[prefetch_value]);
@@ -844,7 +844,9 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
 #else
 #endif
 
-    for (x = startX; x + AVX2 - 1 < endX;
+#define __SIMD__ 
+#ifdef __SIMD__ 
+    for (x = startX; x + AVX2 - 1 <= endX;
          x += AVX2) { // Loop unrolled by UNROLLING_FACTOR in x
       auto start_pos = y * m_width + x;
 
@@ -1001,7 +1003,7 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
     }
 
     // SSE Part!
-    // for (; x + SSE - 1 < endX; x += SSE) {
+    // for (; x + SSE - 1 <= endX; x += SSE) {
     //           auto start_pos = y * m_width + x;
     //          //PREFETCH(&m_zBuffer[start_pos + SSE]);
     //          //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + SSE);
@@ -1017,7 +1019,9 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
     //                    _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos);
     //}
 
-    for (; x < endX; ++x) {
+#endif
+
+    for (; x <= endX; ++x) {
       // Check if the point (currentX, currentY) is inside the triangle
       if (!insideTriangle(x + 0.5f, y + 0.5f, triangle)) {
         continue;
