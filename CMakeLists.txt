@@ -28,7 +28,7 @@ endif()
 
 project(
   Software-Rasterizer
-  VERSION 0.1.3
+  VERSION 0.1.4
   LANGUAGES CXX)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
