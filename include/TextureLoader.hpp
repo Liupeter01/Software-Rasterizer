@@ -79,7 +79,7 @@ public:
     _simd inverse;
 
     if constexpr (std::is_same_v<_simd, __m128>) {
-              inservse = _mm_rcp_ps(_mm_set1_ps(255.0f));
+              inverse = _mm_rcp_ps(_mm_set1_ps(255.0f));
       return {_mm_mul_ps(_mm_loadu_ps(R_Block.data()),  inverse),
               _mm_mul_ps(_mm_loadu_ps(G_Block.data()),  inverse),
               _mm_mul_ps(_mm_loadu_ps(B_Block.data()),  inverse)};
@@ -94,7 +94,7 @@ public:
 
 #elif defined(__arm__) || defined(__aarch64__)
     else if constexpr (std::is_same_v<_simd, simde__m256>) {
-              inverse =(simde_mm256_rcp_ps(simde_mm256_set1_ps(255.0f));
+              inverse = simde_mm256_rcp_ps(simde_mm256_set1_ps(255.0f));
       return {
           simde_mm256_mul_ps(simde_mm256_loadu_ps(R_Block.data()),   inverse),
           simde_mm256_mul_ps(simde_mm256_loadu_ps(G_Block.data()),   inverse),

@@ -114,8 +114,8 @@ private:
 
             if constexpr (std::is_same_v<_simd, __m128>) {
             }
-            else if constexpr (std::is_same_v<_simd, __m256>) {
 #if defined(__x86_64__) || defined(_WIN64)
+            else if constexpr (std::is_same_v<_simd, __m256>) {
                       zero = _mm256_setzero_ps();
 
                       NormalSIMD light_dir(
@@ -141,6 +141,7 @@ private:
                                 _mm256_add_ps(light_dir.z, _mm256_sub_ps(camera_z, shading_pointz))).normalized();
 
 #elif defined(__arm__) || defined(__aarch64__)
+            else if constexpr (std::is_same_v<_simd, simde__m256>) {
                       zero = simde_mm256_setzero_ps();
 
                       NormalSIMD light_dir(
