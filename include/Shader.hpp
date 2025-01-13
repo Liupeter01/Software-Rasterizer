@@ -216,7 +216,7 @@ private:
 
                       auto tempz = simde_mm256_mul_ps(light_dir_normalized.z, normal.z);
                       tempy = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
-                      tempx = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
+                      tempx = simde_mm256_mul_ps(light_dir_normalized.x, normal.x);
 
                       _simd cosAlpha = simde_mm256_max_ps(zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz));
 
