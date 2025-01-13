@@ -275,10 +275,6 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
 
 #elif defined(__arm__) || defined(__aarch64__)
   simde__m256 color = simde_mm256_set1_ps(255.f);
-  colour.r = simde_mm256_mul_ps(simde_mm256_add_ps(normal.x, one), point_five);
-  colour.g = simde_mm256_mul_ps(simde_mm256_add_ps(normal.y, one), point_five);
-  colour.b = simde_mm256_mul_ps(simde_mm256_add_ps(normal.z, one), point_five);
-
   colour.r = simde_mm256_mul_ps(
             simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
   colour.g = simde_mm256_mul_ps(
@@ -377,10 +373,6 @@ void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
 
 #elif defined(__arm__) || defined(__aarch64__)
           simde__m256 color = simde_mm256_set1_ps(255.f);
-          colour.r = simde_mm256_mul_ps(simde_mm256_add_ps(normal.x, one), point_five);
-          colour.g = simde_mm256_mul_ps(simde_mm256_add_ps(normal.y, one), point_five);
-          colour.b = simde_mm256_mul_ps(simde_mm256_add_ps(normal.z, one), point_five);
-
           colour.r = simde_mm256_mul_ps(
                     simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
           colour.g = simde_mm256_mul_ps(
@@ -398,6 +390,27 @@ void SoftRasterizer::Shader::simd_displacement_fragment_shader_impl(
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
   for (const auto &light : lights) {
   }
+
+#if defined(__x86_64__) || defined(_WIN64)
+  __m256 color = _mm256_set1_ps(255.f);
+  colour.r =
+            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
+  colour.g =
+            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
+  colour.b =
+            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
+
+#elif defined(__arm__) || defined(__aarch64__)
+  simde__m256 color = simde_mm256_set1_ps(255.f);
+  colour.r = simde_mm256_mul_ps(
+            simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
+  colour.g = simde_mm256_mul_ps(
+            simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
+  colour.b = simde_mm256_mul_ps(
+            simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
+
+#else
+#endif
 }
 
 void SoftRasterizer::Shader::simd_bump_fragment_shader_impl(
@@ -406,6 +419,27 @@ void SoftRasterizer::Shader::simd_bump_fragment_shader_impl(
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
   for (const auto &light : lights) {
   }
+
+#if defined(__x86_64__) || defined(_WIN64)
+  __m256 color = _mm256_set1_ps(255.f);
+  colour.r =
+            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.r, zero), one), color);
+  colour.g =
+            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.g, zero), one), color);
+  colour.b =
+            _mm256_mul_ps(_mm256_min_ps(_mm256_max_ps(colour.b, zero), one), color);
+
+#elif defined(__arm__) || defined(__aarch64__)
+  simde__m256 color = simde_mm256_set1_ps(255.f);
+  colour.r = simde_mm256_mul_ps(
+            simde_mm256_min_ps(simde_mm256_max_ps(colour.r, zero), one), color);
+  colour.g = simde_mm256_mul_ps(
+            simde_mm256_min_ps(simde_mm256_max_ps(colour.g, zero), one), color);
+  colour.b = simde_mm256_mul_ps(
+            simde_mm256_min_ps(simde_mm256_max_ps(colour.b, zero), one), color);
+
+#else
+#endif
 }
 
 /*Compute Displacement Mapping*/
