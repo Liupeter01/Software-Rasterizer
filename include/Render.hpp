@@ -166,7 +166,7 @@ private:
   std::pair<Eigen::Vector2i, Eigen::Vector2i>
   calculateBoundingBox(const SoftRasterizer::Triangle &triangle);
 
-  static bool insideTriangle(const std::size_t x_pos, const std::size_t y_pos,
+  inline static bool insideTriangle(const std::size_t x_pos, const std::size_t y_pos,
                              const SoftRasterizer::Triangle &triangle);
 
   static std::optional<std::tuple<float, float, float>>

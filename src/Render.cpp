@@ -494,7 +494,8 @@ SoftRasterizer::RenderingPipeline::calculateBoundingBox(
   return std::pair<Eigen::Vector2i, Eigen::Vector2i>(min, max);
 }
 
-bool SoftRasterizer::RenderingPipeline::insideTriangle(
+inline bool 
+SoftRasterizer::RenderingPipeline::insideTriangle(
     const std::size_t x_pos, const std::size_t y_pos,
     const SoftRasterizer::Triangle &triangle) {
   const Eigen::Vector3f P = {static_cast<float>(x_pos),
@@ -607,6 +608,7 @@ SoftRasterizer::RenderingPipeline::barycentric(
   __m256 ax = _mm256_set1_ps(A.x()), ay = _mm256_set1_ps(A.y());
   __m256 bx = _mm256_set1_ps(B.x()), by = _mm256_set1_ps(B.y());
   __m256 cx = _mm256_set1_ps(C.x()), cy = _mm256_set1_ps(C.y());
+  const __m256 one = _mm256_set1_ps(1.0f);
 
   // Edges
   __m256 ABx = _mm256_sub_ps(bx, ax), ABy = _mm256_sub_ps(by, ay);
@@ -616,25 +618,22 @@ SoftRasterizer::RenderingPipeline::barycentric(
   __m256 PAx = _mm256_sub_ps(ax, x_pos), PAy = _mm256_sub_ps(ay, y_pos);
 
   // Compute area of triangle ABC (cross product of AB ¡Á AC)
-  __m256 areaABC =
-      _mm256_fmsub_ps(ABx, ACy, _mm256_mul_ps(ACx, ABy)); // AB x AC
-  __m256 inverse = _mm256_rcp_ps(areaABC);
+  __m256 inverse = _mm256_rcp_ps(_mm256_fmsub_ps(ABx, ACy, _mm256_mul_ps(ACx, ABy))); // AB x AC
 
   // Compute area of triangle PBC (cross product of PB ¡Á PC)
   __m256 areaPBC =
-      _mm256_fmsub_ps(PBx, PCy, _mm256_mul_ps(PCx, PBy)); // PB ¡Á PC
+      _mm256_fmsub_ps(PBx, PCy, _mm256_mul_ps(PCx, PBy)); // PBxPC
 
   // Compute area of triangle PCA (cross product of PC ¡Á PA)
   __m256 areaPCA =
-      _mm256_fmsub_ps(PCx, PAy, _mm256_mul_ps(PAx, PCy)); // PC ¡Á PA
+      _mm256_fmsub_ps(PCx, PAy, _mm256_mul_ps(PAx, PCy)); // PC x PA
 
   // Barycentric coordinates
   __m256 alpha = _mm256_mul_ps(areaPBC, inverse);
   __m256 beta = _mm256_mul_ps(areaPCA, inverse);
+  __m256 gamma = _mm256_sub_ps(one, _mm256_add_ps(alpha, beta));
 
-  return std::tuple<__m256, __m256, __m256>(
-      alpha, beta,
-      _mm256_sub_ps(_mm256_set1_ps(1.0f), _mm256_add_ps(alpha, beta)));
+  return { alpha, beta,gamma };
 }
 
 #elif defined(__arm__) || defined(__aarch64__)
@@ -824,12 +823,13 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
   long long endX = (max.x() > m_width ? m_width : max.x());
   long long endY = (max.y() > m_height ? m_height : max.y());
 
-  // auto prefetch_value = startY * m_width + endX;
-  // PREFETCH(&m_zBuffer[prefetch_value]);
-  // PREFETCH(m_channels[0].ptr<float>(0) + prefetch_value);
-  // PREFETCH(m_channels[1].ptr<float>(0) + prefetch_value);
-  // PREFETCH(m_channels[2].ptr<float>(0) + prefetch_value);
+  auto prefetch_value = startY * m_width + endX;
+   PREFETCH(&m_zBuffer[prefetch_value]);
+   PREFETCH(m_channels[0].ptr<float>(0) + prefetch_value);
+   PREFETCH(m_channels[1].ptr<float>(0) + prefetch_value);
+   PREFETCH(m_channels[2].ptr<float>(0) + prefetch_value);
 
+//#pragma omp parallel for schedule(dynamic)
 #pragma omp parallel for collapse(2)
   for (auto y = startY; y < endY; y++) {
 
@@ -849,10 +849,10 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
          x += AVX2) { // Loop unrolled by UNROLLING_FACTOR in x
       auto start_pos = y * m_width + x;
 
-      // PREFETCH(&m_zBuffer[start_pos + AVX2]);
-      // PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
-      // PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
-      // PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
+       PREFETCH(&m_zBuffer[start_pos + AVX2]);
+       PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
+       PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
+       PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
 
 #if defined(__x86_64__) || defined(_WIN64)
       __m256 Original_Z =
@@ -981,7 +981,7 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
           payloads[2].texCoords);
 
       /*If it's valid then set to 1.0f, or set to 0*/
-      ColorSIMD color(Original_Red, Original_Green, Original_Blue);
+      ColorSIMD color;
       shader->applyFragmentShader(m_eye, lights, point, normal, texCoord,
                                   color);
 
@@ -1004,12 +1004,10 @@ void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
     // SSE Part!
     // for (; x + SSE - 1 < endX; x += SSE) {
     //           auto start_pos = y * m_width + x;
-
-    //          //PREFETCH(&m_zBuffer[start_pos + AVX2]);
-    //          //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + AVX2);
-    //          //PREFETCH(m_channels[1].ptr<float>(0) + start_pos + AVX2);
-    //          //PREFETCH(m_channels[2].ptr<float>(0) + start_pos + AVX2);
-
+    //          //PREFETCH(&m_zBuffer[start_pos + SSE]);
+    //          //PREFETCH(m_channels[0].ptr<float>(0) + start_pos + SSE);
+    //          //PREFETCH(m_channels[1].ptr<float>(0) + start_pos + SSE);
+    //          //PREFETCH(m_channels[2].ptr<float>(0) + start_pos + SSE);
     //          __m128 Original_Z =
     //                    _mm_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
     //          __m128 Original_Blue =
