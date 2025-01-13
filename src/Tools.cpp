@@ -13,10 +13,11 @@ SoftRasterizer::NormalSIMD SoftRasterizer::NormalSIMD::normalized() {
 
   // only filter lenth >0(GT) , then set mask to 1
   __m256 mask = _mm256_cmp_ps(length, zero, _CMP_GT_OQ);
+  __m256 inverse = _mm256_blendv_ps(zero, _mm256_rcp_ps(length), mask);
 
-  return NormalSIMD(_mm256_blendv_ps(zero, _mm256_div_ps(x, length), mask),
-                    _mm256_blendv_ps(zero, _mm256_div_ps(y, length), mask),
-                    _mm256_blendv_ps(zero, _mm256_div_ps(z, length), mask));
+  return NormalSIMD(_mm256_blendv_ps(zero, _mm256_mul_ps(x, inverse), mask),
+                    _mm256_blendv_ps(zero, _mm256_mul_ps(y, inverse), mask),
+                    _mm256_blendv_ps(zero, _mm256_mul_ps(z, inverse), mask));
 }
 
 SoftRasterizer::ColorSIMD::ColorSIMD()
