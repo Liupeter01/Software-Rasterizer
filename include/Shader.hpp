@@ -154,7 +154,7 @@ private:
                       auto tempx = simde_mm256_mul_ps(light_dir.x, light_dir.x);
 
                       //sqrt(x^2 + y^2)
-                      _simd distanceSquared = simde_mm256_rcp_ps(_mm256_sqrt_ps(
+                      _simd distanceSquared = simde_mm256_rcp_ps(simde_mm256_sqrt_ps(
                                 simde_mm256_add_ps(tempy, tempx)
                       ));
 
