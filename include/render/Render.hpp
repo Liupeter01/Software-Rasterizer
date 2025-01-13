@@ -1,9 +1,9 @@
 #pragma once
 #ifndef _RENDER_HPP_
 #define _RENDER_HPP_
-#include <ObjLoader.hpp>
-#include <Shader.hpp>
-#include <Simd.hpp>
+#include <loader/ObjLoader.hpp>
+#include <shader/Shader.hpp>
+#include <hpc/Simd.hpp>
 #include <Triangle.hpp>
 #include <algorithm>
 #include <optional>

@@ -2,7 +2,7 @@
 #ifndef _TOOLS_HPP_
 #define _TOOLS_HPP_
 #include <Eigen/Eigen>
-#include <Simd.hpp>
+#include <hpc/Simd.hpp>
 #include <algorithm>
 
 namespace SoftRasterizer {

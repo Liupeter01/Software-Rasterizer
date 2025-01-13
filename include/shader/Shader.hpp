@@ -3,8 +3,8 @@
 #ifndef _SHADER_HPP_
 #define _SHADER_HPP_
 #include <Eigen/Eigen>
-#include <Simd.hpp>
-#include <TextureLoader.hpp>
+#include <hpc/Simd.hpp>
+#include <loader/TextureLoader.hpp>
 #include <array>
 #include <functional>
 #include <initializer_list>

@@ -1,7 +1,7 @@
-#include "Shader.hpp"
+#include <shader/Shader.hpp>
 #include <Eigen/Eigen>
-#include <ObjLoader.hpp>
-#include <Render.hpp>
+#include <loader/ObjLoader.hpp>
+#include <render/Render.hpp>
 #include <Tools.hpp>
 #include <Triangle.hpp>
 #include <opencv2/opencv.hpp>

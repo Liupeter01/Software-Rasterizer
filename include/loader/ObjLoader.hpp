@@ -1,7 +1,7 @@
 #pragma once
 #ifndef _OBJLOADER_HPP_
 #define _OBJLOADER_HPP_
-#include <Mesh.hpp>
+#include <object/Mesh.hpp>
 #include <optional>
 #include <string>
 #include <vector>

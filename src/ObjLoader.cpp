@@ -1,5 +1,5 @@
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <ObjLoader.hpp>
+#include <loader/ObjLoader.hpp>
 #include <Tools.hpp>
 #include <iostream>
 #include <spdlog/spdlog.h>
