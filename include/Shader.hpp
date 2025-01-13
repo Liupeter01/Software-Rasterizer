@@ -215,10 +215,8 @@ private:
                       // Diffuse reflection (Lambertian reflectance)  dot(light, normal) = x * x + y * y + z * z
 
                       auto tempz = simde_mm256_mul_ps(light_dir_normalized.z, normal.z);
-                      auto tempy = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
-                      auto tempx = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
-
-                      auto add = simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy),tempz)
+                      tempy = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
+                      tempx = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
 
                       _simd cosAlpha = simde_mm256_max_ps(zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz));
 
@@ -237,15 +235,15 @@ private:
                       _simd kd_dist_z = simde_mm256_mul_ps(distribution_z, kd_b);
                       _simd ks_dist_z = simde_mm256_mul_ps(distribution_z, ks_b);
 
-                      auto Constant_x = simde_mm256_mul_ps(ka_r, light_intense_x)
+                      auto Constant_x = simde_mm256_mul_ps(ka_r, light_intense_x);
                       auto Theta_x = simde_mm256_mul_ps(ks_dist_x, cosTheta);
                       auto Alpha_x = simde_mm256_mul_ps(ks_dist_x, cosAlpha);
 
-                      auto Constant_y = simde_mm256_mul_ps(ka_g, light_intense_y)
+                      auto Constant_y = simde_mm256_mul_ps(ka_g, light_intense_y);
                       auto Theta_y = simde_mm256_mul_ps(ks_dist_y, cosTheta);
                       auto Alpha_y = simde_mm256_mul_ps(ks_dist_y, cosAlpha);
 
-                      auto Constant_z = simde_mm256_mul_ps(ka_b, light_intense_z)
+                      auto Constant_z = simde_mm256_mul_ps(ka_b, light_intense_z);
                       auto Theta_z = simde_mm256_mul_ps(ks_dist_z, cosTheta);
                       auto Alpha_z = simde_mm256_mul_ps(ks_dist_z, cosAlpha);
 
