@@ -15,7 +15,7 @@ SoftRasterizer::ThreadPool::ThreadPool(std::size_t number)
 }
 
 SoftRasterizer::ThreadPool::~ThreadPool() {
-          teminate();
+          terminate();
 }
 
 /*Start ThreadPool*/
@@ -31,7 +31,7 @@ SoftRasterizer::ThreadPool::initialize() {
 
 /*Terminate Thread Pool*/
 void 
-SoftRasterizer::ThreadPool::teminate() {
+SoftRasterizer::ThreadPool::terminate() {
           /*Stop Flag = True*/
           m_stopFlag.store(true);
 

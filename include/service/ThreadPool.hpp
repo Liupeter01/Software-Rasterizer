@@ -24,7 +24,7 @@ namespace SoftRasterizer {
                     virtual ~ThreadPool();
 
           public:
-                    void teminate();    //Terminate ThreadPool
+                    void terminate();    //Terminate ThreadPool
 
                     /*Commit Task To Queue*/
                     template<typename F, typename ...Args>

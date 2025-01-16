@@ -28,7 +28,7 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(
 
 SoftRasterizer::RenderingPipeline::~RenderingPipeline() {
           /*Shutdown Thread Pool*/
-          ThreadPool::get_instance()->teminate();
+          ThreadPool::get_instance()->terminate();
 }
 
 void SoftRasterizer::RenderingPipeline::clearFrameBuffer() {
