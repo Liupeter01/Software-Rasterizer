@@ -1,17 +1,20 @@
 #pragma once
 #ifndef _RENDER_HPP_
 #define _RENDER_HPP_
-#include <loader/ObjLoader.hpp>
-#include <shader/Shader.hpp>
-#include <hpc/Simd.hpp>
-#include <Triangle.hpp>
-#include <algorithm>
-#include <optional>
 #include <tuple>
+#include <optional>
+#include <algorithm>
+#include <Triangle.hpp>
+#include <hpc/Simd.hpp>
 #include <unordered_map>
+#include <scene/Scene.hpp>
+#include <shader/Shader.hpp>
+#include <loader/ObjLoader.hpp>
+#include <service/LockFree.hpp>
 
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
+#define ROUND_UP_TO_MULTIPLE_OF_8(x) (((x) + 7) & ~7)
 
 #if defined(__x86_64__) || defined(_WIN64)
 #define PREFETCH(address)                                                      \
@@ -69,102 +72,29 @@ inline Buffers operator&(Buffers a, Buffers b) {
 
 enum class Primitive { LINES, TRIANGLES };
 
-class RenderingPipeline {
+class RenderingPipeline{
 public:
-  RenderingPipeline();
-  RenderingPipeline(
-      const std::size_t width, const std::size_t height,
-      const Eigen::Matrix4f &view = Eigen::Matrix4f::Identity(),
-      const Eigen::Matrix4f &projection = Eigen::Matrix4f::Identity());
 
+  RenderingPipeline();
+  RenderingPipeline(const std::size_t width, const std::size_t height);
   virtual ~RenderingPipeline();
 
 protected:
   /*draw graphics*/
   void draw(Primitive type);
-
-  /*we don't want other user to deploy it directly, because we need to record
-   * detailed arguments*/
-  void setProjectionMatrix(const Eigen::Matrix4f &projection);
-  void setViewMatrix(const Eigen::Matrix4f &view);
-
   void clearFrameBuffer();
   void clearZDepth();
 
 public:
   void clear(SoftRasterizer::Buffers flags);
 
-  /*set MVP*/
-  bool setModelMatrix(const std::string &meshName,
-                      const Eigen::Matrix4f &model);
-
-  void setViewMatrix(const Eigen::Vector3f &eye, const Eigen::Vector3f &center,
-                     const Eigen::Vector3f &up);
-
-  void setProjectionMatrix(float fovy, float zNear, float zFar);
-
   /*display*/
   void display(Primitive type);
-
-  /*load ObjLoader object to load wavefront obj file*/
-  bool addGraphicObj(const std::string &path, const std::string &meshName);
-
-  bool addGraphicObj(
-      const std::string &path, const std::string &meshName,
-      const Eigen::Matrix4f &rotation,
-      const Eigen::Vector3f &translation = Eigen::Vector3f(0.f, 0.f, 0.f),
-      const Eigen::Vector3f &scale = Eigen::Matrix4f::Identity());
-
-  bool addGraphicObj(
-      const std::string &path, const std::string &meshName,
-      const Eigen::Vector3f &axis, const float angle,
-      const Eigen::Vector3f &translation = Eigen::Vector3f(0.f, 0.f, 0.f),
-      const Eigen::Vector3f &scale = Eigen::Matrix4f::Identity());
-
-  bool startLoadingMesh(const std::string &meshName);
-
-  bool addShader(const std::string &shaderName, const std::string &texturePath,
-                 SHADERS_TYPE type);
-
-  bool addShader(const std::string &shaderName,
-                 std::shared_ptr<TextureLoader> text, SHADERS_TYPE type);
-
-  bool bindShader2Mesh(const std::string &meshName,
-                       const std::string &shaderName);
+  bool addScene(std::shared_ptr<Scene> scene, std::optional<std::string> name = std::nullopt);
 
 private:
-  /*------------------------------framebuffer-----------------------------------------*/
-  /*|<----------------------------m_width------------------------------->|_________
-     |*************************************************|      /\
-     |*************************************************|       |
-     |*************************************************| m_height
-     |**************************************(x,y)*******|       |
-     |*************************************************|      \/
-     ____________________________________________________________*/
-
   /*Only Draw Line*/
   void rasterizeWireframe(const SoftRasterizer::Triangle &triangle);
-
-  /**
-   * @brief Calculates the bounding box for a given triangle.
-   *
-   * This function determines the axis-aligned bounding box (AABB)
-   * that encompasses the given triangle in 2D space. The bounding box
-   * is represented as a pair of 2D integer vectors, indicating the
-   * minimum and maximum corners of the box.
-   *
-   * @param triangle The triangle for which the bounding box is to be
-   * calculated. The triangle is represented using the
-   * `SoftRasterizer::Triangle` type.
-   *
-   * @return A pair of 2D integer vectors (Eigen::Vector2i), where:
-   *         - The first vector represents the minimum corner of the bounding
-   * box (bottom-left).
-   *         - The second vector represents the maximum corner of the bounding
-   * box (top-right).
-   */
-  std::pair<Eigen::Vector2i, Eigen::Vector2i>
-  calculateBoundingBox(const SoftRasterizer::Triangle &triangle);
 
   inline static bool insideTriangle(const std::size_t x_pos, const std::size_t y_pos,
                              const SoftRasterizer::Triangle &triangle);
@@ -206,8 +136,24 @@ private:
 #endif
 
   /*Rasterize a triangle*/
-  void rasterizeTriangle(std::shared_ptr<SoftRasterizer::Shader> shader,
-                         SoftRasterizer::Triangle &triangle);
+  inline void
+            rasterizeBatchAVX2(
+                      const int startx, const int endx, const int y,
+                      float* z, float* r, float* g, float* b,
+                      const std::vector<SoftRasterizer::light_struct>& lists,
+                      std::shared_ptr<SoftRasterizer::Shader> shader,
+                      const SoftRasterizer::Triangle& packed,
+                      const Eigen::Vector3f& eye);
+
+  inline void
+            rasterizeBatchScalar(const int startx, const int endx, const int y, float* z,
+                      const std::vector<SoftRasterizer::light_struct>& lists,
+                      std::shared_ptr<SoftRasterizer::Shader> shader,
+                      const SoftRasterizer::Triangle& scalar,
+                      const Eigen::Vector3f& eye);
+
+  inline void rasterizeBatchSSE(const SoftRasterizer::Triangle&) = delete;
+  inline void rasterizeBatchAVX512(const SoftRasterizer::Triangle&) = delete;
 
   inline void writePixel(const long long x, const long long y,
                          const Eigen::Vector3f &color);
@@ -216,9 +162,15 @@ private:
                          const Eigen::Vector3i &color);
 
   inline void writePixel(const long long start_pos, const ColorSIMD &color);
+  inline ColorSIMD readPixel(const long long start_pos);
 
   inline bool writeZBuffer(const long long x, const long long y,
                            const float depth);
+
+  inline void writeZBuffer(const long long start_pos,
+            const float depth);
+
+  inline const float readZBuffer(const long long x, const long long y);
 
 #if defined(__x86_64__) || defined(_WIN64)
   template <typename _simd>
@@ -227,6 +179,12 @@ private:
 
   template <typename _simd>
   inline void writeZBuffer(const long long start_pos, const _simd &depth);
+
+  template <typename _simd>
+  inline std::tuple<_simd, _simd, _simd> readPixel(const long long start_pos);
+
+  template <typename _simd>
+  inline _simd readZBuffer(const long long start_pos);
 
 #elif defined(__arm__) || defined(__aarch64__)
   inline void writePixel(const long long start_pos, const simde__m256 &r,
@@ -249,45 +207,13 @@ private:
   constexpr static std::size_t AVX512 = 16;
   constexpr static std::size_t AVX2 = 8;
   constexpr static std::size_t SSE = 4;
+  constexpr static std::size_t SCALAR = 1;
 
   /*display resolution*/
   std::size_t m_width;
   std::size_t m_height;
-  float m_aspectRatio;
-
-  /*store all identified objs, waiting for loading*/
-  std::unordered_map<std::string, std::unique_ptr<ObjLoader>> m_suspendObjs;
-
-  /*store all loaded objs*/
-  std::unordered_map<std::string, std::unique_ptr<Mesh>> m_loadedObjs;
-
-  /*store all shaders*/
-  std::unordered_map<std::string, std::shared_ptr<Shader>> m_shaders;
-
-  /*Matrix View*/
-  Eigen::Vector3f m_eye;
-  Eigen::Vector3f m_center;
-  Eigen::Vector3f m_up;
-  Eigen::Matrix4f m_view;
-
-  /*Matrix Projection*/
-  // near and far clipping planes
-  float m_fovy;
-  float m_near = 0.1f;
-  float m_far = 100.0f;
-  Eigen::Matrix4f m_projection;
-
-  // controls the stretching/compression of the  & shifts the range
-  float scale;
-  float offset;
-
-  /*Transform normalized coordinates into screen space coordinates*/
-  Eigen::Matrix4f m_ndcToScreenMatrix;
 
 #if defined(__x86_64__) || defined(_WIN64)
-  __m256 scale_simd;
-  __m256 offset_simd;
-
   const __m256 zero = _mm256_set1_ps(0.0f);
   const __m256 one = _mm256_set1_ps(1.0f);
 
@@ -295,20 +221,21 @@ private:
   const __m256 inf = _mm256_set1_ps(std::numeric_limits<float>::infinity());
 
 #elif defined(__arm__) || defined(__aarch64__)
-  simde__m256 scale_simd;
-  simde__m256 offset_simd;
-
   const simde__m256 zero = simde_mm256_set1_ps(0.0f);
   const simde__m256 one = simde_mm256_set1_ps(1.0f);
 
   /*decribe inf distance in z buffer*/
   const simde__m256 inf =
-      simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
+            simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
 
 #else
 #endif
 
+  /*Scene Data*/
+  std::unordered_map<std::string, std::shared_ptr<Scene>> m_scenes;
+
   /*RGB(3 channels)*/
+ // SpinLock m_channelLock;
   constexpr static std::size_t numbers = 3;
   std::vector<cv::Mat> m_channels;
 
@@ -316,6 +243,7 @@ private:
   cv::Mat m_frameBuffer;
 
   /*z buffer*/
+  //SpinLock m_zBufferLock;
   std::vector<float, Eigen::aligned_allocator<float>> m_zBuffer;
 };
 } // namespace SoftRasterizer
