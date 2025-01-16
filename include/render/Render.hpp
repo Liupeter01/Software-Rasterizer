@@ -162,8 +162,6 @@ private:
                          const Eigen::Vector3i &color);
 
   inline void writePixel(const long long start_pos, const ColorSIMD &color);
-  inline ColorSIMD readPixel(const long long start_pos);
-
   inline bool writeZBuffer(const long long x, const long long y,
                            const float depth);
 
