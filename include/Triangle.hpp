@@ -34,12 +34,12 @@ struct alignas(32) Triangle {
 
   /*BoundBox Calculation!*/
   struct BoundingBox {
-            long long startX;
-            long long startY;
+    long long startX;
+    long long startY;
 
-            long long endX;
-            long long endY;
-  }box;
+    long long endX;
+    long long endY;
+  } box;
 };
 } // namespace SoftRasterizer
 

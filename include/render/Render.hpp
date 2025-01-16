@@ -1,16 +1,16 @@
 #pragma once
 #ifndef _RENDER_HPP_
 #define _RENDER_HPP_
-#include <tuple>
-#include <optional>
-#include <algorithm>
 #include <Triangle.hpp>
+#include <algorithm>
 #include <hpc/Simd.hpp>
-#include <unordered_map>
-#include <scene/Scene.hpp>
-#include <shader/Shader.hpp>
 #include <loader/ObjLoader.hpp>
+#include <optional>
+#include <scene/Scene.hpp>
 #include <service/LockFree.hpp>
+#include <shader/Shader.hpp>
+#include <tuple>
+#include <unordered_map>
 
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
@@ -72,9 +72,8 @@ inline Buffers operator&(Buffers a, Buffers b) {
 
 enum class Primitive { LINES, TRIANGLES };
 
-class RenderingPipeline{
+class RenderingPipeline {
 public:
-
   RenderingPipeline();
   RenderingPipeline(const std::size_t width, const std::size_t height);
   virtual ~RenderingPipeline();
@@ -90,14 +89,16 @@ public:
 
   /*display*/
   void display(Primitive type);
-  bool addScene(std::shared_ptr<Scene> scene, std::optional<std::string> name = std::nullopt);
+  bool addScene(std::shared_ptr<Scene> scene,
+                std::optional<std::string> name = std::nullopt);
 
 private:
   /*Only Draw Line*/
   void rasterizeWireframe(const SoftRasterizer::Triangle &triangle);
 
-  inline static bool insideTriangle(const std::size_t x_pos, const std::size_t y_pos,
-                             const SoftRasterizer::Triangle &triangle);
+  inline static bool insideTriangle(const std::size_t x_pos,
+                                    const std::size_t y_pos,
+                                    const SoftRasterizer::Triangle &triangle);
 
   static std::optional<std::tuple<float, float, float>>
   linearBaryCentric(const std::size_t x_pos, const std::size_t y_pos,
@@ -137,23 +138,22 @@ private:
 
   /*Rasterize a triangle*/
   inline void
-            rasterizeBatchAVX2(
-                      const int startx, const int endx, const int y,
-                      float* z, float* r, float* g, float* b,
-                      const std::vector<SoftRasterizer::light_struct>& lists,
-                      std::shared_ptr<SoftRasterizer::Shader> shader,
-                      const SoftRasterizer::Triangle& packed,
-                      const Eigen::Vector3f& eye);
+  rasterizeBatchAVX2(const int startx, const int endx, const int y, float *z,
+                     float *r, float *g, float *b,
+                     const std::vector<SoftRasterizer::light_struct> &lists,
+                     std::shared_ptr<SoftRasterizer::Shader> shader,
+                     const SoftRasterizer::Triangle &packed,
+                     const Eigen::Vector3f &eye);
 
   inline void
-            rasterizeBatchScalar(const int startx, const int endx, const int y, float* z,
-                      const std::vector<SoftRasterizer::light_struct>& lists,
-                      std::shared_ptr<SoftRasterizer::Shader> shader,
-                      const SoftRasterizer::Triangle& scalar,
-                      const Eigen::Vector3f& eye);
+  rasterizeBatchScalar(const int startx, const int endx, const int y, float *z,
+                       const std::vector<SoftRasterizer::light_struct> &lists,
+                       std::shared_ptr<SoftRasterizer::Shader> shader,
+                       const SoftRasterizer::Triangle &scalar,
+                       const Eigen::Vector3f &eye);
 
-  inline void rasterizeBatchSSE(const SoftRasterizer::Triangle&) = delete;
-  inline void rasterizeBatchAVX512(const SoftRasterizer::Triangle&) = delete;
+  inline void rasterizeBatchSSE(const SoftRasterizer::Triangle &) = delete;
+  inline void rasterizeBatchAVX512(const SoftRasterizer::Triangle &) = delete;
 
   inline void writePixel(const long long x, const long long y,
                          const Eigen::Vector3f &color);
@@ -165,8 +165,7 @@ private:
   inline bool writeZBuffer(const long long x, const long long y,
                            const float depth);
 
-  inline void writeZBuffer(const long long start_pos,
-            const float depth);
+  inline void writeZBuffer(const long long start_pos, const float depth);
 
   inline const float readZBuffer(const long long x, const long long y);
 
@@ -181,8 +180,7 @@ private:
   template <typename _simd>
   inline std::tuple<_simd, _simd, _simd> readPixel(const long long start_pos);
 
-  template <typename _simd>
-  inline _simd readZBuffer(const long long start_pos);
+  template <typename _simd> inline _simd readZBuffer(const long long start_pos);
 
 #elif defined(__arm__) || defined(__aarch64__)
   inline void writePixel(const long long start_pos, const simde__m256 &r,
@@ -224,7 +222,7 @@ private:
 
   /*decribe inf distance in z buffer*/
   const simde__m256 inf =
-            simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
+      simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
 
 #else
 #endif
@@ -233,7 +231,7 @@ private:
   std::unordered_map<std::string, std::shared_ptr<Scene>> m_scenes;
 
   /*RGB(3 channels)*/
- // SpinLock m_channelLock;
+  // SpinLock m_channelLock;
   constexpr static std::size_t numbers = 3;
   std::vector<cv::Mat> m_channels;
 
@@ -241,7 +239,7 @@ private:
   cv::Mat m_frameBuffer;
 
   /*z buffer*/
-  //SpinLock m_zBufferLock;
+  // SpinLock m_zBufferLock;
   std::vector<float, Eigen::aligned_allocator<float>> m_zBuffer;
 };
 } // namespace SoftRasterizer

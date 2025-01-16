@@ -1,7 +1,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <loader/ObjLoader.hpp>
 #include <Tools.hpp>
 #include <iostream>
+#include <loader/ObjLoader.hpp>
 #include <spdlog/spdlog.h>
 #include <tiny_obj_loader.h>
 #include <unordered_map>

@@ -496,7 +496,6 @@ Eigen::Matrix4f SoftRasterizer::Tools::calculateProjectionMatrix(float fovy,
   return Ortho * Persp2Ortho;
 }
 
-
 /**
  * @brief Calculates the bounding box for a given triangle.
  *
@@ -517,22 +516,22 @@ Eigen::Matrix4f SoftRasterizer::Tools::calculateProjectionMatrix(float fovy,
  */
 std::pair<Eigen::Vector2i, Eigen::Vector2i>
 SoftRasterizer::Tools::calculateBoundingBox(
-          const SoftRasterizer::Triangle& triangle) {
-          auto A = triangle.a();
-          auto B = triangle.b();
-          auto C = triangle.c();
+    const SoftRasterizer::Triangle &triangle) {
+  auto A = triangle.a();
+  auto B = triangle.b();
+  auto C = triangle.c();
 
-          auto min = Eigen::Vector2i{
-              static_cast<int>(
-                  std::floor(SoftRasterizer::Tools::min(A.x(), B.x(), C.x()))),
-              static_cast<int>(
-                  std::floor(SoftRasterizer::Tools::min(A.y(), B.y(), C.y()))) };
+  auto min = Eigen::Vector2i{
+      static_cast<int>(
+          std::floor(SoftRasterizer::Tools::min(A.x(), B.x(), C.x()))),
+      static_cast<int>(
+          std::floor(SoftRasterizer::Tools::min(A.y(), B.y(), C.y())))};
 
-          auto max = Eigen::Vector2i{
-              static_cast<int>(
-                  std::ceil(SoftRasterizer::Tools::max(A.x(), B.x(), C.x()))),
-              static_cast<int>(
-                  std::ceil(SoftRasterizer::Tools::max(A.y(), B.y(), C.y()))) };
+  auto max = Eigen::Vector2i{
+      static_cast<int>(
+          std::ceil(SoftRasterizer::Tools::max(A.x(), B.x(), C.x()))),
+      static_cast<int>(
+          std::ceil(SoftRasterizer::Tools::max(A.y(), B.y(), C.y())))};
 
-          return std::pair<Eigen::Vector2i, Eigen::Vector2i>(min, max);
+  return std::pair<Eigen::Vector2i, Eigen::Vector2i>(min, max);
 }

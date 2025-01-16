@@ -2,13 +2,13 @@
 #ifndef _SHADER_HPP_
 #define _SHADER_HPP_
 #include <Eigen/Eigen>
-#include <hpc/Simd.hpp>
-#include <loader/TextureLoader.hpp>
 #include <array>
 #include <functional>
-#include <vector>
+#include <hpc/Simd.hpp>
+#include <loader/TextureLoader.hpp>
 #include <memory>
 #include <tuple>
+#include <vector>
 
 namespace SoftRasterizer {
 
@@ -88,10 +88,9 @@ public:
                            const PointSIMD &point, NormalSIMD &normal,
                            TexCoordSIMD &texcoord, ColorSIMD &colour);
 
-  Eigen::Vector3f
-  applyFragmentShader(const Eigen::Vector3f &camera,
-                      const std::vector<light_struct> &lights,
-                      const fragment_shader_payload &payload);
+  Eigen::Vector3f applyFragmentShader(const Eigen::Vector3f &camera,
+                                      const std::vector<light_struct> &lights,
+                                      const fragment_shader_payload &payload);
 
 private:
   /*register multiple shader models*/
@@ -284,30 +283,37 @@ private:
     }
   }
 
-  void simd_normal_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
+  void simd_normal_fragment_shader_impl(const Eigen::Vector3f &camera,
+                                        const std::vector<light_struct> &lights,
+                                        const PointSIMD &point,
+                                        NormalSIMD &normal,
+                                        TexCoordSIMD &texcoord,
+                                        ColorSIMD &colour);
 
-  void simd_texture_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
+  void
+  simd_texture_fragment_shader_impl(const Eigen::Vector3f &camera,
+                                    const std::vector<light_struct> &lights,
+                                    const PointSIMD &point, NormalSIMD &normal,
+                                    TexCoordSIMD &texcoord, ColorSIMD &colour);
 
-  void simd_phong_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
+  void simd_phong_fragment_shader_impl(const Eigen::Vector3f &camera,
+                                       const std::vector<light_struct> &lights,
+                                       const PointSIMD &point,
+                                       NormalSIMD &normal,
+                                       TexCoordSIMD &texcoord,
+                                       ColorSIMD &colour);
 
   void simd_displacement_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
+      const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+      const PointSIMD &point, NormalSIMD &normal, TexCoordSIMD &texcoord,
+      ColorSIMD &colour);
 
-  void simd_bump_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights, const PointSIMD &point,
-      NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
+  void simd_bump_fragment_shader_impl(const Eigen::Vector3f &camera,
+                                      const std::vector<light_struct> &lights,
+                                      const PointSIMD &point,
+                                      NormalSIMD &normal,
+                                      TexCoordSIMD &texcoord,
+                                      ColorSIMD &colour);
 
   // Static function to compute the Blinn-Phong reflection model
   static Eigen::Vector3f
@@ -328,30 +334,29 @@ private:
 
   /*Visualizing normal directions or checking surface normal directions in some
    * debugging scenarios*/
-  Eigen::Vector3f standard_normal_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights,
-      const fragment_shader_payload &payload);
+  Eigen::Vector3f
+  standard_normal_fragment_shader_impl(const Eigen::Vector3f &camera,
+                                       const std::vector<light_struct> &lights,
+                                       const fragment_shader_payload &payload);
 
-  Eigen::Vector3f standard_texture_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights,
-      const fragment_shader_payload &payload);
+  Eigen::Vector3f
+  standard_texture_fragment_shader_impl(const Eigen::Vector3f &camera,
+                                        const std::vector<light_struct> &lights,
+                                        const fragment_shader_payload &payload);
 
-  Eigen::Vector3f standard_phong_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights,
-      const fragment_shader_payload &payload);
+  Eigen::Vector3f
+  standard_phong_fragment_shader_impl(const Eigen::Vector3f &camera,
+                                      const std::vector<light_struct> &lights,
+                                      const fragment_shader_payload &payload);
 
   Eigen::Vector3f standard_displacement_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights,
+      const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
       const fragment_shader_payload &payload);
 
-  Eigen::Vector3f standard_bump_fragment_shader_impl(
-      const Eigen::Vector3f &camera,
-      const std::vector<light_struct> &lights,
-      const fragment_shader_payload &payload);
+  Eigen::Vector3f
+  standard_bump_fragment_shader_impl(const Eigen::Vector3f &camera,
+                                     const std::vector<light_struct> &lights,
+                                     const fragment_shader_payload &payload);
 
 public:
   const __m128 zero_128 = _mm_set1_ps(0.0f);

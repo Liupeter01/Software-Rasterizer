@@ -1,35 +1,37 @@
-#include <shader/Shader.hpp>
 #include <Eigen/Eigen>
-#include <loader/ObjLoader.hpp>
-#include <render/Render.hpp>
 #include <Tools.hpp>
 #include <Triangle.hpp>
+#include <loader/ObjLoader.hpp>
 #include <opencv2/opencv.hpp>
+#include <render/Render.hpp>
+#include <shader/Shader.hpp>
 #include <spdlog/spdlog.h>
 
 int main() {
   int key = 0;
   float degree = 0.0f;
 
-  auto render = std::make_shared< SoftRasterizer::RenderingPipeline>(1024, 1024); //Create Render Main Class
-  auto scene = std::make_shared< SoftRasterizer::Scene>("TestScene");                     //Create A Scene
+  auto render = std::make_shared<SoftRasterizer::RenderingPipeline>(
+      1024, 1024); // Create Render Main Class
+  auto scene =
+      std::make_shared<SoftRasterizer::Scene>("TestScene"); // Create A Scene
   scene->addGraphicObj(
-            CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
-            Eigen::Vector3f(0.f, 1.f, 0.f), degree, Eigen::Vector3f(-0.35f, 0.0f, 0.0f),
-            Eigen::Vector3f(0.3f, 0.3f, 0.3f));
+      CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
+      Eigen::Vector3f(0.f, 1.f, 0.f), degree,
+      Eigen::Vector3f(-0.35f, 0.0f, 0.0f), Eigen::Vector3f(0.3f, 0.3f, 0.3f));
 
-  scene->addGraphicObj(
-            CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
-            Eigen::Vector3f(0.f, 1.f, 0.f), degree, Eigen::Vector3f(0.3f, 0.0f, 0.0f),
-            Eigen::Vector3f(0.2f, 0.2f, 0.2f));
+  scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
+                       Eigen::Vector3f(0.f, 1.f, 0.f), degree,
+                       Eigen::Vector3f(0.3f, 0.0f, 0.0f),
+                       Eigen::Vector3f(0.2f, 0.2f, 0.2f));
 
   scene->addShader("spot_shader",
                    CONFIG_HOME "examples/models/spot/spot_texture.png",
                    SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
   scene->addShader("crate_shader",
-            CONFIG_HOME "examples/models/Crate/crate1.png",
-            SoftRasterizer::SHADERS_TYPE::TEXTURE);
+                   CONFIG_HOME "examples/models/Crate/crate1.png",
+                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
   scene->startLoadingMesh("spot");
   scene->startLoadingMesh("Crate");
@@ -38,8 +40,8 @@ int main() {
 
   /*Add Light To Scene*/
   auto light1 = std::make_shared<SoftRasterizer::light_struct>();
-  light1->position = Eigen::Vector3f{ 0.9, 0.9, -0.9f };
-  light1->intensity = Eigen::Vector3f{ 100, 100, 100 };
+  light1->position = Eigen::Vector3f{0.9, 0.9, -0.9f};
+  light1->intensity = Eigen::Vector3f{100, 100, 100};
 
   scene->addLight("Light1", light1);
 
@@ -50,7 +52,7 @@ int main() {
 
     /*clear both shading and depth!*/
     render->clear(SoftRasterizer::Buffers::Color |
-                 SoftRasterizer::Buffers::Depth);
+                  SoftRasterizer::Buffers::Depth);
 
     /*Model Matrix*/
     scene->setModelMatrix(
