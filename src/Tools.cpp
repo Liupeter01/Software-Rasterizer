@@ -383,7 +383,7 @@ SoftRasterizer::Tools::calculateModelMatrix(const Eigen::Vector3f &translation,
 
   S << scale.x(), 0, 0, 0, 0, scale.y(), 0, 0, 0, 0, scale.z(), 0, 0, 0, 0, 1;
 
-  return T * rotation * S * modelMatrix;
+  return T * rotation * S;
 }
 
 /**
