@@ -67,4 +67,4 @@ namespace SoftRasterizer {
           };
 }
 
-#endif _THREADPOOL_HPP
+#endif //_THREADPOOL_HPP
