@@ -1,5 +1,4 @@
 #pragma once
-#include "x86/svml.h"
 #ifndef _SHADER_HPP_
 #define _SHADER_HPP_
 #include <Eigen/Eigen>
@@ -7,7 +6,7 @@
 #include <loader/TextureLoader.hpp>
 #include <array>
 #include <functional>
-#include <initializer_list>
+#include <vector>
 #include <memory>
 #include <tuple>
 
@@ -59,11 +58,11 @@ struct fragment_shader_payload {
 struct Shader {
 
   using simd_shader = std::function<void(
-      const Eigen::Vector3f &, const std::initializer_list<light_struct> &,
+      const Eigen::Vector3f &, const std::vector<light_struct> &,
       const PointSIMD &, NormalSIMD &, TexCoordSIMD &, ColorSIMD &)>;
 
   using standard_shader = std::function<Eigen::Vector3f(
-      const Eigen::Vector3f &, const std::initializer_list<light_struct> &,
+      const Eigen::Vector3f &, const std::vector<light_struct> &,
       const fragment_shader_payload &)>;
 
   static Eigen::Vector3f ka;
@@ -85,13 +84,13 @@ public:
 
   /*Use Fragment Shader*/
   void applyFragmentShader(const Eigen::Vector3f &camera,
-                           const std::initializer_list<light_struct> &lights,
+                           const std::vector<light_struct> &lights,
                            const PointSIMD &point, NormalSIMD &normal,
                            TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   Eigen::Vector3f
   applyFragmentShader(const Eigen::Vector3f &camera,
-                      const std::initializer_list<light_struct> &lights,
+                      const std::vector<light_struct> &lights,
                       const fragment_shader_payload &payload);
 
 private:
@@ -287,27 +286,27 @@ private:
 
   void simd_normal_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      const std::vector<light_struct> &lights, const PointSIMD &point,
       NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_texture_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      const std::vector<light_struct> &lights, const PointSIMD &point,
       NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_phong_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      const std::vector<light_struct> &lights, const PointSIMD &point,
       NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_displacement_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      const std::vector<light_struct> &lights, const PointSIMD &point,
       NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   void simd_bump_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+      const std::vector<light_struct> &lights, const PointSIMD &point,
       NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour);
 
   // Static function to compute the Blinn-Phong reflection model
@@ -331,27 +330,27 @@ private:
    * debugging scenarios*/
   Eigen::Vector3f standard_normal_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights,
+      const std::vector<light_struct> &lights,
       const fragment_shader_payload &payload);
 
   Eigen::Vector3f standard_texture_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights,
+      const std::vector<light_struct> &lights,
       const fragment_shader_payload &payload);
 
   Eigen::Vector3f standard_phong_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights,
+      const std::vector<light_struct> &lights,
       const fragment_shader_payload &payload);
 
   Eigen::Vector3f standard_displacement_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights,
+      const std::vector<light_struct> &lights,
       const fragment_shader_payload &payload);
 
   Eigen::Vector3f standard_bump_fragment_shader_impl(
       const Eigen::Vector3f &camera,
-      const std::initializer_list<light_struct> &lights,
+      const std::vector<light_struct> &lights,
       const fragment_shader_payload &payload);
 
 public:

@@ -122,14 +122,14 @@ SoftRasterizer::vertex_displacement SoftRasterizer::Shader::applyVertexShader(
 /*Use Fragment Shader*/
 Eigen::Vector3f SoftRasterizer::Shader::applyFragmentShader(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights,
+    const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
   return m_standard(camera, lights, payload);
 }
 
 void SoftRasterizer::Shader::applyFragmentShader(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+    const std::vector<light_struct> &lights, const PointSIMD &point,
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
 
 #if defined(__x86_64__) || defined(_WIN64)
@@ -158,7 +158,7 @@ void SoftRasterizer::Shader::applyFragmentShader(
 
 void SoftRasterizer::Shader::simd_normal_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+    const std::vector<light_struct> &lights, const PointSIMD &point,
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
 
 #if defined(__x86_64__) || defined(_WIN64)
@@ -193,7 +193,7 @@ void SoftRasterizer::Shader::simd_normal_fragment_shader_impl(
 
 void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+    const std::vector<light_struct> &lights, const PointSIMD &point,
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
 
   auto [R, G, B] = texture->getTextureColor(texcoord.u, texcoord.v);
@@ -289,7 +289,7 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
 
 void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+    const std::vector<light_struct> &lights, const PointSIMD &point,
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
 
 #if defined(__x86_64__) || defined(_WIN64)
@@ -388,7 +388,7 @@ void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
 
 void SoftRasterizer::Shader::simd_displacement_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+    const std::vector<light_struct> &lights, const PointSIMD &point,
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
   for (const auto &light : lights) {
   }
@@ -417,7 +417,7 @@ void SoftRasterizer::Shader::simd_displacement_fragment_shader_impl(
 
 void SoftRasterizer::Shader::simd_bump_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights, const PointSIMD &point,
+    const std::vector<light_struct> &lights, const PointSIMD &point,
     NormalSIMD &normal, TexCoordSIMD &texcoord, ColorSIMD &colour) {
   for (const auto &light : lights) {
   }
@@ -551,7 +551,7 @@ Eigen::Vector3f SoftRasterizer::Shader::BlinnPhong(
  * debugging scenarios*/
 Eigen::Vector3f SoftRasterizer::Shader::standard_normal_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights,
+    const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
 
   return (payload.normal.normalized() + Eigen::Vector3f(1.0f, 1.0f, 1.0f)) /
@@ -560,7 +560,7 @@ Eigen::Vector3f SoftRasterizer::Shader::standard_normal_fragment_shader_impl(
 
 Eigen::Vector3f SoftRasterizer::Shader::standard_texture_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights,
+    const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
 
   Eigen::Vector3f result_color = {0, 0, 0};
@@ -582,7 +582,7 @@ Eigen::Vector3f SoftRasterizer::Shader::standard_texture_fragment_shader_impl(
 
 Eigen::Vector3f SoftRasterizer::Shader::standard_phong_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights,
+    const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
 
   Eigen::Vector3f result_color = {0, 0, 0};
@@ -605,7 +605,7 @@ Eigen::Vector3f SoftRasterizer::Shader::standard_phong_fragment_shader_impl(
 Eigen::Vector3f
 SoftRasterizer::Shader::standard_displacement_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights,
+    const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
   Eigen::Vector3f result_color = {0, 0, 0};
   Eigen::Vector3f kd = texture->getTextureColor(payload.texCoords);
@@ -631,7 +631,7 @@ SoftRasterizer::Shader::standard_displacement_fragment_shader_impl(
 
 Eigen::Vector3f SoftRasterizer::Shader::standard_bump_fragment_shader_impl(
     const Eigen::Vector3f &camera,
-    const std::initializer_list<light_struct> &lights,
+    const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
 
   Eigen::Vector3f result_color = {0, 0, 0};
