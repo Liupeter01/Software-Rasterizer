@@ -1,5 +1,6 @@
 #include <Triangle.hpp>
 #include <algorithm>
+#include <Tools.hpp>
 
 SoftRasterizer::Triangle::Triangle() {
   m_vertex[0] << 0.f, 0.f, 0.f;
@@ -53,4 +54,15 @@ void SoftRasterizer::Triangle::setTexCoord(
     throw std::runtime_error("Invalid number of texture coordinates");
   }
   std::copy(_texCoords.begin(), _texCoords.end(), m_texCoords.begin());
+}
+
+void 
+SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width, const std::size_t height) {
+          auto [min, max] = Tools::calculateBoundingBox(*this);
+
+          box.startX = (min.x() >= 0 ? min.x() : 0);
+          box.startY = (min.y() >= 0 ? min.y() : 0);
+
+          box.endX = (max.x() < width ? max.x() : width);
+          box.endY = (max.y() < height ? max.y() : height);
 }

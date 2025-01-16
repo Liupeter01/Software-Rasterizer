@@ -6,7 +6,7 @@
 #include <initializer_list>
 
 namespace SoftRasterizer {
-struct Triangle {
+struct alignas(32) Triangle {
   Triangle();
 
   const Eigen::Vector3f &a() const { return m_vertex[0]; }
@@ -17,6 +17,7 @@ struct Triangle {
   void setNormal(std::initializer_list<Eigen::Vector3f> _normal);
   void setColor(std::initializer_list<Eigen::Vector3i> _color);
   void setTexCoord(std::initializer_list<Eigen::Vector2f> _texCoords);
+  void calcBoundingBox(const std::size_t width, const std::size_t height);
 
   /*the original coordinates of the triangle, v0, v1, v2 in counter clockwise
    * order*/
@@ -30,6 +31,15 @@ struct Triangle {
 
   // normal vector for each vertex
   std::array<Eigen::Vector3f, 3> m_normal;
+
+  /*BoundBox Calculation!*/
+  struct BoundingBox {
+            long long startX;
+            long long startY;
+
+            long long endX;
+            long long endY;
+  }box;
 };
 } // namespace SoftRasterizer
 
