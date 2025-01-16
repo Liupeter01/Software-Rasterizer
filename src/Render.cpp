@@ -115,11 +115,6 @@ SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos,
   writePixel(start_pos, color.r, color.g, color.b);
 }
 
-inline SoftRasterizer::ColorSIMD
-SoftRasterizer::RenderingPipeline::readPixel(const long long start_pos){
-
-}
-
 inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long x,
                                                             const long long y,
                                                             const float depth) {
@@ -645,7 +640,7 @@ SoftRasterizer::RenderingPipeline::rasterizeBatchAVX2(
                               simde_mm256_loadu_ps(&b[x - startx]);
                     simde__m256 Original_Green =
                               simde_mm256_loadu_ps(&g[x - startx]);
-                    simde __m256 Original_Red =
+                    simde__m256 Original_Red =
                               simde_mm256_loadu_ps(&r[x - startx]);
 
                     point.x = simde_mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f, x + 2.f, x + 1.f, x + 0.f);
