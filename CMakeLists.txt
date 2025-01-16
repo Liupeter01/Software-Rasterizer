@@ -26,10 +26,24 @@ if(NOT MSVC)
   endif()
 endif()
 
+if(PROJECT_BINARY_DIR EQUAL PROJECT_SOURCE_DIR)
+    message(WARNING "Binary directory of CMake CANNOT be the same as Source Directory!")
+endif()
+
+if (MSVC)  # 1. fix string literial cannot include unicode characters; 2. rid min and max macros; 3. get back M_PI, M_E macros
+    add_compile_options($<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/utf-8$<SEMICOLON>/DNOMINMAX$<SEMICOLON>/D_USE_MATH_DEFINES>)
+    add_compile_options($<$<COMPILE_LANG_AND_ID:C,MSVC>:/utf-8$<SEMICOLON>/DNOMINMAX$<SEMICOLON>/D_USE_MATH_DEFINES>)
+elseif (CMAKE_COMPILER_IS_GNUCXX)  # Add necessary checks and warnings
+    if (CMAKE_BUILD_TYPE MATCHES "[Dd][Ee][Bb][Uu][Gg]")
+        add_compile_options($<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wall$<SEMICOLON>-Wextra>)
+        add_compile_options($<$<COMPILE_LANG_AND_ID:CXX,GNU>:-ftrapv$<SEMICOLON>-fbounds-check$<SEMICOLON>-fsanitize-trap>)
+    endif()
+endif()
+
 project(
   Software-Rasterizer
-  VERSION 0.1.4
-  LANGUAGES CXX)
+  VERSION 0.1.6
+  LANGUAGES C CXX)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
 
