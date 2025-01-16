@@ -68,6 +68,8 @@ struct ColorSIMD {
 #else
 #endif
 
+          struct Triangle;
+
 struct Tools {
   static constexpr float PI = 3.14159265358979323846f;
 
@@ -276,6 +278,27 @@ struct Tools {
    */
   static Eigen::Matrix4f calculateProjectionMatrix(float fovy, float aspect,
                                                    float zNear, float zFar);
+
+  /**
+ * @brief Calculates the bounding box for a given triangle.
+ *
+ * This function determines the axis-aligned bounding box (AABB)
+ * that encompasses the given triangle in 2D space. The bounding box
+ * is represented as a pair of 2D integer vectors, indicating the
+ * minimum and maximum corners of the box.
+ *
+ * @param triangle The triangle for which the bounding box is to be
+ * calculated. The triangle is represented using the
+ * `SoftRasterizer::Triangle` type.
+ *
+ * @return A pair of 2D integer vectors (Eigen::Vector2i), where:
+ *         - The first vector represents the minimum corner of the bounding
+ * box (bottom-left).
+ *         - The second vector represents the maximum corner of the bounding
+ * box (top-right).
+ */
+  static std::pair<Eigen::Vector2i, Eigen::Vector2i>
+            calculateBoundingBox(const SoftRasterizer::Triangle& triangle);
 
   template <size_t Begin, size_t End, typename F> static void static_for(F f) {
     if constexpr (Begin < End) {

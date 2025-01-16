@@ -1,4 +1,5 @@
 #include <Tools.hpp>
+#include <Triangle.hpp>
 #include <spdlog/spdlog.h>
 
 #if defined(__x86_64__) || defined(_WIN64)
@@ -493,4 +494,45 @@ Eigen::Matrix4f SoftRasterizer::Tools::calculateProjectionMatrix(float fovy,
       -zNear * zFar, 0, 0, 1, 0;
 
   return Ortho * Persp2Ortho;
+}
+
+
+/**
+ * @brief Calculates the bounding box for a given triangle.
+ *
+ * This function determines the axis-aligned bounding box (AABB)
+ * that encompasses the given triangle in 2D space. The bounding box
+ * is represented as a pair of 2D integer vectors, indicating the
+ * minimum and maximum corners of the box.
+ *
+ * @param triangle The triangle for which the bounding box is to be calculated.
+ *                 The triangle is represented using the
+ * `SoftRasterizer::Triangle` type.
+ *
+ * @return A pair of 2D integer vectors (Eigen::Vector2i), where:
+ *         - The first vector represents the minimum corner of the bounding box
+ * (bottom-left).
+ *         - The second vector represents the maximum corner of the bounding box
+ * (top-right).
+ */
+std::pair<Eigen::Vector2i, Eigen::Vector2i>
+SoftRasterizer::Tools::calculateBoundingBox(
+          const SoftRasterizer::Triangle& triangle) {
+          auto A = triangle.a();
+          auto B = triangle.b();
+          auto C = triangle.c();
+
+          auto min = Eigen::Vector2i{
+              static_cast<int>(
+                  std::floor(SoftRasterizer::Tools::min(A.x(), B.x(), C.x()))),
+              static_cast<int>(
+                  std::floor(SoftRasterizer::Tools::min(A.y(), B.y(), C.y()))) };
+
+          auto max = Eigen::Vector2i{
+              static_cast<int>(
+                  std::ceil(SoftRasterizer::Tools::max(A.x(), B.x(), C.x()))),
+              static_cast<int>(
+                  std::ceil(SoftRasterizer::Tools::max(A.y(), B.y(), C.y()))) };
+
+          return std::pair<Eigen::Vector2i, Eigen::Vector2i>(min, max);
 }
