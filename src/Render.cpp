@@ -141,8 +141,6 @@ SoftRasterizer::RenderingPipeline::readZBuffer(const long long x,
   return m_zBuffer[x + y * m_width];
 }
 
-#if defined(__x86_64__) || defined(_WIN64)
-
 template <typename _simd>
 inline void SoftRasterizer::RenderingPipeline::writePixel(
     const long long start_pos, const _simd &r, const _simd &g, const _simd &b) {
@@ -233,71 +231,6 @@ SoftRasterizer::RenderingPipeline::readZBuffer(const long long start_pos) {
   }
   return {};
 }
-
-#elif defined(__arm__) || defined(__aarch64__)
-simde__m256 SoftRasterizer::RenderingPipeline::insideTriangle(
-    const simde__m256 &x, const simde__m256 &y,
-    const SoftRasterizer::Triangle &triangle) {
-
-  Eigen::Vector3f A = triangle.a();
-  Eigen::Vector3f B = triangle.b();
-  Eigen::Vector3f C = triangle.c();
-
-  A.z() = B.z() = C.z() = 1.0f;
-
-  // Load triangle vertex positions into SIMD registers
-  simde__m256 ax = simde_mm256_set1_ps(A.x());
-  simde__m256 ay = simde_mm256_set1_ps(A.y());
-  simde__m256 bx = simde_mm256_set1_ps(B.x());
-  simde__m256 by = simde_mm256_set1_ps(B.y());
-  simde__m256 cx = simde_mm256_set1_ps(C.x());
-  simde__m256 cy = simde_mm256_set1_ps(C.y());
-
-  // Vectors from point P (x_pos, y_pos) to each vertex
-  simde__m256 px = simde_mm256_add_ps(x, simde_mm256_set1_ps(0.5f));
-  simde__m256 py = simde_mm256_add_ps(y, simde_mm256_set1_ps(0.5f));
-
-  // Cross products (z-component only)
-  simde__m256 crossABP =
-      simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(bx, ax),
-                                            simde_mm256_sub_ps(py, ay)),
-                         simde_mm256_mul_ps(simde_mm256_sub_ps(by, ay),
-                                            simde_mm256_sub_ps(px, ax)));
-
-  simde__m256 crossBCP =
-      simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(cx, bx),
-                                            simde_mm256_sub_ps(py, by)),
-                         simde_mm256_mul_ps(simde_mm256_sub_ps(cy, by),
-                                            simde_mm256_sub_ps(px, bx)));
-
-  simde__m256 crossCAP =
-      simde_mm256_sub_ps(simde_mm256_mul_ps(simde_mm256_sub_ps(ax, cx),
-                                            simde_mm256_sub_ps(py, cy)),
-                         simde_mm256_mul_ps(simde_mm256_sub_ps(ay, cy),
-                                            simde_mm256_sub_ps(px, cx)));
-
-  // Check if all cross products have the same sign (positive or negative)
-  simde__m256 zero = simde_mm256_set1_ps(0.0f);
-  simde__m256 signABP =
-      simde_mm256_cmp_ps(crossABP, zero, SIMDE_CMP_GT_OQ); // > 0
-  simde__m256 signBCP =
-      simde_mm256_cmp_ps(crossBCP, zero, SIMDE_CMP_GT_OQ); // > 0
-  simde__m256 signCAP =
-      simde_mm256_cmp_ps(crossCAP, zero, SIMDE_CMP_GT_OQ); // > 0
-
-  // Combine the signs: all positive or all negative
-  simde__m256 allPositive =
-      simde_mm256_and_ps(simde_mm256_and_ps(signABP, signBCP), signCAP);
-  simde__m256 allNegative = simde_mm256_and_ps(
-      simde_mm256_and_ps(simde_mm256_cmp_ps(crossABP, zero, SIMDE_CMP_LT_OQ),
-                         simde_mm256_cmp_ps(crossBCP, zero, SIMDE_CMP_LT_OQ)),
-      simde_mm256_cmp_ps(crossCAP, zero, SIMDE_CMP_LT_OQ));
-
-  return simde_mm256_or_ps(allPositive, allNegative);
-}
-
-#else
-#endif
 
 void SoftRasterizer::RenderingPipeline::rasterizeWireframe(
     const SoftRasterizer::Triangle &triangle) {
