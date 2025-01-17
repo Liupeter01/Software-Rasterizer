@@ -576,11 +576,6 @@ inline void  SoftRasterizer::RenderingPipeline::processFragByAVX2(const int x, c
                     x + 2.f, x + 1.f, x + 0.f);
 
 #elif defined(__arm__) || defined(__aarch64__)
-          //simde__m256 Original_Z = simde_mm256_loadu_ps(&z[x - startx]);
-          //simde__m256 Original_Blue = simde_mm256_loadu_ps(&b[x - startx]);
-          //simde__m256 Original_Green = simde_mm256_loadu_ps(&g[x - startx]);
-          //simde__m256 Original_Red = simde_mm256_loadu_ps(&r[x - startx]);
-
           point.y = simde_mm256_set1_ps(static_cast<float>(y));
           point.x = simde_mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f,
                     x + 2.f, x + 1.f, x + 0.f);
@@ -660,6 +655,10 @@ inline void  SoftRasterizer::RenderingPipeline::processFragByAVX2(const int x, c
 
           alpha_z = simde_mm256_add_ps(alpha_z, beta_z);
           point.z = simde_mm256_add_ps(alpha_z, gamma_z);
+
+          //Start Reading From Now
+          simde__m256 Original_Z = readZBuffer<simde__m256>(op_pos);
+          auto [Original_Red, Original_Green, Original_Blue] = readPixel<simde__m256>(op_pos);
 
           /*Comparing z-buffer value to determine update colour or not!*/
           simde__m256 mask = simde_mm256_and_ps(
