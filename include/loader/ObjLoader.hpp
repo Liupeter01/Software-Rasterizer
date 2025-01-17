@@ -2,6 +2,8 @@
 #ifndef _OBJLOADER_HPP_
 #define _OBJLOADER_HPP_
 #include <object/Mesh.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
 #include <optional>
 #include <string>
 #include <vector>
@@ -10,24 +12,22 @@ namespace SoftRasterizer {
 class ObjLoader {
 public:
   ObjLoader(const std::string &path, const std::string &meshName,
-            Eigen::Matrix4f &&model = Eigen::Matrix4f::Identity());
+            const glm::mat4x4&model = glm::mat4(1.0f));
 
   ObjLoader(const std::string &path, const std::string &meshName,
-            const Eigen::Matrix4f &rotation,
-            const Eigen::Vector3f &translation = Eigen::Vector3f(0.f, 0.f, 0.f),
-            const Eigen::Vector3f &scale = Eigen::Matrix4f::Identity());
-
-  ObjLoader(const std::string &path, const std::string &meshName,
-            const Eigen::Vector3f &axis, const float angle,
-            const Eigen::Vector3f &translation = Eigen::Vector3f(0.f, 0.f, 0.f),
-            const Eigen::Vector3f &scale = Eigen::Matrix4f::Identity());
+            const glm::vec3& axis, const float angle,
+            const glm::vec3& translation,
+            const glm::vec3& scale);
 
   virtual ~ObjLoader();
 
 public:
   void setObjFilePath(const std::string &path);
-  void updateModelMatrix(const Eigen::Matrix4f &model);
-  const Eigen::Matrix4f &getModelMatrix();
+  void updateModelMatrix(const glm::vec3& axis, const float angle,
+            const glm::vec3& translation,
+            const glm::vec3& scale);
+
+  const glm::mat4x4&getModelMatrix();
 
   std::optional<std::unique_ptr<Mesh>>
   startLoadingFromFile(const std::string &objName = "");
@@ -35,7 +35,7 @@ public:
 private:
   std::string m_path;
   std::string m_meshName;
-  Eigen::Matrix4f m_model;
+  glm::mat4 m_model;
 };
 } // namespace SoftRasterizer
 #endif // !_OBJLOADER_HPP_
