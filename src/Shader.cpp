@@ -1,20 +1,21 @@
 #include <Tools.hpp>
+#include <glm/vec4.hpp>
 #include <shader/Shader.hpp>
 #include <spdlog/spdlog.h>
 
 /*static variables*/
-Eigen::Vector3f SoftRasterizer::Shader::ka =
-    Eigen::Vector3f(0.005f, 0.005f, 0.005f);
-Eigen::Vector3f SoftRasterizer::Shader::ks =
-    Eigen::Vector3f(0.7937, 0.7937, 0.7937);
+glm::vec3 SoftRasterizer::Shader::ka = glm::vec3(0.005f, 0.005f, 0.005f);
+glm::vec3 SoftRasterizer::Shader::ks = glm::vec3(0.7937, 0.7937, 0.7937);
 
 float SoftRasterizer::Shader::p = 150;
 float SoftRasterizer::Shader::kh = 0.2;
 float SoftRasterizer::Shader::kn = 0.1;
 
 SoftRasterizer::fragment_shader_payload::fragment_shader_payload(
-    const Eigen::Vector3f &_p, const Eigen::Vector3f &_n,
-    const Eigen::Vector2f &_texcoord, const Eigen::Vector3f &_color)
+          const glm::vec3& _p, 
+          const glm::vec3& _n,
+          const glm::vec2& _texcoord,
+          const glm::vec3& _color)
     : position(_p), normal(_n), texCoords(_texcoord), color(_color) {}
 
 SoftRasterizer::Shader::Shader(const std::string &path)
@@ -110,24 +111,23 @@ bool SoftRasterizer::Shader::setFragmentShader(SHADERS_TYPE type) {
 
 /*User Vertex Shader*/
 SoftRasterizer::vertex_displacement SoftRasterizer::Shader::applyVertexShader(
-    const Eigen::Matrix4f &Model, const Eigen::Matrix4f &View,
-    const Eigen::Matrix4f &Projection, const fragment_shader_payload &payload) {
-  return SoftRasterizer::vertex_displacement{
-      Tools::to_vec3(Projection * View * Model *
-                     Tools::to_vec4(payload.position, 1.0f)),
-      Tools::to_vec3(Model.inverse().transpose() *
-                     Tools::to_vec4(payload.normal))};
+    const glm::mat4&Model, const glm::mat4 &View,
+    const glm::mat4&Projection, const fragment_shader_payload &payload) {
+          return SoftRasterizer::vertex_displacement{
+              Tools::to_vec3(Projection * View * Model * glm::vec4(payload.position, 1.0f)),
+              Tools::to_vec3(glm::transpose(glm::inverse(Model)) * glm::vec4(payload.normal, 1.0f)) 
+          };
 }
 
 /*Use Fragment Shader*/
-Eigen::Vector3f SoftRasterizer::Shader::applyFragmentShader(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+glm::vec3 SoftRasterizer::Shader::applyFragmentShader(
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
   return m_standard(camera, lights, payload);
 }
 
 void SoftRasterizer::Shader::applyFragmentShader(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const PointSIMD &point, NormalSIMD &normal, TexCoordSIMD &texcoord,
     ColorSIMD &colour) {
 
@@ -156,7 +156,7 @@ void SoftRasterizer::Shader::applyFragmentShader(
 }
 
 void SoftRasterizer::Shader::simd_normal_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const PointSIMD &point, NormalSIMD &normal, TexCoordSIMD &texcoord,
     ColorSIMD &colour) {
 
@@ -191,39 +191,39 @@ void SoftRasterizer::Shader::simd_normal_fragment_shader_impl(
 }
 
 void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const PointSIMD &point, NormalSIMD &normal, TexCoordSIMD &texcoord,
     ColorSIMD &colour) {
 
   auto [R, G, B] = texture->getTextureColor(texcoord.u, texcoord.v);
 
 #if defined(__x86_64__) || defined(_WIN64)
-  auto ka_r = _mm256_set1_ps(ka.x());
-  auto ka_g = _mm256_set1_ps(ka.y());
-  auto ka_b = _mm256_set1_ps(ka.z());
+  auto ka_r = _mm256_set1_ps(ka.x);
+  auto ka_g = _mm256_set1_ps(ka.y);
+  auto ka_b = _mm256_set1_ps(ka.z);
 
-  auto ks_r = _mm256_set1_ps(ks.x());
-  auto ks_g = _mm256_set1_ps(ks.y());
-  auto ks_b = _mm256_set1_ps(ks.z());
+  auto ks_r = _mm256_set1_ps(ks.x);
+  auto ks_g = _mm256_set1_ps(ks.y);
+  auto ks_b = _mm256_set1_ps(ks.z);
 
-  auto camera_x = _mm256_set1_ps(camera.x());
-  auto camera_y = _mm256_set1_ps(camera.y());
-  auto camera_z = _mm256_set1_ps(camera.z());
+  auto camera_x = _mm256_set1_ps(camera.x);
+  auto camera_y = _mm256_set1_ps(camera.y);
+  auto camera_z = _mm256_set1_ps(camera.z);
 
   auto p_simd = _mm256_set1_ps(p);
 
 #elif defined(__arm__) || defined(__aarch64__)
-  auto ka_r = simde_mm256_set1_ps(ka.x());
-  auto ka_g = simde_mm256_set1_ps(ka.y());
-  auto ka_b = simde_mm256_set1_ps(ka.z());
+  auto ka_r = simde_mm256_set1_ps(ka.x);
+  auto ka_g = simde_mm256_set1_ps(ka.y);
+  auto ka_b = simde_mm256_set1_ps(ka.z);
 
-  auto ks_r = simde_mm256_set1_ps(ks.x());
-  auto ks_g = simde_mm256_set1_ps(ks.y());
-  auto ks_b = simde_mm256_set1_ps(ks.z());
+  auto ks_r = simde_mm256_set1_ps(ks.x);
+  auto ks_g = simde_mm256_set1_ps(ks.y);
+  auto ks_b = simde_mm256_set1_ps(ks.z);
 
-  auto camera_x = simde_mm256_set1_ps(camera.x());
-  auto camera_y = simde_mm256_set1_ps(camera.y());
-  auto camera_z = simde_mm256_set1_ps(camera.z());
+  auto camera_x = simde_mm256_set1_ps(camera.x);
+  auto camera_y = simde_mm256_set1_ps(camera.y);
+  auto camera_z = simde_mm256_set1_ps(camera.z);
 
   auto p_simd = simde_mm256_set1_ps(p);
 #else
@@ -236,17 +236,17 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
         normal, ka_r, ka_g, ka_b, R, G, B, ks_r, ks_g, ks_b, camera_x, camera_y,
         camera_z,
 #if defined(__x86_64__) || defined(_WIN64)
-        _mm256_set1_ps(light.position.x()), _mm256_set1_ps(light.position.y()),
-        _mm256_set1_ps(light.position.z()), _mm256_set1_ps(light.intensity.x()),
-        _mm256_set1_ps(light.intensity.y()),
-        _mm256_set1_ps(light.intensity.z()),
+        _mm256_set1_ps(light.position.x), _mm256_set1_ps(light.position.y),
+        _mm256_set1_ps(light.position.z), _mm256_set1_ps(light.intensity.x),
+        _mm256_set1_ps(light.intensity.y),
+        _mm256_set1_ps(light.intensity.z),
 #elif defined(__arm__) || defined(__aarch64__)
-        simde_mm256_set1_ps(light.position.x()),
-        simde_mm256_set1_ps(light.position.y()),
-        simde_mm256_set1_ps(light.position.z()),
-        simde_mm256_set1_ps(light.intensity.x()),
-        simde_mm256_set1_ps(light.intensity.y()),
-        simde_mm256_set1_ps(light.intensity.z()),
+        simde_mm256_set1_ps(light.position.x),
+        simde_mm256_set1_ps(light.position.y),
+        simde_mm256_set1_ps(light.position.z),
+        simde_mm256_set1_ps(light.intensity.x),
+        simde_mm256_set1_ps(light.intensity.y),
+        simde_mm256_set1_ps(light.intensity.z),
 #else
 #endif
         point.x, point.y, point.z, p_simd);
@@ -287,22 +287,22 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
 }
 
 void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const PointSIMD &point, NormalSIMD &normal, TexCoordSIMD &texcoord,
     ColorSIMD &colour) {
 
 #if defined(__x86_64__) || defined(_WIN64)
-  auto ka_r = _mm256_set1_ps(ka.x());
-  auto ka_g = _mm256_set1_ps(ka.y());
-  auto ka_b = _mm256_set1_ps(ka.z());
+  auto ka_r = _mm256_set1_ps(ka.x);
+  auto ka_g = _mm256_set1_ps(ka.y);
+  auto ka_b = _mm256_set1_ps(ka.z);
 
-  auto ks_r = _mm256_set1_ps(ks.x());
-  auto ks_g = _mm256_set1_ps(ks.y());
-  auto ks_b = _mm256_set1_ps(ks.z());
+  auto ks_r = _mm256_set1_ps(ks.x);
+  auto ks_g = _mm256_set1_ps(ks.y);
+  auto ks_b = _mm256_set1_ps(ks.z);
 
-  auto camera_x = _mm256_set1_ps(camera.x());
-  auto camera_y = _mm256_set1_ps(camera.y());
-  auto camera_z = _mm256_set1_ps(camera.z());
+  auto camera_x = _mm256_set1_ps(camera.x);
+  auto camera_y = _mm256_set1_ps(camera.y);
+  auto camera_z = _mm256_set1_ps(camera.z);
 
   auto p_simd = _mm256_set1_ps(p);
 
@@ -335,17 +335,17 @@ void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
         normal, ka_r, ka_g, ka_b, kd_r, kd_g, kd_b, ks_r, ks_g, ks_b, camera_x,
         camera_y, camera_z,
 #if defined(__x86_64__) || defined(_WIN64)
-        _mm256_set1_ps(light.position.x()), _mm256_set1_ps(light.position.y()),
-        _mm256_set1_ps(light.position.z()), _mm256_set1_ps(light.intensity.x()),
-        _mm256_set1_ps(light.intensity.y()),
-        _mm256_set1_ps(light.intensity.z()),
+        _mm256_set1_ps(light.position.x), _mm256_set1_ps(light.position.y),
+        _mm256_set1_ps(light.position.z), _mm256_set1_ps(light.intensity.x),
+        _mm256_set1_ps(light.intensity.y),
+        _mm256_set1_ps(light.intensity.z),
 #elif defined(__arm__) || defined(__aarch64__)
-        simde_mm256_set1_ps(light.position.x()),
-        simde_mm256_set1_ps(light.position.y()),
-        simde_mm256_set1_ps(light.position.z()),
-        simde_mm256_set1_ps(light.intensity.x()),
-        simde_mm256_set1_ps(light.intensity.y()),
-        simde_mm256_set1_ps(light.intensity.z()),
+        simde_mm256_set1_ps(light.position.x),
+        simde_mm256_set1_ps(light.position.y),
+        simde_mm256_set1_ps(light.position.z),
+        simde_mm256_set1_ps(light.intensity.x),
+        simde_mm256_set1_ps(light.intensity.y),
+        simde_mm256_set1_ps(light.intensity.z),
 #else
 #endif
         point.x, point.y, point.z, p_simd);
@@ -386,7 +386,7 @@ void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
 }
 
 void SoftRasterizer::Shader::simd_displacement_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const PointSIMD &point, NormalSIMD &normal, TexCoordSIMD &texcoord,
     ColorSIMD &colour) {
   for (const auto &light : lights) {
@@ -415,7 +415,7 @@ void SoftRasterizer::Shader::simd_displacement_fragment_shader_impl(
 }
 
 void SoftRasterizer::Shader::simd_bump_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+    const glm::vec3 &camera, const std::vector<light_struct> &lights,
     const PointSIMD &point, NormalSIMD &normal, TexCoordSIMD &texcoord,
     ColorSIMD &colour) {
   for (const auto &light : lights) {
@@ -448,121 +448,117 @@ SoftRasterizer::vertex_displacement
 SoftRasterizer::Shader::calcDisplacementMapping(
     const fragment_shader_payload &payload, const float kh, const float kn) {
 
-  Eigen::Vector3f n = payload.normal;
-  Eigen::Vector3f t;
-  t << (n.x() * n.y()) / std::sqrt(n.x() * n.x() + n.z() * n.z()),
-      std::sqrt(n.x() * n.x() + n.z() * n.z()),
-      (n.z() * n.y()) / std::sqrt(n.x() * n.x() + n.z() * n.z());
+  auto n = payload.normal;
+  glm::vec3 t((n.x * n.y) / std::sqrt(n.x * n.x + n.z * n.z),
+            std::sqrt(n.x * n.x + n.z * n.z),
+            (n.z * n.y) / std::sqrt(n.x * n.x + n.z * n.z));
 
-  Eigen::Vector3f b = n.cross(t);
-  Eigen::Matrix3f TBN;
-  TBN << t.x(), b.x(), n.x(), t.y(), b.y(), n.y(), t.z(), b.z(), n.z();
+  glm::vec3 b = glm::cross(n, t);
+  glm::mat3 TBN(t.x, b.x, n.x, t.y, b.y, n.y, t.z, b.z, n.z);
 
   /*Calculating derivatived on Both UV directions seperately */
   auto origin_texture = texture->getTextureColor(payload.texCoords);
-  auto origin_norm = origin_texture.norm();
-  auto U_direction = texture->getTextureColor(Eigen::Vector2f(
-      (payload.texCoords.x() + 1) / texture->m_width, payload.texCoords.y()));
+  auto origin_norm = glm::length(origin_texture);
+  auto U_direction = texture->getTextureColor(glm::vec2(
+      (payload.texCoords.x + 1) / texture->m_width, payload.texCoords.y));
 
-  auto V_direction = texture->getTextureColor(Eigen::Vector2f(
-      payload.texCoords.x(), (payload.texCoords.y() + 1) / texture->m_height));
+  auto V_direction = texture->getTextureColor(glm::vec2(
+      payload.texCoords.x, (payload.texCoords.y + 1) / texture->m_height));
 
-  auto dU = kh * kn * (U_direction.norm() - origin_norm);
-  auto dV = kh * kn * (V_direction.norm() - origin_norm);
+  auto dU = kh * kn * (glm::length(U_direction) - origin_norm);
+  auto dV = kh * kn * (glm::length(V_direction) - origin_norm);
 
-  Eigen::Vector3f ln(-dU, -dV, 1.0f);
+  glm::vec3 ln(-dU, -dV, 1.0f);
 
   return SoftRasterizer::vertex_displacement{
       payload.position + kn * n * origin_norm, // update vertex position
-      (TBN * ln).normalized()                  // update normal
+      glm::normalize(TBN * ln)                  // update normal
   };
 }
 
 /*Compute Bump Mapping*/
-Eigen::Vector3f
+glm::vec3
 SoftRasterizer::Shader::calcBumpMapping(const fragment_shader_payload &payload,
                                         const float kh, const float kn) {
 
-  Eigen::Vector3f n = payload.normal;
+  auto n = payload.normal;
 
-  Eigen::Vector3f t;
-  t << (n.x() * n.y()) / std::sqrt(n.x() * n.x() + n.z() * n.z()),
-      std::sqrt(n.x() * n.x() + n.z() * n.z()),
-      (n.z() * n.y()) / std::sqrt(n.x() * n.x() + n.z() * n.z());
+  glm::vec3 t((n.x * n.y) / std::sqrt(n.x * n.x + n.z * n.z),
+            std::sqrt(n.x * n.x + n.z * n.z),
+            (n.z * n.y) / std::sqrt(n.x * n.x + n.z * n.z));
 
-  Eigen::Vector3f b = n.cross(t);
-  Eigen::Matrix3f TBN;
-  TBN << t.x(), b.x(), n.x(), t.y(), b.y(), n.y(), t.z(), b.z(), n.z();
+  glm::vec3 b = glm::cross(n, t);
+  glm::mat3 TBN(t.x, b.x, n.x, t.y, b.y, n.y, t.z, b.z, n.z);
 
   /*Calculating derivatived on Both UV directions seperately */
   auto origin_texture = texture->getTextureColor(payload.texCoords);
-  auto origin_norm = origin_texture.norm();
-  auto U_direction = texture->getTextureColor(Eigen::Vector2f(
-      (payload.texCoords.x() + 1) / texture->m_width, payload.texCoords.y()));
+  auto origin_norm = glm::length(origin_texture);
+  auto U_direction = texture->getTextureColor(glm::vec2(
+      (payload.texCoords.x + 1) / texture->m_width, payload.texCoords.y));
 
-  auto V_direction = texture->getTextureColor(Eigen::Vector2f(
-      payload.texCoords.x(), (payload.texCoords.y() + 1) / texture->m_height));
+  auto V_direction = texture->getTextureColor(glm::vec2(
+      payload.texCoords.x, (payload.texCoords.y + 1) / texture->m_height));
 
-  auto dU = kh * kn * (U_direction.norm() - origin_norm);
-  auto dV = kh * kn * (V_direction.norm() - origin_norm);
+  auto dU = kh * kn * (glm::length(U_direction) - origin_norm);
+  auto dV = kh * kn * (glm::length(V_direction) - origin_norm);
 
-  Eigen::Vector3f ln(-dU, -dV, 1.0f);
-  return (TBN * ln).normalized();
+  glm::vec3 ln(-dU, -dV, 1.0f);
+  return glm::normalize(TBN * ln);
 }
 
 // Static function to compute the Blinn-Phong reflection model
-Eigen::Vector3f SoftRasterizer::Shader::BlinnPhong(
-    const Eigen::Vector3f &camera, const fragment_shader_payload &shading_point,
-    const light_struct &light, const Eigen::Vector3f &ka,
-    const Eigen::Vector3f &kd, const Eigen::Vector3f &ks, const float p) {
+glm::vec3 SoftRasterizer::Shader::BlinnPhong(
+    const glm::vec3&camera, const fragment_shader_payload &shading_point,
+    const light_struct &light, const glm::vec3&ka,
+    const glm::vec3&kd, const glm::vec3&ks, const float p) {
 
-  Eigen::Vector3f normal = shading_point.normal.normalized();
-  Eigen::Vector3f lightDir = light.position - shading_point.position;
+          glm::vec3 normal = glm::normalize(shading_point.normal);
+          glm::vec3 lightDir = light.position - shading_point.position;
 
   // Light distribution based on inverse square law (distance attenuation)
   float distanceSquared =
-      std::sqrt(std::pow((light.position.x() - shading_point.position.x()), 2) +
-                std::pow((light.position.y() - shading_point.position.y()), 2));
+      std::sqrt(std::pow((light.position.x - shading_point.position.x), 2) +
+                std::pow((light.position.y - shading_point.position.y), 2));
 
-  Eigen::Vector3f distribution = light.intensity / distanceSquared;
+  glm::vec3 distribution = light.intensity / distanceSquared;
 
   // Ambient lighting
-  Eigen::Vector3f La = ka.cwiseProduct(light.intensity);
+  glm::vec3 La = ka * light.intensity;
 
   // Diffuse reflection (Lambertian reflectance)
-  float cosTheta = std::max(0.f, normal.dot(lightDir.normalized()));
-  Eigen::Vector3f Ld = cosTheta * kd.cwiseProduct(distribution);
+  float cosTheta = std::max(0.f, glm::dot(normal, glm::normalize(lightDir)));
+  glm::vec3 Ld = cosTheta * kd * distribution;
 
   // Specular reflection (Blinn-Phong)
-  Eigen::Vector3f v = camera - shading_point.position;
-  Eigen::Vector3f h = (lightDir + v).normalized();
-  float cosAlpha = std::max(0.f, normal.dot(h));
-  Eigen::Vector3f Ls = std::pow(cosAlpha, p) * ks.cwiseProduct(distribution);
+  glm::vec3 v = camera - shading_point.position;
+  glm::vec3 h = glm::normalize(lightDir + v);
+  float cosAlpha = std::max(0.f, glm::dot(normal, h));
+  glm::vec3 Ls = std::pow(cosAlpha, p) * ks * distribution;
 
   // Combine all lighting components
-  Eigen::Vector3f result_color = La + Ld + Ls;
+  glm::vec3 result_color = La + Ld + Ls;
 
   // Calculate the final color based on the shading point color
-  return result_color.cwiseProduct(shading_point.color);
+  return result_color * shading_point.color;
 }
 
 /*Visualizing normal directions or checking surface normal directions in some
  * debugging scenarios*/
-Eigen::Vector3f SoftRasterizer::Shader::standard_normal_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+glm::vec3 SoftRasterizer::Shader::standard_normal_fragment_shader_impl(
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
 
-  return (payload.normal.normalized() + Eigen::Vector3f(1.0f, 1.0f, 1.0f)) /
+  return (glm::normalize(payload.normal) + glm::vec3(1.0f)) /
          2.0f;
 }
 
-Eigen::Vector3f SoftRasterizer::Shader::standard_texture_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+glm::vec3 SoftRasterizer::Shader::standard_texture_fragment_shader_impl(
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
 
-  Eigen::Vector3f result_color = {0, 0, 0};
+  glm::vec3 result_color = {0, 0, 0};
 
-  Eigen::Vector3f kd = texture->getTextureColor(payload.texCoords);
+  auto kd = texture->getTextureColor(payload.texCoords);
 
   fragment_shader_payload shader_arguments{
       payload.position, payload.normal, payload.texCoords,
@@ -577,13 +573,13 @@ Eigen::Vector3f SoftRasterizer::Shader::standard_texture_fragment_shader_impl(
   return result_color;
 }
 
-Eigen::Vector3f SoftRasterizer::Shader::standard_phong_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+glm::vec3 SoftRasterizer::Shader::standard_phong_fragment_shader_impl(
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
 
-  Eigen::Vector3f result_color = {0, 0, 0};
+          glm::vec3 result_color = { 0, 0, 0 };
 
-  Eigen::Vector3f kd = payload.color;
+  auto kd = payload.color;
 
   fragment_shader_payload shader_arguments{payload.position, payload.normal,
                                            payload.texCoords, kd};
@@ -598,12 +594,12 @@ Eigen::Vector3f SoftRasterizer::Shader::standard_phong_fragment_shader_impl(
   return result_color;
 }
 
-Eigen::Vector3f
+glm::vec3
 SoftRasterizer::Shader::standard_displacement_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
-  Eigen::Vector3f result_color = {0, 0, 0};
-  Eigen::Vector3f kd = texture->getTextureColor(payload.texCoords);
+          glm::vec3 result_color = {0, 0, 0};
+          glm::vec3 kd = texture->getTextureColor(payload.texCoords);
 
   fragment_shader_payload shader_arguments{
       payload.position, payload.normal, payload.texCoords,
@@ -624,12 +620,12 @@ SoftRasterizer::Shader::standard_displacement_fragment_shader_impl(
   return result_color;
 }
 
-Eigen::Vector3f SoftRasterizer::Shader::standard_bump_fragment_shader_impl(
-    const Eigen::Vector3f &camera, const std::vector<light_struct> &lights,
+glm::vec3 SoftRasterizer::Shader::standard_bump_fragment_shader_impl(
+    const glm::vec3&camera, const std::vector<light_struct> &lights,
     const fragment_shader_payload &payload) {
 
-  Eigen::Vector3f result_color = {0, 0, 0};
-  Eigen::Vector3f kd = texture->getTextureColor(payload.texCoords);
+          glm::vec3 result_color = {0, 0, 0};
+          glm::vec3 kd = texture->getTextureColor(payload.texCoords);
 
   fragment_shader_payload shader_arguments{
       payload.position, payload.normal, payload.texCoords,
