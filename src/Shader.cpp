@@ -307,17 +307,17 @@ void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
   auto p_simd = _mm256_set1_ps(p);
 
 #elif defined(__arm__) || defined(__aarch64__)
-  auto ka_r = simde_mm256_set1_ps(ka.x());
-  auto ka_g = simde_mm256_set1_ps(ka.y());
-  auto ka_b = simde_mm256_set1_ps(ka.z());
+  auto ka_r = simde_mm256_set1_ps(ka.x);
+  auto ka_g = simde_mm256_set1_ps(ka.y);
+  auto ka_b = simde_mm256_set1_ps(ka.z);
 
-  auto ks_r = simde_mm256_set1_ps(ks.x());
-  auto ks_g = simde_mm256_set1_ps(ks.y());
-  auto ks_b = simde_mm256_set1_ps(ks.z());
+  auto ks_r = simde_mm256_set1_ps(ks.x);
+  auto ks_g = simde_mm256_set1_ps(ks.y);
+  auto ks_b = simde_mm256_set1_ps(ks.z);
 
-  auto camera_x = simde_mm256_set1_ps(camera.x());
-  auto camera_y = simde_mm256_set1_ps(camera.y());
-  auto camera_z = simde_mm256_set1_ps(camera.z());
+  auto camera_x = simde_mm256_set1_ps(camera.x);
+  auto camera_y = simde_mm256_set1_ps(camera.y);
+  auto camera_z = simde_mm256_set1_ps(camera.z);
 
   auto p_simd = simde_mm256_set1_ps(p);
 #else
