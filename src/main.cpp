@@ -43,7 +43,12 @@ int main() {
   light1->position = Eigen::Vector3f{0.9, 0.9, -0.9f};
   light1->intensity = Eigen::Vector3f{100, 100, 100};
 
+  auto light2 = std::make_shared<SoftRasterizer::light_struct>();
+  light2->position = Eigen::Vector3f{ 0.f, 0.8f, 0.9f };
+  light2->intensity = Eigen::Vector3f{ 50, 50, 50 };
+
   scene->addLight("Light1", light1);
+  scene->addLight("Light2", light2);
 
   /*Register Scene To Render Main Frame*/
   render->addScene(scene);
