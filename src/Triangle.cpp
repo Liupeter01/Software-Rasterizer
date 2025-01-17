@@ -1,3 +1,4 @@
+#include <Tools.hpp>
 #include <Triangle.hpp>
 #include <algorithm>
 
@@ -53,4 +54,21 @@ void SoftRasterizer::Triangle::setTexCoord(
     throw std::runtime_error("Invalid number of texture coordinates");
   }
   std::copy(_texCoords.begin(), _texCoords.end(), m_texCoords.begin());
+}
+
+void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width, const std::size_t height) {
+          box.startX = std::clamp(static_cast<long long>(std::min({ m_vertex[0].x(), m_vertex[1].x(), m_vertex[2].x() })), 0LL, static_cast<long long>(width - 1));
+          box.startY = std::clamp(static_cast<long long>(std::min({ m_vertex[0].y(), m_vertex[1].y(), m_vertex[2].y() })), 0LL, static_cast<long long>(height - 1));
+          box.endX = std::clamp(static_cast<long long>(std::max({ m_vertex[0].x(), m_vertex[1].x(), m_vertex[2].x() })), 0LL, static_cast<long long>(width - 1));
+          box.endY = std::clamp(static_cast<long long>(std::max({ m_vertex[0].y(), m_vertex[1].y(), m_vertex[2].y() })), 0LL, static_cast<long long>(height - 1));
+}
+
+
+bool SoftRasterizer::Triangle::isOverlapping(const Triangle& box1, const Triangle& box2)  const {
+          return isOverlapping(box1.box, box2.box);
+}
+
+bool SoftRasterizer::Triangle::isOverlapping(const BoundingBox& box1, const BoundingBox& box2) const {
+          return !(box1.endX < box2.startX || box1.startX > box2.endX ||
+                    box1.endY < box2.startY || box1.startY > box2.endY);
 }

@@ -1,4 +1,4 @@
-#include <TextureLoader.hpp>
+#include <loader/TextureLoader.hpp>
 
 SoftRasterizer::TextureLoader::TextureLoader(const std::string &path)
     : m_path(path), m_texture(cv::imread(path)), m_width(0), m_height(0) {

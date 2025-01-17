@@ -3,8 +3,73 @@
 #define _TOOLS_HPP_
 #include <Eigen/Eigen>
 #include <algorithm>
+#include <hpc/Simd.hpp>
 
 namespace SoftRasterizer {
+#if defined(__x86_64__) || defined(_WIN64)
+struct PointSIMD {
+  __m256 x, y, z;
+};
+
+struct NormalSIMD {
+  __m256 x, y, z;
+  NormalSIMD() = default;
+  NormalSIMD(const __m256 &_x, const __m256 &_y, const __m256 &_z);
+
+  // Normalizing all the vector components
+  NormalSIMD normalized();
+
+  __m256 zero = _mm256_set1_ps(0.0f);
+};
+
+struct TexCoordSIMD {
+  __m256 u, v;
+};
+
+struct ColorSIMD {
+  ColorSIMD();
+  ColorSIMD(const __m256 &_r, const __m256 &_g, const __m256 &_b);
+  __m256 r, g, b;
+  const __m256 zero = _mm256_set1_ps(0.f);
+  const __m256 one = _mm256_set1_ps(1.f);
+};
+
+#elif defined(__arm__) || defined(__aarch64__)
+#include <arm/neon.h>
+struct PointSIMD {
+  simde__m256 x, y, z;
+};
+
+struct NormalSIMD {
+  simde__m256 x, y, z;
+  NormalSIMD() = default;
+  NormalSIMD(const simde__m256 &_x, const simde__m256 &_y,
+             const simde__m256 &_z);
+
+  // Normalizing all the vector components
+  NormalSIMD normalized();
+
+  simde__m256 zero = simde_mm256_set1_ps(0.0f);
+};
+
+struct TexCoordSIMD {
+  simde__m256 u, v;
+};
+
+struct ColorSIMD {
+  ColorSIMD();
+  ColorSIMD(const simde__m256 &_r, const simde__m256 &_g,
+            const simde__m256 &_b);
+  simde__m256 r, g, b;
+  const simde__m256 zero = simde_mm256_set1_ps(0.f);
+  const simde__m256 one = simde_mm256_set1_ps(01.f);
+};
+
+#else
+#endif
+
+struct Triangle;
+
 struct Tools {
   static constexpr float PI = 3.14159265358979323846f;
 
@@ -76,9 +141,37 @@ struct Tools {
                                            const Eigen::Vector3f &normal2,
                                            const Eigen::Vector3f &normal3);
 
-  static Eigen::Vector2f interpolateTexCoord(float alpha, float beta,
-                                             const Eigen::Vector2f &textCoord1,
-                                             const Eigen::Vector2f &textCoord2);
+#if defined(__x86_64__) || defined(_WIN64)
+  static NormalSIMD interpolateNormal(const __m256 &alpha, const __m256 &beta,
+                                      const __m256 &gamma,
+                                      const Eigen::Vector3f &normal1,
+                                      const Eigen::Vector3f &normal2,
+                                      const Eigen::Vector3f &normal3);
+
+  static TexCoordSIMD interpolateTexCoord(const __m256 &alpha,
+                                          const __m256 &beta,
+                                          const __m256 &gamma,
+                                          const Eigen::Vector2f &textCoord1,
+                                          const Eigen::Vector2f &textCoord2,
+                                          const Eigen::Vector2f &textCoord3);
+
+#elif defined(__arm__) || defined(__aarch64__)
+  static NormalSIMD interpolateNormal(const simde__m256 &alpha,
+                                      const simde__m256 &beta,
+                                      const simde__m256 &gamma,
+                                      const Eigen::Vector3f &normal1,
+                                      const Eigen::Vector3f &normal2,
+                                      const Eigen::Vector3f &normal3);
+
+  static TexCoordSIMD interpolateTexCoord(const simde__m256 &alpha,
+                                          const simde__m256 &beta,
+                                          const simde__m256 &gamma,
+                                          const Eigen::Vector2f &textCoord1,
+                                          const Eigen::Vector2f &textCoord2,
+                                          const Eigen::Vector2f &textCoord3);
+
+#else
+#endif
 
   static Eigen::Vector2f interpolateTexCoord(float alpha, float beta,
                                              float gamma,
@@ -185,6 +278,38 @@ struct Tools {
    */
   static Eigen::Matrix4f calculateProjectionMatrix(float fovy, float aspect,
                                                    float zNear, float zFar);
+
+  template <size_t Begin, size_t End, typename F> static void static_for(F f) {
+    if constexpr (Begin < End) {
+      std::integral_constant<size_t, Begin> compile_rt_int;
+      f(compile_rt_int);
+      static_for<Begin + 1, End, F>(f);
+    }
+  }
+
+  template <typename SimdType, typename ElementType = float>
+  constexpr static std::size_t num_elements_in_simd() {
+    if constexpr (std::is_same_v<SimdType, __m128>) {
+      return sizeof(__m128) / sizeof(ElementType);
+    }
+#if defined(__x86_64__) || defined(_WIN64)
+    else if constexpr (std::is_same_v<SimdType, __m256>) {
+      return sizeof(__m256) / sizeof(ElementType);
+    }
+#elif defined(__arm__) || defined(__aarch64__)
+    else if constexpr (std::is_same_v<SimdType, simde__m256>) {
+      return sizeof(simde__m256) / sizeof(ElementType);
+    }
+#else
+#endif
+    else {
+
+      static_assert(
+          "Unsupported SIMD type. Only __m128 and __m256 are supported.");
+      return 0; // Unreachable due to static_assert, but required for
+                // compilation.
+    }
+  }
 };
 } // namespace SoftRasterizer
 
