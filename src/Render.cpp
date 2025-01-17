@@ -509,96 +509,20 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
 
         // Split into AVX2-compatible chunks (use the largest multiple of 8 for
         // AVX2 if possible)
-        auto avx2_chunks = (box_endX - box_startX) >> 3;
-        auto avx2_end =
-            box_startX + (avx2_chunks << 3); // Largest multiple of 8 for AVX2
+        auto avx2_chunks = (box_endX - box_startX + 1) >> 3;
+        auto avx2_size = (avx2_chunks << 3);
 
-        /*use for fps sync*/
-        std::vector<std::future<void>> futures;
+        // Largest multiple of 8 for AVX2
+        auto avx2_end = box_startX + avx2_size; 
 
-        for (auto y = triangle.box.startY; y < triangle.box.endY; ++y) {
+        for (auto y = triangle.box.startY; y <= triangle.box.endY; ++y) {
+                  rasterizeBatchAVX2(triangle.box.startX, avx2_end, y,
+                            lights, shader, triangle,
+                            eye);
 
-          // Submit AVX2 task for the first chunk of triangles (up to the AVX2
-          // boundary)
-
-          if (avx2_chunks > 0) {
-
-            futures.emplace_back(ThreadPool::get_instance()->commit(
-                [&shader, this, type, avx2_chunks, avx2_end, y, &triangle,
-                 &lights, &eye]() -> void {
-                  if (type == SoftRasterizer::Primitive::TRIANGLES) {
-                    auto start_pos = triangle.box.startX + y * m_width;
-
-#if defined(__x86_64__) || defined(_WIN64)
-                    auto packed_size = avx2_chunks * sizeof(__m256);
-
-#elif defined(__arm__) || defined(__aarch64__)
-                    auto packed_size = avx2_chunks * sizeof(simde__m256);
-
-#else
-#endif
-
-                    std::vector<float> tempz(
-                        packed_size, std::numeric_limits<float>::infinity());
-                    std::vector<float> tempr(packed_size, 0.f);
-                    std::vector<float> tempg(packed_size, 0.f);
-                    std::vector<float> tempb(packed_size, 0.f);
-
-                    std::memcpy(tempz.data(), &m_zBuffer[start_pos],
-                                packed_size);
-                    std::memcpy(tempr.data(),
-                                m_channels[0].ptr<float>(0) + start_pos,
-                                packed_size);
-                    std::memcpy(tempg.data(),
-                                m_channels[1].ptr<float>(0) + start_pos,
-                                packed_size);
-                    std::memcpy(tempb.data(),
-                                m_channels[2].ptr<float>(0) + start_pos,
-                                packed_size);
-
-                    rasterizeBatchAVX2(triangle.box.startX, avx2_end, y,
-                                       tempz.data(), tempr.data(), tempg.data(),
-                                       tempb.data(), lights, shader, triangle,
-                                       eye);
-
-                    std::memcpy(&m_zBuffer[start_pos], tempz.data(),
-                                packed_size);
-                    std::memcpy(m_channels[0].ptr<float>(0) + start_pos,
-                                tempr.data(), packed_size);
-                    std::memcpy(m_channels[1].ptr<float>(0) + start_pos,
-                                tempg.data(), packed_size);
-                    std::memcpy(m_channels[2].ptr<float>(0) + start_pos,
-                                tempb.data(), packed_size);
-                  }
-                  return;
-                }));
-          }
-
-          futures.emplace_back(ThreadPool::get_instance()->commit(
-              [&shader, this, type, box_startX, avx2_end, y, &triangle, &lights,
-               &eye]() -> void {
-                if (type == SoftRasterizer::Primitive::TRIANGLES) {
-                  auto start_pos = avx2_end + y * m_width;
-                  auto scalar_size = triangle.box.endX - avx2_end;
-
-                  std::vector<float> tempz(
-                      ROUND_UP_TO_MULTIPLE_OF_8(scalar_size),
-                      std::numeric_limits<float>::infinity());
-                  std::memcpy(tempz.data(), &m_zBuffer[start_pos],
-                              sizeof(float) * scalar_size);
                   rasterizeBatchScalar(avx2_end, triangle.box.endX, y,
-                                       tempz.data(), lights, shader, triangle,
-                                       eye);
-                  std::memcpy(&m_zBuffer[start_pos], tempz.data(),
-                              sizeof(float) * scalar_size);
-                }
-                return;
-              }));
-        }
-
-        // Block until all tasks are complete
-        for (auto &future : futures) {
-          future.get();
+                            lights, shader, triangle,
+                            eye);
         }
       }
     }
@@ -606,222 +530,259 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
 }
 
 inline void SoftRasterizer::RenderingPipeline::rasterizeBatchAVX2(
-    const int startx, const int endx, const int y, float *z, float *r, float *g,
-    float *b, const std::vector<SoftRasterizer::light_struct> &lists,
+    const int startx, const int endx, const int y, 
+    const std::vector<SoftRasterizer::light_struct> &lists,
     std::shared_ptr<SoftRasterizer::Shader> shader,
     const SoftRasterizer::Triangle &packed, const Eigen::Vector3f &eye) {
 
-  PointSIMD point;
+          if (startx + AVX2 > endx) {
+                    return;
+          }
+
 #if defined(__x86_64__) || defined(_WIN64)
-  point.y = _mm256_set1_ps(static_cast<float>(y));
+          auto z0 = _mm256_set1_ps(packed.m_vertex[0].z());
+          auto z1 = _mm256_set1_ps(packed.m_vertex[1].z());
+          auto z2 = _mm256_set1_ps(packed.m_vertex[2].z());
 #elif defined(__arm__) || defined(__aarch64__)
-  point.y = simde_mm256_set1_ps(static_cast<float>(y));
+          auto z0 = simde_mm256_set1_ps(packed.m_vertex[0].z());
+          auto z1 = simde_mm256_set1_ps(packed.m_vertex[1].z());
+          auto z2 = simde_mm256_set1_ps(packed.m_vertex[2].z());
 #else
 #endif
 
-  auto A_Point = packed.m_vertex[0];
-  auto B_Point = packed.m_vertex[1];
-  auto C_Point = packed.m_vertex[2];
+          for (auto x = startx; x < endx; x += AVX2) {       
+                    processFragByAVX2(
+                              x, y,
+                              z0, z1, z2,
+                              lists, shader, packed, eye
+                    );
+          }
+}
+
+template<typename _simd>
+inline void  SoftRasterizer::RenderingPipeline::processFragByAVX2(const int x, const int y,
+          const _simd& z0, const _simd& z1, const _simd& z2,
+          const std::vector<SoftRasterizer::light_struct>& lists,
+          std::shared_ptr<SoftRasterizer::Shader> shader,
+          const SoftRasterizer::Triangle& packed,
+          const Eigen::Vector3f& eye)
+{
+          const auto op_pos = x + y * m_width;
+          PointSIMD point;
 
 #if defined(__x86_64__) || defined(_WIN64)
-  auto z0 = _mm256_set1_ps(A_Point.z());
-  auto z1 = _mm256_set1_ps(B_Point.z());
-  auto z2 = _mm256_set1_ps(C_Point.z());
+          point.y = _mm256_set1_ps(static_cast<float>(y));
+          point.x = _mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f,
+                    x + 2.f, x + 1.f, x + 0.f);
+
 #elif defined(__arm__) || defined(__aarch64__)
-  auto z0 = simde_mm256_set1_ps(A_Point.z());
-  auto z1 = simde_mm256_set1_ps(B_Point.z());
-  auto z2 = simde_mm256_set1_ps(C_Point.z());
+          //simde__m256 Original_Z = simde_mm256_loadu_ps(&z[x - startx]);
+          //simde__m256 Original_Blue = simde_mm256_loadu_ps(&b[x - startx]);
+          //simde__m256 Original_Green = simde_mm256_loadu_ps(&g[x - startx]);
+          //simde__m256 Original_Red = simde_mm256_loadu_ps(&r[x - startx]);
+
+          point.y = simde_mm256_set1_ps(static_cast<float>(y));
+          point.x = simde_mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f,
+                    x + 2.f, x + 1.f, x + 0.f);
 #else
 #endif
 
-  for (auto x = startx; x < endx; x += AVX2) {
-#if defined(__x86_64__) || defined(_WIN64)
-    __m256 Original_Z = _mm256_loadu_ps(&z[x - startx]);
-    __m256 Original_Blue = _mm256_loadu_ps(&b[x - startx]);
-    __m256 Original_Green = _mm256_loadu_ps(&g[x - startx]);
-    __m256 Original_Red = _mm256_loadu_ps(&r[x - startx]);
+          /*
+           * Calculates the barycentric coordinates(alpha, beta, gamma) for each
+           * point Checks if the point(x_pos, y_pos) is inside the triangle using
+           * the `insideTriangle` function.A mask is generated based on this check.
+           * (x_pos, y_pos) with respect to the triangle.The coordinates are
+           * calculated based on the edge vectors and point vectors.
+           *
+           * The coordinates are then masked to zero out any invalid values(those
+           * outside the triangle).
+           */
+          auto [alpha, beta, gamma] = barycentric(point.x, point.y, packed);
 
-    point.x = _mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f,
-                            x + 2.f, x + 1.f, x + 0.f);
+#if defined(__x86_64__) || defined(_WIN64)
+          // if sum is zero, then it means the point is not inside the triangle!!!
+          __m256 alpha_valid = _mm256_and_ps(_mm256_cmp_ps(alpha, zero, _CMP_GT_OQ),
+                    _mm256_cmp_ps(alpha, one, _CMP_LT_OQ));
+          __m256 beta_valid = _mm256_and_ps(_mm256_cmp_ps(beta, zero, _CMP_GT_OQ),
+                    _mm256_cmp_ps(beta, one, _CMP_LT_OQ));
+          __m256 gamma_valid = _mm256_and_ps(_mm256_cmp_ps(gamma, zero, _CMP_GT_OQ),
+                    _mm256_cmp_ps(gamma, one, _CMP_LT_OQ));
+          __m256 inside_mask =
+                    _mm256_and_ps(_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
+
+          /*when all points are not inside triangle! continue to next loop*/
+          if (_mm256_testz_ps(inside_mask, inside_mask)) {
+                    return;
+          }
+
+          // Compute the z_interpolated using the blend operation
+          point.z = _mm256_fmadd_ps(
+                    alpha, z0, _mm256_fmadd_ps(beta, z1, _mm256_mul_ps(gamma, z2)));
+
+          //Start Reading From Now
+          __m256 Original_Z = readZBuffer<__m256>(op_pos);
+          auto [Original_Red, Original_Green, Original_Blue] = readPixel<__m256>(op_pos);
+
+          /*Comparing z-buffer value to determine update colour or not!*/
+          __m256 mask = _mm256_and_ps(_mm256_cmp_ps(point.z, Original_Z, _CMP_LT_OQ),
+                    inside_mask);
+
+          if (_mm256_testz_ps(mask, mask)) {
+                    return;
+          }
 
 #elif defined(__arm__) || defined(__aarch64__)
-    simde__m256 Original_Z = simde_mm256_loadu_ps(&z[x - startx]);
-    simde__m256 Original_Blue = simde_mm256_loadu_ps(&b[x - startx]);
-    simde__m256 Original_Green = simde_mm256_loadu_ps(&g[x - startx]);
-    simde__m256 Original_Red = simde_mm256_loadu_ps(&r[x - startx]);
+          // if sum is zero, then it means the point is not inside the triangle!!!
+          simde__m256 alpha_valid =
+                    simde_mm256_and_ps(simde_mm256_cmp_ps(alpha, zero, SIMDE_CMP_GT_OQ),
+                              simde_mm256_cmp_ps(alpha, one, SIMDE_CMP_LT_OQ));
+          simde__m256 beta_valid =
+                    simde_mm256_and_ps(simde_mm256_cmp_ps(beta, zero, SIMDE_CMP_GT_OQ),
+                              simde_mm256_cmp_ps(beta, one, SIMDE_CMP_LT_OQ));
+          simde__m256 gamma_valid =
+                    simde_mm256_and_ps(simde_mm256_cmp_ps(gamma, zero, SIMDE_CMP_GT_OQ),
+                              simde_mm256_cmp_ps(gamma, one, SIMDE_CMP_LT_OQ));
+          simde__m256 inside_mask = simde_mm256_and_ps(
+                    simde_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
 
-    point.x = simde_mm256_set_ps(x + 7.f, x + 6.f, x + 5.f, x + 4.f, x + 3.f,
-                                 x + 2.f, x + 1.f, x + 0.f);
+          /*when all points are not inside triangle! continue to next loop*/
+          if (simde_mm256_testz_ps(inside_mask, inside_mask)) {
+                    return;
+          }
 
+          // Compute the z_interpolated using the blend operation
+          // point.z = simde_mm256_fmadd_ps(
+          //     alpha, z0,
+          //     simde_mm256_fmadd_ps(beta, z1, simde_mm256_mul_ps(gamma, z2)));
+          auto alpha_z = simde_mm256_mul_ps(alpha, z0);
+          auto beta_z = simde_mm256_mul_ps(beta, z1);
+          auto gamma_z = simde_mm256_mul_ps(gamma, z2);
+
+          alpha_z = simde_mm256_add_ps(alpha_z, beta_z);
+          point.z = simde_mm256_add_ps(alpha_z, gamma_z);
+
+          /*Comparing z-buffer value to determine update colour or not!*/
+          simde__m256 mask = simde_mm256_and_ps(
+                    simde_mm256_cmp_ps(point.z, Original_Z, SIMDE_CMP_LT_OQ), inside_mask);
+
+          if (simde_mm256_testz_ps(mask, mask)) {
+                    return;
+          }
 #else
 #endif
 
-    /*
-     * Calculates the barycentric coordinates(alpha, beta, gamma) for each
-     * point Checks if the point(x_pos, y_pos) is inside the triangle using
-     * the `insideTriangle` function.A mask is generated based on this check.
-     * (x_pos, y_pos) with respect to the triangle.The coordinates are
-     * calculated based on the edge vectors and point vectors.
-     *
-     * The coordinates are then masked to zero out any invalid values(those
-     * outside the triangle).
-     */
-    auto [alpha, beta, gamma] = barycentric(point.x, point.y, packed);
+          // calculate a set of normal for point.x, point.y, point.z
+          NormalSIMD normal =
+                    Tools::interpolateNormal(alpha, beta, gamma, packed.m_normal[0],
+                              packed.m_normal[1], packed.m_normal[2]);
+
+          TexCoordSIMD texCoord = Tools::interpolateTexCoord(
+                    alpha, beta, gamma, packed.m_texCoords[0], packed.m_texCoords[1],
+                    packed.m_texCoords[2]);
+
+          ColorSIMD color;
+          shader->applyFragmentShader(eye, lists, point, normal, texCoord, color);
 
 #if defined(__x86_64__) || defined(_WIN64)
-    // if sum is zero, then it means the point is not inside the triangle!!!
-    __m256 alpha_valid = _mm256_and_ps(_mm256_cmp_ps(alpha, zero, _CMP_GT_OQ),
-                                       _mm256_cmp_ps(alpha, one, _CMP_LT_OQ));
-    __m256 beta_valid = _mm256_and_ps(_mm256_cmp_ps(beta, zero, _CMP_GT_OQ),
-                                      _mm256_cmp_ps(beta, one, _CMP_LT_OQ));
-    __m256 gamma_valid = _mm256_and_ps(_mm256_cmp_ps(gamma, zero, _CMP_GT_OQ),
-                                       _mm256_cmp_ps(gamma, one, _CMP_LT_OQ));
-    __m256 inside_mask =
-        _mm256_and_ps(_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
-
-    /*when all points are not inside triangle! continue to next loop*/
-    if (_mm256_testz_ps(inside_mask, inside_mask)) {
-      continue;
-    }
-
-    // Compute the z_interpolated using the blend operation
-    point.z = _mm256_fmadd_ps(
-        alpha, z0, _mm256_fmadd_ps(beta, z1, _mm256_mul_ps(gamma, z2)));
-
-    /*Comparing z-buffer value to determine update colour or not!*/
-    __m256 mask = _mm256_and_ps(_mm256_cmp_ps(point.z, Original_Z, _CMP_LT_OQ),
-                                inside_mask);
-
-    if (_mm256_testz_ps(mask, mask)) {
-      continue;
-    }
+          Original_Z = _mm256_blendv_ps(Original_Z, point.z, mask);
+          Original_Red = _mm256_blendv_ps(Original_Red, color.r, mask);
+          Original_Green = _mm256_blendv_ps(Original_Green, color.g, mask);
+          Original_Blue = _mm256_blendv_ps(Original_Blue, color.b, mask);
 
 #elif defined(__arm__) || defined(__aarch64__)
-    // if sum is zero, then it means the point is not inside the triangle!!!
-    simde__m256 alpha_valid =
-        simde_mm256_and_ps(simde_mm256_cmp_ps(alpha, zero, SIMDE_CMP_GT_OQ),
-                           simde_mm256_cmp_ps(alpha, one, SIMDE_CMP_LT_OQ));
-    simde__m256 beta_valid =
-        simde_mm256_and_ps(simde_mm256_cmp_ps(beta, zero, SIMDE_CMP_GT_OQ),
-                           simde_mm256_cmp_ps(beta, one, SIMDE_CMP_LT_OQ));
-    simde__m256 gamma_valid =
-        simde_mm256_and_ps(simde_mm256_cmp_ps(gamma, zero, SIMDE_CMP_GT_OQ),
-                           simde_mm256_cmp_ps(gamma, one, SIMDE_CMP_LT_OQ));
-    simde__m256 inside_mask = simde_mm256_and_ps(
-        simde_mm256_and_ps(alpha_valid, beta_valid), gamma_valid);
-
-    /*when all points are not inside triangle! continue to next loop*/
-    if (simde_mm256_testz_ps(inside_mask, inside_mask)) {
-      continue;
-    }
-
-    // Compute the z_interpolated using the blend operation
-    // point.z = simde_mm256_fmadd_ps(
-    //     alpha, z0,
-    //     simde_mm256_fmadd_ps(beta, z1, simde_mm256_mul_ps(gamma, z2)));
-    auto alpha_z = simde_mm256_mul_ps(alpha, z0);
-    auto beta_z = simde_mm256_mul_ps(beta, z1);
-    auto gamma_z = simde_mm256_mul_ps(gamma, z2);
-
-    alpha_z = simde_mm256_add_ps(alpha_z, beta_z);
-    point.z = simde_mm256_add_ps(alpha_z, gamma_z);
-
-    /*Comparing z-buffer value to determine update colour or not!*/
-    simde__m256 mask = simde_mm256_and_ps(
-        simde_mm256_cmp_ps(point.z, Original_Z, SIMDE_CMP_LT_OQ), inside_mask);
-
-    if (simde_mm256_testz_ps(mask, mask)) {
-      continue;
-    }
-#else
-#endif
-
-    // calculate a set of normal for point.x, point.y, point.z
-    NormalSIMD normal =
-        Tools::interpolateNormal(alpha, beta, gamma, packed.m_normal[0],
-                                 packed.m_normal[1], packed.m_normal[2]);
-
-    TexCoordSIMD texCoord = Tools::interpolateTexCoord(
-        alpha, beta, gamma, packed.m_texCoords[0], packed.m_texCoords[1],
-        packed.m_texCoords[2]);
-
-    ColorSIMD color;
-    shader->applyFragmentShader(eye, lists, point, normal, texCoord, color);
-
-#if defined(__x86_64__) || defined(_WIN64)
-    Original_Z = _mm256_blendv_ps(Original_Z, point.z, mask);
-    Original_Red = _mm256_blendv_ps(Original_Red, color.r, mask);
-    Original_Green = _mm256_blendv_ps(Original_Green, color.g, mask);
-    Original_Blue = _mm256_blendv_ps(Original_Blue, color.b, mask);
-
-    _mm256_storeu_ps(&z[x - startx], Original_Z);
-    _mm256_storeu_ps(&r[x - startx], Original_Red);
-    _mm256_storeu_ps(&g[x - startx], Original_Green);
-    _mm256_storeu_ps(&b[x - startx], Original_Blue);
-
-#elif defined(__arm__) || defined(__aarch64__)
-    Original_Z = simde_mm256_blendv_ps(Original_Z, point.z, mask);
-    Original_Red = simde_mm256_blendv_ps(Original_Red, color.r, mask);
-    Original_Green = simde_mm256_blendv_ps(Original_Green, color.g, mask);
-    Original_Blue = simde_mm256_blendv_ps(Original_Blue, color.b, mask);
-
-    simde_mm256_storeu_ps(&z[x - startx], Original_Z);
-    simde_mm256_storeu_ps(&r[x - startx], Original_Red);
-    simde_mm256_storeu_ps(&g[x - startx], Original_Green);
-    simde_mm256_storeu_ps(&b[x - startx], Original_Blue);
+          Original_Z = simde_mm256_blendv_ps(Original_Z, point.z, mask);
+          Original_Red = simde_mm256_blendv_ps(Original_Red, color.r, mask);
+          Original_Green = simde_mm256_blendv_ps(Original_Green, color.g, mask);
+          Original_Blue = simde_mm256_blendv_ps(Original_Blue, color.b, mask);
 
 #else
 #endif
-  }
+          writeZBuffer(op_pos, Original_Z);
+          writePixel(op_pos, Original_Red, Original_Green, Original_Blue);
+
 }
 
 inline void SoftRasterizer::RenderingPipeline::rasterizeBatchScalar(
-    const int startx, const int endx, const int y, float *z,
+    const int startx, const int endx, const int y,
     const std::vector<SoftRasterizer::light_struct> &lists,
     std::shared_ptr<SoftRasterizer::Shader> shader,
     const SoftRasterizer::Triangle &scalar, const Eigen::Vector3f &eye) {
 
-  /*update triangle position!*/
-  auto A_Point = scalar.m_vertex[0];
-  auto B_Point = scalar.m_vertex[1];
-  auto C_Point = scalar.m_vertex[2];
+          const auto read_length = endx - startx + 1;
+          const auto read_pos = y * m_width + startx;
 
-  for (auto x = startx; x < endx; x += SCALAR) {
-    // Check if the point (currentX, currentY) is inside the triangle
-    if (!insideTriangle(x + 0.5f, y + 0.5f, scalar)) {
-      continue;
-    }
+          auto z0 = scalar.m_vertex[0].z();
+          auto z1 = scalar.m_vertex[1].z();
+          auto z2 = scalar.m_vertex[2].z();
 
-    // Check if the point (currentX, currentY) is inside the triangle
-    auto [alpha, beta, gamma] = barycentric(x, y, scalar);
+          alignas(64) float z[8]{ std::numeric_limits<float>::infinity() };
+          alignas(64) float r[8]{ 0.f };
+          alignas(64) float g[8]{ 0.f };
+          alignas(64) float b[8]{ 0.f };
 
-    // For Z-buffer interpolation
-    // float w_reciprocal = 1.0f / (alpha + beta + gamma);
-    auto new_z = alpha * A_Point.z() + beta * B_Point.z() + gamma * C_Point.z();
+          std::vector<std::future<void>> m_io;
 
-    if (new_z > z[x - startx]) {
-      continue;
-    }
+          std::memcpy(z, &m_zBuffer[read_pos], sizeof(float) * read_length);
+          std::memcpy(r, m_channels[0].ptr<float>(0) + read_pos, sizeof(float) * read_length);
+          std::memcpy(g, m_channels[1].ptr<float>(0) + read_pos, sizeof(float) * read_length);
+          std::memcpy(b, m_channels[2].ptr<float>(0) + read_pos, sizeof(float) * read_length);
 
-    z[x - startx] = new_z;
-
-    /*interpolate normal*/
-    auto interpolation_normal =
-        Tools::interpolateNormal(alpha, beta, gamma, scalar.m_normal[0],
-                                 scalar.m_normal[1], scalar.m_normal[2]);
-
-    /*interpolate uv*/
-    auto interpolation_texCoord = Tools::interpolateTexCoord(
-        alpha, beta, gamma, scalar.m_texCoords[0], scalar.m_texCoords[1],
-        scalar.m_texCoords[2]);
-
-    writePixel(x, y,
-               Tools::normalizedToRGB(shader->applyFragmentShader(
-                   eye, lists,
-                   fragment_shader_payload(Eigen::Vector3f(x, y, new_z),
-                                           interpolation_normal,
-                                           interpolation_texCoord))));
+  for (auto x = startx; x <= endx; x += SCALAR) {
+            processFragByScalar(startx, x, y, 
+                      z[x - startx], z0, z1, z2, 
+                      z, r, g, b, 
+                      lists, shader, scalar, eye);
   }
+
+  std::memcpy(&m_zBuffer[read_pos],z, sizeof(float) * read_length);
+  std::memcpy(m_channels[0].ptr<float>(0) + read_pos, r, sizeof(float) * read_length);
+  std::memcpy(m_channels[1].ptr<float>(0) + read_pos,g, sizeof(float) * read_length);
+  std::memcpy(m_channels[2].ptr<float>(0) + read_pos, b, sizeof(float) * read_length);
+}
+
+inline void SoftRasterizer::RenderingPipeline::processFragByScalar(const int startx, const int x, const int y,
+          const float old_z, 
+          const float z0, const float z1, const float z2,
+          float* __restrict z, float* __restrict r, float* __restrict g, float* __restrict b,
+          const std::vector<SoftRasterizer::light_struct>& lists,
+          std::shared_ptr<SoftRasterizer::Shader> shader,
+          const SoftRasterizer::Triangle& scalar, const Eigen::Vector3f& eye) {
+
+          // Check if the point (currentX, currentY) is inside the triangle
+          if (!insideTriangle(x + 0.5f, y + 0.5f, scalar)) {
+                    return;
+          }
+
+          // Check if the point (currentX, currentY) is inside the triangle
+          auto [alpha, beta, gamma] = barycentric(x, y, scalar);
+
+          // For Z-buffer interpolation
+          auto new_z = alpha * z0 + beta * z1 + gamma * z2;
+
+          if (new_z > old_z) { return; }
+
+          /*interpolate normal*/
+          auto interpolation_normal =
+                    Tools::interpolateNormal(alpha, beta, gamma, scalar.m_normal[0],
+                              scalar.m_normal[1], scalar.m_normal[2]);
+
+          /*interpolate uv*/
+          auto interpolation_texCoord = Tools::interpolateTexCoord(
+                    alpha, beta, gamma, scalar.m_texCoords[0], scalar.m_texCoords[1],
+                    scalar.m_texCoords[2]);
+
+
+          auto color = Tools::normalizedToRGB(shader->applyFragmentShader(
+                    eye, lists,
+                    fragment_shader_payload(Eigen::Vector3f(x, y, new_z),
+                              interpolation_normal,
+                              interpolation_texCoord)));
+
+          //writePixel(x, y, color);
+          z[x - startx] = new_z;
+          r[x - startx] = static_cast<float>(color.x());
+          g[x - startx] = static_cast<float>(color.y());
+          b[x - startx] = static_cast<float>(color.z());
 }
 
 /* Bresenham algorithm*/

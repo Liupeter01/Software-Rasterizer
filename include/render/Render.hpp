@@ -138,21 +138,38 @@ private:
 
   /*Rasterize a triangle*/
   inline void
-  rasterizeBatchAVX2(const int startx, const int endx, const int y, float *z,
-                     float *r, float *g, float *b,
+  rasterizeBatchAVX2(const int startx, const int endx, const int y, 
                      const std::vector<SoftRasterizer::light_struct> &lists,
                      std::shared_ptr<SoftRasterizer::Shader> shader,
                      const SoftRasterizer::Triangle &packed,
                      const Eigen::Vector3f &eye);
 
+  template<typename _simd>
+  inline void processFragByAVX2(const int x, const int y,
+          const _simd &z0, const _simd& z1, const _simd& z2,
+            const std::vector<SoftRasterizer::light_struct>& lists,
+            std::shared_ptr<SoftRasterizer::Shader> shader,
+            const SoftRasterizer::Triangle& packed,
+            const Eigen::Vector3f& eye);
+
   inline void
-  rasterizeBatchScalar(const int startx, const int endx, const int y, float *z,
+  rasterizeBatchScalar(const int startx, const int endx, const int y,
                        const std::vector<SoftRasterizer::light_struct> &lists,
                        std::shared_ptr<SoftRasterizer::Shader> shader,
                        const SoftRasterizer::Triangle &scalar,
                        const Eigen::Vector3f &eye);
 
+  inline void processFragByScalar(const int startx, const int x, const int y,
+            const float old_z,
+            const float z0, const float z1, const float z2,
+            float* __restrict z, float* __restrict r, float* __restrict g, float* __restrict b,
+            const std::vector<SoftRasterizer::light_struct>& lists,
+            std::shared_ptr<SoftRasterizer::Shader> shader,
+            const SoftRasterizer::Triangle& scalar, const Eigen::Vector3f& eye);
+
   inline void rasterizeBatchSSE(const SoftRasterizer::Triangle &) = delete;
+
+  /*My Computer Doesn't support AVX512*/
   inline void rasterizeBatchAVX512(const SoftRasterizer::Triangle &) = delete;
 
   inline void writePixel(const long long x, const long long y,
