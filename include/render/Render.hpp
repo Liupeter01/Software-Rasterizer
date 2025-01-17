@@ -100,10 +100,6 @@ private:
                                     const std::size_t y_pos,
                                     const SoftRasterizer::Triangle &triangle);
 
-  static std::optional<std::tuple<float, float, float>>
-  linearBaryCentric(const std::size_t x_pos, const std::size_t y_pos,
-                    const Eigen::Vector2i min, const Eigen::Vector2i max);
-
   static inline std::tuple<float, float, float>
   barycentric(const std::size_t x_pos, const std::size_t y_pos,
               const SoftRasterizer::Triangle &triangle);
@@ -142,21 +138,21 @@ private:
                      const std::vector<SoftRasterizer::light_struct> &lists,
                      std::shared_ptr<SoftRasterizer::Shader> shader,
                      const SoftRasterizer::Triangle &packed,
-                     const Eigen::Vector3f &eye);
+                     const glm::vec3&eye);
 
   template <typename _simd>
   inline void processFragByAVX2(
       const int x, const int y, const _simd &z0, const _simd &z1,
       const _simd &z2, const std::vector<SoftRasterizer::light_struct> &lists,
       std::shared_ptr<SoftRasterizer::Shader> shader,
-      const SoftRasterizer::Triangle &packed, const Eigen::Vector3f &eye);
+      const SoftRasterizer::Triangle &packed, const glm::vec3&eye);
 
   inline void
   rasterizeBatchScalar(const int startx, const int endx, const int y,
                        const std::vector<SoftRasterizer::light_struct> &lists,
                        std::shared_ptr<SoftRasterizer::Shader> shader,
                        const SoftRasterizer::Triangle &scalar,
-                       const Eigen::Vector3f &eye);
+                       const glm::vec3&eye);
 
   inline void processFragByScalar(
       const int startx, const int x, const int y, const float old_z,
@@ -164,7 +160,7 @@ private:
       float *__restrict r, float *__restrict g, float *__restrict b,
       const std::vector<SoftRasterizer::light_struct> &lists,
       std::shared_ptr<SoftRasterizer::Shader> shader,
-      const SoftRasterizer::Triangle &scalar, const Eigen::Vector3f &eye);
+      const SoftRasterizer::Triangle &scalar, const glm::vec3&eye);
 
   inline void rasterizeBatchSSE(const SoftRasterizer::Triangle &) = delete;
 
@@ -175,9 +171,9 @@ private:
   inline void writePixel(const long long start_pos, const _simd &r,
                          const _simd &g, const _simd &b);
   inline void writePixel(const long long x, const long long y,
-                         const Eigen::Vector3f &color);
+                         const glm::vec3 &color);
   inline void writePixel(const long long x, const long long y,
-                         const Eigen::Vector3i &color);
+                         const glm::uvec3&color);
   inline void writePixel(const long long start_pos, const ColorSIMD &color);
 
   template <typename _simd>
@@ -193,8 +189,8 @@ private:
   inline std::tuple<_simd, _simd, _simd> readPixel(const long long start_pos);
 
   /*Bresenham algorithm*/
-  void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,
-                const Eigen::Vector3i &color);
+  void drawLine(const glm::vec3 &p0, const glm::vec3&p1,
+                const glm::uvec3&color);
 
 private:
   /*SIMD Support*/
@@ -238,7 +234,7 @@ private:
 
   /*z buffer*/
   // SpinLock m_zBufferLock;
-  std::vector<float, Eigen::aligned_allocator<float>> m_zBuffer;
+  alignas(64) std::vector<float> m_zBuffer;
 };
 } // namespace SoftRasterizer
 
