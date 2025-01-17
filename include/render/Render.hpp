@@ -172,44 +172,23 @@ private:
   /*My Computer Doesn't support AVX512*/
   inline void rasterizeBatchAVX512(const SoftRasterizer::Triangle &) = delete;
 
-  inline void writePixel(const long long x, const long long y,
-                         const Eigen::Vector3f &color);
-
-  inline void writePixel(const long long x, const long long y,
-                         const Eigen::Vector3i &color);
-
-  inline void writePixel(const long long start_pos, const ColorSIMD &color);
-  inline bool writeZBuffer(const long long x, const long long y,
-                           const float depth);
-
-  inline void writeZBuffer(const long long start_pos, const float depth);
-
-  inline const float readZBuffer(const long long x, const long long y);
-
-#if defined(__x86_64__) || defined(_WIN64)
   template <typename _simd>
-  inline void writePixel(const long long start_pos, const _simd &r,
-                         const _simd &g, const _simd &b);
+  inline void writePixel(const long long start_pos, const _simd& r, const _simd& g, const _simd& b);
+  inline void writePixel(const long long x, const long long y,const Eigen::Vector3f &color);
+  inline void writePixel(const long long x, const long long y,const Eigen::Vector3i &color);
+  inline void writePixel(const long long start_pos, const ColorSIMD &color);
 
   template <typename _simd>
   inline void writeZBuffer(const long long start_pos, const _simd &depth);
+  inline bool writeZBuffer(const long long x, const long long y, const float depth);
+  inline void writeZBuffer(const long long start_pos, const float depth);
+
+  template <typename _simd> 
+  inline _simd readZBuffer(const long long start_pos);
+  inline const float readZBuffer(const long long x, const long long y);
 
   template <typename _simd>
   inline std::tuple<_simd, _simd, _simd> readPixel(const long long start_pos);
-
-  template <typename _simd> inline _simd readZBuffer(const long long start_pos);
-
-#elif defined(__arm__) || defined(__aarch64__)
-  inline void writePixel(const long long start_pos, const simde__m256 &r,
-                         const simde__m256 &g, const simde__m256 &b);
-
-  inline void writeZBuffer(const long long start_pos, const simde__m256 &depth);
-
-  static simde__m256 insideTriangle(const simde__m256 &x, const simde__m256 &y,
-                                    const SoftRasterizer::Triangle &triangle);
-
-#else
-#endif
 
   /*Bresenham algorithm*/
   void drawLine(const Eigen::Vector3f &p0, const Eigen::Vector3f &p1,

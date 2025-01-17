@@ -146,10 +146,20 @@ SoftRasterizer::RenderingPipeline::readZBuffer(const long long x,
 template <typename _simd>
 inline void SoftRasterizer::RenderingPipeline::writePixel(
     const long long start_pos, const _simd &r, const _simd &g, const _simd &b) {
-  if constexpr (std::is_same_v<_simd, __m256>) {
-    _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-    _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-    _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+#if defined(__x86_64__) || defined(_WIN64)
+          if constexpr (std::is_same_v<_simd, __m256>) {
+                    _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+                    _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+                    _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+
+#elif defined(__arm__) || defined(__aarch64__)
+          if constexpr (std::is_same_v<_simd, simde__m256>) {
+                    simde_mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+                    simde_mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+                    simde_mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+
+#else
+#endif
   } else if constexpr (std::is_same_v<_simd, __m128>) {
     _mm_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
     _mm_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
@@ -161,8 +171,15 @@ template <typename _simd>
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
                                                 const _simd &depth) {
-  if constexpr (std::is_same_v<_simd, __m256>) {
-    _mm256_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]), depth);
+#if defined(__x86_64__) || defined(_WIN64)
+          if constexpr (std::is_same_v<_simd, __m256>) {
+                    _mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+
+#elif defined(__arm__) || defined(__aarch64__)
+          if constexpr (std::is_same_v<_simd, simde__m256>) {
+                    simde_mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+#else
+#endif
   } else if constexpr (std::is_same_v<_simd, __m128>) {
     _mm_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]), depth);
   }
@@ -171,13 +188,24 @@ SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
 template <typename _simd>
 inline std::tuple<_simd, _simd, _simd>
 SoftRasterizer::RenderingPipeline::readPixel(const long long start_pos) {
-  if constexpr (std::is_same_v<_simd, __m256>) {
 
-    return {
-        _mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
-        _mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
-        _mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
-    };
+#if defined(__x86_64__) || defined(_WIN64)
+          if constexpr (std::is_same_v<_simd, __m256>) {
+                    return {
+                        _mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
+                        _mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
+                        _mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
+                    };
+
+#elif defined(__arm__) || defined(__aarch64__)
+          if constexpr (std::is_same_v<_simd, simde__m256>) {
+                    return {
+                        simde_mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
+                        simde_mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
+                        simde_mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
+                    };
+#else
+#endif
   } else if constexpr (std::is_same_v<_simd, __m128>) {
     return {
         _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
@@ -191,9 +219,15 @@ SoftRasterizer::RenderingPipeline::readPixel(const long long start_pos) {
 template <typename _simd>
 inline _simd
 SoftRasterizer::RenderingPipeline::readZBuffer(const long long start_pos) {
+#if defined(__x86_64__) || defined(_WIN64)
+          if constexpr (std::is_same_v<_simd, __m256>) {
+                    return _mm256_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
 
-  if constexpr (std::is_same_v<_simd, __m256>) {
-    return _mm256_loadu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]));
+#elif defined(__arm__) || defined(__aarch64__)
+          if constexpr (std::is_same_v<_simd, simde__m256>) {
+                    return simde_mm256_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+#else
+#endif
   } else if constexpr (std::is_same_v<_simd, __m128>) {
     return _mm_loadu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]));
   }
@@ -201,21 +235,6 @@ SoftRasterizer::RenderingPipeline::readZBuffer(const long long start_pos) {
 }
 
 #elif defined(__arm__) || defined(__aarch64__)
-inline void SoftRasterizer::RenderingPipeline::writePixel(
-    const long long start_pos, const simde__m256 &r, const simde__m256 &g,
-    const simde__m256 &b) {
-  simde_mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-  simde_mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-  simde_mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
-}
-
-inline void
-SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
-                                                const simde__m256 &depth) {
-  simde_mm256_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]),
-                        depth);
-}
-
 simde__m256 SoftRasterizer::RenderingPipeline::insideTriangle(
     const simde__m256 &x, const simde__m256 &y,
     const SoftRasterizer::Triangle &triangle) {
