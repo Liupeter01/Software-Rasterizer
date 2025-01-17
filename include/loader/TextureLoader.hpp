@@ -1,13 +1,14 @@
 #pragma once
 #ifndef _TEXTURELOADER_HPP_
 #define _TEXTURELOADER_HPP_
-#include <Eigen/Eigen>
-#include <Tools.hpp>
-#include <algorithm> // Required for std::max and std::min
-#include <iostream>
-#include <opencv2/opencv.hpp>
 #include <tuple>
 #include <vector>
+#include <iostream>
+#include <Tools.hpp>
+#include <algorithm> // Required for std::max and std::min
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <opencv2/opencv.hpp>
 
 namespace SoftRasterizer {
 class Shader;
@@ -20,7 +21,7 @@ public:
   virtual ~TextureLoader();
 
 public:
-  Eigen::Vector3f getTextureColor(const Eigen::Vector2f &uv);
+  glm::vec3 getTextureColor(const glm::vec2 &uv);
 
   template <typename _simd>
   inline std::tuple<_simd, _simd, _simd> getTextureColor(const _simd &u,
