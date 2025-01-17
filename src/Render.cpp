@@ -366,9 +366,9 @@ SoftRasterizer::RenderingPipeline::barycentric(
     const simde__m256 &x_pos, const simde__m256 &y_pos,
     const SoftRasterizer::Triangle &triangle) {
 
-  const Eigen::Vector3f A = triangle.a();
-  const Eigen::Vector3f B = triangle.b();
-  const Eigen::Vector3f C = triangle.c();
+          const glm::vec3 A = triangle.a();
+          const glm::vec3 B = triangle.b();
+          const glm::vec3 C = triangle.c();
 
   simde__m256 ax = simde_mm256_set1_ps(A.x()), ay = simde_mm256_set1_ps(A.y());
   simde__m256 bx = simde_mm256_set1_ps(B.x()), by = simde_mm256_set1_ps(B.y());
