@@ -10,11 +10,11 @@ struct alignas(32) Triangle {
   Triangle();
 
   struct BoundingBox {
-            long long startX;
-            long long startY;
+    long long startX;
+    long long startY;
 
-            long long endX;
-            long long endY;
+    long long endX;
+    long long endY;
   };
 
   const Eigen::Vector3f &a() const { return m_vertex[0]; }
@@ -26,7 +26,7 @@ struct alignas(32) Triangle {
   void setColor(std::initializer_list<Eigen::Vector3i> _color);
   void setTexCoord(std::initializer_list<Eigen::Vector2f> _texCoords);
   void calcBoundingBox(const std::size_t width, const std::size_t height);
-  bool isOverlapping(const Triangle& box1, const Triangle& box2) const;
+  bool isOverlapping(const Triangle &box1, const Triangle &box2) const;
 
   /*the original coordinates of the triangle, v0, v1, v2 in counter clockwise
    * order*/
@@ -45,8 +45,7 @@ struct alignas(32) Triangle {
   BoundingBox box;
 
 protected:
-          bool isOverlapping(const BoundingBox& box1, const BoundingBox& box2) const;
-
+  bool isOverlapping(const BoundingBox &box1, const BoundingBox &box2) const;
 };
 } // namespace SoftRasterizer
 
