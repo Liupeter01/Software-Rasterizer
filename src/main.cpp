@@ -1,4 +1,3 @@
-#include <Eigen/Eigen>
 #include <Tools.hpp>
 #include <Triangle.hpp>
 #include <loader/ObjLoader.hpp>
@@ -14,16 +13,21 @@ int main() {
   auto render = std::make_shared<SoftRasterizer::RenderingPipeline>(
       1024, 1024); // Create Render Main Class
   auto scene =
-      std::make_shared<SoftRasterizer::Scene>("TestScene"); // Create A Scene
+      std::make_shared<SoftRasterizer::Scene>("TestScene",              
+                /*eye=*/glm::vec3(0.0f, 0.0f, 0.9f),
+                /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
+                /*up=*/glm::vec3(0.0f, 1.0f, 0.0f)); // Create A Scene
+
   scene->addGraphicObj(
-      CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
-      Eigen::Vector3f(0.f, 1.f, 0.f), degree,
-      Eigen::Vector3f(-0.35f, 0.0f, 0.0f), Eigen::Vector3f(0.3f, 0.3f, 0.3f));
+            CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
+            glm::vec3(0, 1, 0), degree,
+            glm::vec3(0.f, 0.0f, 0.0f), 
+            glm::vec3(0.3f, 0.3f, 0.3f));
 
   scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
-                       Eigen::Vector3f(0.f, 1.f, 0.f), degree,
-                       Eigen::Vector3f(0.3f, 0.0f, 0.0f),
-                       Eigen::Vector3f(0.2f, 0.2f, 0.2f));
+            glm::vec3(0.f, 1.f, 0.f), degree,
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.2f, 0.2f, 0.2f));
 
   scene->addShader("spot_shader",
                    CONFIG_HOME "examples/models/spot/spot_texture.png",
@@ -34,18 +38,18 @@ int main() {
                    SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
   scene->startLoadingMesh("spot");
-  scene->startLoadingMesh("Crate");
+ scene->startLoadingMesh("Crate");
   scene->bindShader2Mesh("spot", "spot_shader");
   scene->bindShader2Mesh("Crate", "crate_shader");
 
   /*Add Light To Scene*/
   auto light1 = std::make_shared<SoftRasterizer::light_struct>();
-  light1->position = Eigen::Vector3f{0.9, 0.9, -0.9f};
-  light1->intensity = Eigen::Vector3f{100, 100, 100};
+  light1->position = glm::vec3{0.9, 0.9, -0.9f};
+  light1->intensity = glm::vec3{100, 100, 100};
 
   auto light2 = std::make_shared<SoftRasterizer::light_struct>();
-  light2->position = Eigen::Vector3f{0.f, 0.8f, 0.9f};
-  light2->intensity = Eigen::Vector3f{50, 50, 50};
+  light2->position = glm::vec3{0.f, 0.8f, 0.9f};
+  light2->intensity = glm::vec3{50, 50, 50};
 
   scene->addLight("Light1", light1);
   scene->addLight("Light2", light2);
@@ -61,20 +65,24 @@ int main() {
 
     /*Model Matrix*/
     scene->setModelMatrix(
-        "spot",
-        SoftRasterizer::Tools::calculateModelMatrix(
-            /*transform=*/Eigen::Vector3f(0.f, 0.f, 0.f),
-            /*rotations=*/
-            SoftRasterizer::Tools::calculateRotationMatrix(
-                /*axis=*/Eigen::Vector3f(0.f, 1.f, 0.f),
-                /*degree=+ for Counterclockwise;- for Clockwise*/ degree),
-            /*scale=*/Eigen::Vector3f(0.3f, 0.3f, 0.3f)));
+              "spot",
+              /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+              /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
+              /*transform=*/glm::vec3(0.0f, 0.2f, 0.f),
+              /*scale=*/glm::vec3(0.3f, 0.3f, 0.3f));
+
+    scene->setModelMatrix(
+              "Crate",
+              /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+              /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
+              /*transform=*/glm::vec3(0.0f, -0.3f, 0.f),
+              /*scale=*/glm::vec3(0.3f, 0.3f, 0.3f));
 
     /*View Matrix*/
     scene->setViewMatrix(
-        /*eye=*/Eigen::Vector3f(0.0f, 0.0f, 0.9f),
-        /*center=*/Eigen::Vector3f(0.0f, 0.0f, 0.0f),
-        /*up=*/Eigen::Vector3f(0.0f, 1.0f, 0.0f));
+              /*eye=*/glm::vec3(0.7f, 0.4f, -0.9f),
+              /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
+              /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
 
     /*Projection Matrix*/
     scene->setProjectionMatrix(

@@ -94,19 +94,19 @@ bool SoftRasterizer::RenderingPipeline::addScene(
 }
 
 inline void SoftRasterizer::RenderingPipeline::writePixel(
-    const long long x, const long long y, const Eigen::Vector3f &color) {
+    const long long x, const long long y, const glm::vec3&color) {
   if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
     auto pos = x + y * m_width;
 
-    *(m_channels[0].ptr<float>(0) + pos) = color.x(); // R
-    *(m_channels[1].ptr<float>(0) + pos) = color.y(); // G
-    *(m_channels[2].ptr<float>(0) + pos) = color.z(); // B
+    *(m_channels[0].ptr<float>(0) + pos) = color.x; // R
+    *(m_channels[1].ptr<float>(0) + pos) = color.y; // G
+    *(m_channels[2].ptr<float>(0) + pos) = color.z; // B
   }
 }
 
 inline void SoftRasterizer::RenderingPipeline::writePixel(
-    const long long x, const long long y, const Eigen::Vector3i &color) {
-  writePixel(x, y, Eigen::Vector3f(color.x(), color.y(), color.z()));
+    const long long x, const long long y, const glm::uvec3&color) {
+  writePixel(x, y, glm::vec3(color.x, color.y, color.z));
 }
 
 inline void
@@ -244,56 +244,33 @@ void SoftRasterizer::RenderingPipeline::rasterizeWireframe(
 inline bool SoftRasterizer::RenderingPipeline::insideTriangle(
     const std::size_t x_pos, const std::size_t y_pos,
     const SoftRasterizer::Triangle &triangle) {
-  const Eigen::Vector3f P = {static_cast<float>(x_pos),
+  const  glm::vec3 P = {static_cast<float>(x_pos),
                              static_cast<float>(y_pos), 1.0f};
 
-  Eigen::Vector3f A = triangle.a();
-  Eigen::Vector3f B = triangle.b();
-  Eigen::Vector3f C = triangle.c();
+  glm::vec3 A = triangle.a();
+  glm::vec3 B = triangle.b();
+  glm::vec3 C = triangle.c();
 
-  A.z() = B.z() = C.z() = 1.0f;
+  A.z = B.z = C.z = 1.0f;
 
   // Vectors representing the edges of the triangle
-  Eigen::Vector3f AB = B - A;
-  Eigen::Vector3f BC = C - B;
-  Eigen::Vector3f CA = A - C;
+  glm::vec3 AB = B - A;
+  glm::vec3 BC = C - B;
+  glm::vec3 CA = A - C;
 
   // Vectors from the point to each vertex
-  Eigen::Vector3f AP = P - A;
-  Eigen::Vector3f BP = P - B;
-  Eigen::Vector3f CP = P - C;
+  glm::vec3 AP = P - A;
+  glm::vec3 BP = P - B;
+  glm::vec3 CP = P - C;
 
   // Cross product results (we only need the z-components)
-  const float crossABP_z = AB.x() * AP.y() - AB.y() * AP.x();
-  const float crossBCP_z = BC.x() * BP.y() - BC.y() * BP.x();
-  const float crossCAP_z = CA.x() * CP.y() - CA.y() * CP.x();
+  const float crossABP_z = AB.x * AP.y - AB.y * AP.x;
+  const float crossBCP_z = BC.x * BP.y - BC.y * BP.x;
+  const float crossCAP_z = CA.x * CP.y - CA.y * CP.x;
 
   // Check if all cross products have the same sign
   return (crossABP_z > 0 && crossBCP_z > 0 && crossCAP_z > 0) ||
          (crossABP_z < 0 && crossBCP_z < 0 && crossCAP_z < 0);
-}
-
-std::optional<std::tuple<float, float, float>>
-SoftRasterizer::RenderingPipeline::linearBaryCentric(
-    const std::size_t x_pos, const std::size_t y_pos, const Eigen::Vector2i min,
-    const Eigen::Vector2i max) {
-  // Bounds check: ensure x_pos and y_pos are inside the rectangle defined by
-  // min and max
-  if (x_pos < min.x() || x_pos >= max.x() || y_pos < min.y() ||
-      y_pos >= max.y()) {
-    return std::nullopt; // Point is outside the bounds
-  }
-  // Linear interpolation of alpha based on x position
-  float alpha = static_cast<float>(x_pos - min.x()) /
-                static_cast<float>(max.x() - min.x());
-
-  // Linear interpolation of beta based on y position
-  float beta = static_cast<float>(y_pos - min.y()) /
-               static_cast<float>(max.y() - min.y());
-
-  // Calculate gamma (the remainder to sum to 1)
-  float gamma = 1.0f - alpha - beta;
-  return std::tuple<float, float, float>(alpha, beta, gamma);
 }
 
 inline std::tuple<float, float, float>
@@ -301,17 +278,17 @@ SoftRasterizer::RenderingPipeline::barycentric(
     const std::size_t x_pos, const std::size_t y_pos,
     const SoftRasterizer::Triangle &triangle) {
 
-  Eigen::Vector3f A = triangle.a();
-  Eigen::Vector3f B = triangle.b();
-  Eigen::Vector3f C = triangle.c();
+        const  glm::vec3 A = triangle.a();
+        const   glm::vec3 B = triangle.b();
+        const   glm::vec3 C = triangle.c();
 
   // Compute edges
-  const float ABx = B.x() - A.x(), ABy = B.y() - A.y();
-  const float ACx = C.x() - A.x(), ACy = C.y() - A.y();
-  const float PAx = A.x() - x_pos, PAy = A.y() - y_pos;
-  const float BCx = C.x() - B.x(), BCy = C.y() - B.y();
-  const float PBx = B.x() - x_pos, PBy = B.y() - y_pos;
-  const float PCx = C.x() - x_pos, PCy = C.y() - y_pos;
+  const float ABx = B.x - A.x, ABy = B.y - A.y;
+  const float ACx = C.x - A.x, ACy = C.y - A.y;
+  const float PAx = A.x - x_pos, PAy = A.y - y_pos;
+  const float BCx = C.x - B.x, BCy = C.y - B.y;
+  const float PBx = B.x - x_pos, PBy = B.y - y_pos;
+  const float PCx = C.x - x_pos, PCy = C.y - y_pos;
 
   // Compute areas directly using the 2D cross product (determinant)
   const float areaABC = ABx * ACy - ABy * ACx; // Area of triangle ABC
@@ -347,13 +324,13 @@ SoftRasterizer::RenderingPipeline::barycentric(
     const __m256 &x_pos, const __m256 &y_pos,
     const SoftRasterizer::Triangle &triangle) {
 
-  const Eigen::Vector3f A = triangle.a();
-  const Eigen::Vector3f B = triangle.b();
-  const Eigen::Vector3f C = triangle.c();
+  const glm::vec3 A = triangle.a();
+  const  glm::vec3 B = triangle.b();
+  const  glm::vec3 C = triangle.c();
 
-  __m256 ax = _mm256_set1_ps(A.x()), ay = _mm256_set1_ps(A.y());
-  __m256 bx = _mm256_set1_ps(B.x()), by = _mm256_set1_ps(B.y());
-  __m256 cx = _mm256_set1_ps(C.x()), cy = _mm256_set1_ps(C.y());
+  __m256 ax = _mm256_set1_ps(A.x), ay = _mm256_set1_ps(A.y);
+  __m256 bx = _mm256_set1_ps(B.x), by = _mm256_set1_ps(B.y);
+  __m256 cx = _mm256_set1_ps(C.x), cy = _mm256_set1_ps(C.y);
   const __m256 one = _mm256_set1_ps(1.0f);
 
   // Edges
@@ -389,13 +366,13 @@ SoftRasterizer::RenderingPipeline::barycentric(
     const simde__m256 &x_pos, const simde__m256 &y_pos,
     const SoftRasterizer::Triangle &triangle) {
 
-  const Eigen::Vector3f A = triangle.a();
-  const Eigen::Vector3f B = triangle.b();
-  const Eigen::Vector3f C = triangle.c();
+          const glm::vec3 A = triangle.a();
+          const glm::vec3 B = triangle.b();
+          const glm::vec3 C = triangle.c();
 
-  simde__m256 ax = simde_mm256_set1_ps(A.x()), ay = simde_mm256_set1_ps(A.y());
-  simde__m256 bx = simde_mm256_set1_ps(B.x()), by = simde_mm256_set1_ps(B.y());
-  simde__m256 cx = simde_mm256_set1_ps(C.x()), cy = simde_mm256_set1_ps(C.y());
+  simde__m256 ax = simde_mm256_set1_ps(A.x), ay = simde_mm256_set1_ps(A.y);
+  simde__m256 bx = simde_mm256_set1_ps(B.x), by = simde_mm256_set1_ps(B.y);
+  simde__m256 cx = simde_mm256_set1_ps(C.x), cy = simde_mm256_set1_ps(C.y);
 
   // Edges
   simde__m256 ABx = simde_mm256_sub_ps(bx, ax),
@@ -449,13 +426,10 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
     std::vector<SoftRasterizer::Scene::ObjTuple> stream =
         SceneObj->loadTriangleStream();
     std::vector<SoftRasterizer::light_struct> lights = SceneObj->loadLights();
-    Eigen::Vector3f eye = SceneObj->loadEyeVec();
+    const glm::vec3 eye = SceneObj->loadEyeVec();
 
     /*Traversal All The Triangle*/
     for (auto &[shader, CurrentObj] : stream) {
-
-      // Check how many full groups of 8 we can process with AVX2
-      std::size_t totalTriangles = CurrentObj.size();
 
       for (auto &triangle : CurrentObj) {
 
@@ -485,20 +459,20 @@ inline void SoftRasterizer::RenderingPipeline::rasterizeBatchAVX2(
     const int startx, const int endx, const int y,
     const std::vector<SoftRasterizer::light_struct> &lists,
     std::shared_ptr<SoftRasterizer::Shader> shader,
-    const SoftRasterizer::Triangle &packed, const Eigen::Vector3f &eye) {
+    const SoftRasterizer::Triangle &packed, const glm::vec3& eye) {
 
   if (startx + AVX2 > endx) {
     return;
   }
 
 #if defined(__x86_64__) || defined(_WIN64)
-  auto z0 = _mm256_set1_ps(packed.m_vertex[0].z());
-  auto z1 = _mm256_set1_ps(packed.m_vertex[1].z());
-  auto z2 = _mm256_set1_ps(packed.m_vertex[2].z());
+  auto z0 = _mm256_set1_ps(packed.m_vertex[0].z);
+  auto z1 = _mm256_set1_ps(packed.m_vertex[1].z);
+  auto z2 = _mm256_set1_ps(packed.m_vertex[2].z);
 #elif defined(__arm__) || defined(__aarch64__)
-  auto z0 = simde_mm256_set1_ps(packed.m_vertex[0].z());
-  auto z1 = simde_mm256_set1_ps(packed.m_vertex[1].z());
-  auto z2 = simde_mm256_set1_ps(packed.m_vertex[2].z());
+  auto z0 = simde_mm256_set1_ps(packed.m_vertex[0].z);
+  auto z1 = simde_mm256_set1_ps(packed.m_vertex[1].z);
+  auto z2 = simde_mm256_set1_ps(packed.m_vertex[2].z);
 #else
 #endif
 
@@ -512,7 +486,7 @@ inline void SoftRasterizer::RenderingPipeline::processFragByAVX2(
     const int x, const int y, const _simd &z0, const _simd &z1, const _simd &z2,
     const std::vector<SoftRasterizer::light_struct> &lists,
     std::shared_ptr<SoftRasterizer::Shader> shader,
-    const SoftRasterizer::Triangle &packed, const Eigen::Vector3f &eye) {
+    const SoftRasterizer::Triangle &packed, const glm::vec3& eye) {
   const auto op_pos = x + y * m_width;
   PointSIMD point;
 
@@ -593,15 +567,9 @@ inline void SoftRasterizer::RenderingPipeline::processFragByAVX2(
   }
 
   // Compute the z_interpolated using the blend operation
-  // point.z = simde_mm256_fmadd_ps(
-  //     alpha, z0,
-  //     simde_mm256_fmadd_ps(beta, z1, simde_mm256_mul_ps(gamma, z2)));
-  auto alpha_z = simde_mm256_mul_ps(alpha, z0);
-  auto beta_z = simde_mm256_mul_ps(beta, z1);
-  auto gamma_z = simde_mm256_mul_ps(gamma, z2);
-
-  alpha_z = simde_mm256_add_ps(alpha_z, beta_z);
-  point.z = simde_mm256_add_ps(alpha_z, gamma_z);
+   point.z = simde_mm256_fmadd_ps(
+       alpha, z0,
+       simde_mm256_fmadd_ps(beta, z1, simde_mm256_mul_ps(gamma, z2)));
 
   // Start Reading From Now
   simde__m256 Original_Z = readZBuffer<simde__m256>(op_pos);
@@ -652,14 +620,14 @@ inline void SoftRasterizer::RenderingPipeline::rasterizeBatchScalar(
     const int startx, const int endx, const int y,
     const std::vector<SoftRasterizer::light_struct> &lists,
     std::shared_ptr<SoftRasterizer::Shader> shader,
-    const SoftRasterizer::Triangle &scalar, const Eigen::Vector3f &eye) {
+    const SoftRasterizer::Triangle &scalar, const glm::vec3& eye) {
 
   const auto read_length = endx - startx + 1;
   const auto read_pos = y * m_width + startx;
 
-  auto z0 = scalar.m_vertex[0].z();
-  auto z1 = scalar.m_vertex[1].z();
-  auto z2 = scalar.m_vertex[2].z();
+  auto z0 = scalar.m_vertex[0].z;
+  auto z1 = scalar.m_vertex[1].z;
+  auto z2 = scalar.m_vertex[2].z;
 
   alignas(64) float z[8]{std::numeric_limits<float>::infinity()};
   alignas(64) float r[8]{0.f};
@@ -696,7 +664,7 @@ inline void SoftRasterizer::RenderingPipeline::processFragByScalar(
     float *__restrict r, float *__restrict g, float *__restrict b,
     const std::vector<SoftRasterizer::light_struct> &lists,
     std::shared_ptr<SoftRasterizer::Shader> shader,
-    const SoftRasterizer::Triangle &scalar, const Eigen::Vector3f &eye) {
+    const SoftRasterizer::Triangle &scalar, const glm::vec3& eye) {
 
   // Check if the point (currentX, currentY) is inside the triangle
   if (!insideTriangle(x + 0.5f, y + 0.5f, scalar)) {
@@ -725,25 +693,26 @@ inline void SoftRasterizer::RenderingPipeline::processFragByScalar(
 
   auto color = Tools::normalizedToRGB(shader->applyFragmentShader(
       eye, lists,
-      fragment_shader_payload(Eigen::Vector3f(x, y, new_z),
+      fragment_shader_payload(glm::vec3(x, y, new_z),
                               interpolation_normal, interpolation_texCoord)));
 
   // writePixel(x, y, color);
   z[x - startx] = new_z;
-  r[x - startx] = static_cast<float>(color.x());
-  g[x - startx] = static_cast<float>(color.y());
-  b[x - startx] = static_cast<float>(color.z());
+  r[x - startx] = static_cast<float>(color.x);
+  g[x - startx] = static_cast<float>(color.y);
+  b[x - startx] = static_cast<float>(color.z);
 }
 
 /* Bresenham algorithm*/
-void SoftRasterizer::RenderingPipeline::drawLine(const Eigen::Vector3f &p0,
-                                                 const Eigen::Vector3f &p1,
-                                                 const Eigen::Vector3i &color) {
+void SoftRasterizer::RenderingPipeline::drawLine(
+          const glm::vec3& p0, 
+          const glm::vec3& p1,
+          const glm::uvec3& color) {
 
-  auto x1 = p0.x();
-  auto y1 = p0.y();
-  auto x2 = p1.x();
-  auto y2 = p1.y();
+  auto x1 = p0.x;
+  auto y1 = p0.y;
+  auto x2 = p1.x;
+  auto y2 = p1.y;
 
   int x, y, dx, dy, dx1, dy1, px, py, xe, ye, i;
 

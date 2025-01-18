@@ -5,61 +5,41 @@
 #include <service/ThreadPool.hpp>
 #include <spdlog/spdlog.h>
 
-SoftRasterizer::Scene::Scene(const std::string &sceneName,
-                             const Eigen::Matrix4f &view,
-                             const Eigen::Matrix4f &projection)
-    : m_width(0), m_height(0), m_sceneName(sceneName) {
-  try {
-    setViewMatrix(view);
-    setProjectionMatrix(projection);
-  } catch (const std::exception &e) {
-  }
+SoftRasterizer::Scene::Scene(const std::string& sceneName,
+          const glm::vec3& eye,
+          const glm::vec3& center,
+          const glm::vec3& up)
+          : m_width(0), m_height(0), m_sceneName(sceneName) {
+          try {
+                    setViewMatrix(eye, center, up);
+          }
+          catch (const std::exception& e) {
+          }
 }
 
 SoftRasterizer::Scene::~Scene() {}
 
-bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
-                                          const std::string &meshName,
-                                          const Eigen::Matrix4f &rotation,
-                                          const Eigen::Vector3f &translation,
-                                          const Eigen::Vector3f &scale) {
-  /*This Object has already been identified!*/
-  if (m_loadedObjs.find(meshName) != m_loadedObjs.end()) {
-    spdlog::error("This Object has already been identified");
-    return false;
-  }
+bool SoftRasterizer::Scene::addGraphicObj(const std::string& path,
+          const std::string& meshName,
+          const glm::vec3& axis, const float angle,
+          const glm::vec3& translation,
+          const glm::vec3& scale) {
+          /*This Object has already been identified!*/
+          if (m_loadedObjs.find(meshName) != m_loadedObjs.end()) {
+                    spdlog::error(
+                              "Add Graphic Obj Error! This Object has already been identified");
+                    return false;
+          }
 
-  try {
-    m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(
-        path, meshName, rotation, translation, scale);
-  } catch (const std::exception &e) {
-    spdlog::info("Add Graphic Obj Error! Reason: {}", e.what());
-    return false;
-  }
-  return true;
-}
-
-bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
-                                          const std::string &meshName,
-                                          const Eigen::Vector3f &axis,
-                                          const float angle,
-                                          const Eigen::Vector3f &translation,
-                                          const Eigen::Vector3f &scale) {
-  /*This Object has already been identified!*/
-  if (m_loadedObjs.find(meshName) != m_loadedObjs.end()) {
-    spdlog::error(
-        "Add Graphic Obj Error! This Object has already been identified");
-    return false;
-  }
-
-  try {
-    m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(
-        path, meshName, axis, angle, translation, scale);
-  } catch (const std::exception &e) {
-    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
-    return false;
-  }
-  return true;
+          try {
+                    m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(
+                              path, meshName, axis, angle, translation, scale);
+          }
+          catch (const std::exception& e) {
+                    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
+                    return false;
+          }
+          return true;
 }
 
 bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
@@ -196,45 +176,34 @@ void SoftRasterizer::Scene::addLights(
   }
 }
 
-const Eigen::Vector3f &SoftRasterizer::Scene::loadEyeVec() const {
+const glm::vec3&SoftRasterizer::Scene::loadEyeVec() const {
   return m_eye;
 }
 
 /*set MVP*/
 bool SoftRasterizer::Scene::setModelMatrix(const std::string &meshName,
-                                           const Eigen::Matrix4f &model) {
+          const glm::vec3& axis, const float angle,
+          const glm::vec3& translation,
+          const glm::vec3& scale) {
   if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
     spdlog::error("Editing Model Matrix Failed! Because {} Not Found",
                   meshName);
     return false;
   }
 
-  m_loadedObjs[meshName].loader->updateModelMatrix(model);
-
-  /*Model Matrix CHnged, So We Have to recalculate!*/
-  // m_loadedObjs[meshName].changed = true;
+  m_loadedObjs[meshName].loader->updateModelMatrix(axis, angle, translation, scale);
   return true;
 }
 
-void SoftRasterizer::Scene::setViewMatrix(const Eigen::Matrix4f &view) {
-  m_view = view;
-}
-
-void SoftRasterizer::Scene::setProjectionMatrix(
-    const Eigen::Matrix4f &projection) {
-  m_projection = projection;
-}
-
-void SoftRasterizer::Scene::setViewMatrix(const Eigen::Vector3f &eye,
-                                          const Eigen::Vector3f &center,
-                                          const Eigen::Vector3f &up) {
+void SoftRasterizer::Scene::setViewMatrix(const glm::vec3&eye,
+                                          const glm::vec3&center,
+                                          const glm::vec3&up) {
   m_eye = eye;
   m_center = center;
   m_up = up;
-  setViewMatrix(Tools::calculateViewMatrix(
-      /*eye=*/m_eye,
-      /*center=*/m_center,
-      /*up=*/m_up));
+
+  m_view =
+            glm::lookAtLH(eye, center, up);
 }
 
 void SoftRasterizer::Scene::setProjectionMatrix(float fovy, float zNear,
@@ -257,11 +226,8 @@ void SoftRasterizer::Scene::setProjectionMatrix(float fovy, float zNear,
 #else
 #endif
 
-  setProjectionMatrix(Tools::calculateProjectionMatrix(
-      /*fov=*/m_fovy,
-      /*aspect=*/m_aspectRatio,
-      /*near=*/m_near,
-      /*far=*/m_far));
+  m_projection = glm::perspectiveLH_NO(fovy, m_aspectRatio, zNear, zFar);
+  m_projection[1][1] *= -1;
 }
 
 std::vector<SoftRasterizer::light_struct> SoftRasterizer::Scene::loadLights() {
@@ -286,21 +252,15 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
 
   m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
 
-  /*Transform normalized coordinates into screen space coordinates*/
-  Eigen::Matrix4f translate, scale, aspect, flipy;
-  translate << 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1;
-  scale << m_width / 2, 0, 0, 0, 0, m_height / 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
-  flipy << -1, 0, 0, m_width, 0, -1, 0, m_height, 0, 0, 1, 0, 0, 0, 0, 1;
+  glm::mat4 matrix(1.0f);
 
-  if (-0.0000001f <= m_aspectRatio - 1.0f &&
-      m_aspectRatio - 1.0f <= 0.0000001f) {
-    aspect = Eigen::Matrix4f::Identity();
-  } else {
-    /*width maybe more/less than height*/
-    aspect << 1, 0, 0, 0, 0, m_aspectRatio, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
-  }
+  matrix[0][0] = width / 2.0f * m_aspectRatio;  // x scaling
+  matrix[1][1] = height / 2.0f;              // y scaling (flipping y)
+  matrix[3][0] = width / 2.0f;                // x translation
+  matrix[3][1] = height / 2.0f;               // y translation
 
-  m_ndcToScreenMatrix = flipy * aspect * scale * translate;
+  m_ndcToScreenMatrix = matrix;
+
 }
 
 std::vector<SoftRasterizer::Scene::ObjTuple>
@@ -329,16 +289,16 @@ SoftRasterizer::Scene::loadTriangleStream() {
     m_future.emplace_back(ThreadPool::get_instance()->commit(
         [shader, modelMatrix, view = m_view, projection = m_projection,
          width = m_width, height = m_height](
-            const float scale, const float offset, const Eigen::Matrix4f &NDC,
+            const float scale, const float offset, const glm::mat4 &NDC,
             const std::vector<Vertex> &vertices,
-            const std::vector<Eigen::Vector3i> &faces) -> ObjTuple {
+            const std::vector<glm::uvec3> &faces) -> ObjTuple {
           const std::size_t face_number = faces.size();
 
           /*NDC MVP*/
           auto NDC_MVP = NDC * projection * view * modelMatrix;
 
           /*Inverse Normal*/
-          auto Normal_M = modelMatrix.inverse().transpose();
+          auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
 
           // Prepare transformed triangles for rasterization.
           std::vector<SoftRasterizer::Triangle> res;
@@ -348,27 +308,27 @@ SoftRasterizer::Scene::loadTriangleStream() {
                ++face_index) {
 
             const auto &face = faces[face_index];
-            SoftRasterizer::Vertex A = vertices[face.x()];
-            SoftRasterizer::Vertex B = vertices[face.y()];
-            SoftRasterizer::Vertex C = vertices[face.z()];
+            SoftRasterizer::Vertex A = vertices[face.x];
+            SoftRasterizer::Vertex B = vertices[face.y];
+            SoftRasterizer::Vertex C = vertices[face.z];
 
             A.position =
-                Tools::to_vec3(NDC_MVP * Tools::to_vec4(A.position, 1.0f));
-            A.position.z() = A.position.z() * scale + offset; // Z-Depth
+                Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
+            A.position.z = A.position.z * scale + offset; // Z-Depth
             A.normal =
-                Tools::to_vec3(Normal_M * Tools::to_vec4(A.normal, 1.0f));
+                Tools::to_vec3(Normal_M * glm::vec4(A.normal, 1.0f));
 
             B.position =
-                Tools::to_vec3(NDC_MVP * Tools::to_vec4(B.position, 1.0f));
-            B.position.z() = B.position.z() * scale + offset; // Z-Depth
+                Tools::to_vec3(NDC_MVP * glm::vec4(B.position, 1.0f));
+            B.position.z = B.position.z * scale + offset; // Z-Depth
             B.normal =
-                Tools::to_vec3(Normal_M * Tools::to_vec4(B.normal, 1.0f));
+                Tools::to_vec3(Normal_M * glm::vec4(B.normal, 1.0f));
 
             C.position =
-                Tools::to_vec3(NDC_MVP * Tools::to_vec4(C.position, 1.0f));
-            C.position.z() = C.position.z() * scale + offset; // Z-Depth
+                Tools::to_vec3(NDC_MVP * glm::vec4(C.position, 1.0f));
+            C.position.z = C.position.z * scale + offset; // Z-Depth
             C.normal =
-                Tools::to_vec3(Normal_M * Tools::to_vec4(C.normal, 1.0f));
+                Tools::to_vec3(Normal_M * glm::vec4(C.normal, 1.0f));
 
             SoftRasterizer::Triangle T;
             T.setVertex({A.position, B.position, C.position});

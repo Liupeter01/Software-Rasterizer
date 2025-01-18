@@ -5,33 +5,37 @@
 #include <spdlog/spdlog.h>
 #include <tiny_obj_loader.h>
 #include <unordered_map>
+#include <glm/gtc/matrix_transform.hpp>
 
 SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
                                      const std::string &meshName,
-                                     Eigen::Matrix4f &&model)
-    : m_path(path), m_meshName(meshName), m_model(std::move(model)) {}
+                                      const glm::mat4x4& model )
+    : m_path(path), m_meshName(meshName), m_model(model) {}
 
 SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
                                      const std::string &meshName,
-                                     const Eigen::Matrix4f &rotation,
-                                     const Eigen::Vector3f &translation,
-                                     const Eigen::Vector3f &scale)
-    : ObjLoader(path, meshName,
-                Tools::calculateModelMatrix(translation, rotation, scale)) {}
+          const glm::vec3& axis, const float angle,
+          const glm::vec3& translation,
+          const glm::vec3& scale)
+    : ObjLoader(path, meshName)
+{
+          this->updateModelMatrix(axis, angle, translation, scale);
+}
 
-SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
-                                     const std::string &meshName,
-                                     const Eigen::Vector3f &axis,
-                                     const float angle,
-                                     const Eigen::Vector3f &translation,
-                                     const Eigen::Vector3f &scale)
-    : ObjLoader(path, meshName,
-                Tools::calculateModelMatrix(
-                    translation, Tools::calculateRotationMatrix(axis, angle),
-                    scale)) {}
+SoftRasterizer::ObjLoader::~ObjLoader() {}
 
 void SoftRasterizer::ObjLoader::setObjFilePath(const std::string &path) {
   m_path = path;
+}
+
+void SoftRasterizer::ObjLoader::updateModelMatrix(const glm::vec3& axis, const float angle,
+          const glm::vec3& translation,
+          const glm::vec3& scale)
+{
+          auto T = glm::translate(glm::mat4(1.0f), translation);
+          auto R = glm::rotate(glm::mat4(1.0f), glm::radians(angle), axis);
+          auto S = glm::scale(glm::mat4(1.0f), scale);
+          m_model = T * R * S;
 }
 
 static SoftRasterizer::Material
@@ -45,15 +49,15 @@ processMatrial(const std::vector<tinyobj::material_t> &_material) {
     m.name = material.name;
 
     // Ambient Texture Map
-    m.Ka = Eigen::Vector3f(material.ambient[0], material.ambient[1],
+    m.Ka = glm::vec3(material.ambient[0], material.ambient[1],
                            material.ambient[2]);
 
     //  Diffuse Texture Map
-    m.Kd = Eigen::Vector3f(material.diffuse[0], material.diffuse[1],
+    m.Kd = glm::vec3(material.diffuse[0], material.diffuse[1],
                            material.diffuse[2]);
 
     // Specular Color
-    m.Ks = Eigen::Vector3f(material.specular[0], material.specular[1],
+    m.Ks = glm::vec3(material.specular[0], material.specular[1],
                            material.specular[2]);
 
     m.illum = material.illum;
@@ -82,7 +86,7 @@ processingVertexData(const std::string &objName,
 
   /*which is going to export to other function*/
   std::vector<SoftRasterizer::Vertex> vertices;
-  std::vector<Eigen::Vector3i> faces;
+  std::vector<glm::uvec3> faces;
 
   // handle Vertex deduplication
   std::unordered_map<SoftRasterizer::Vertex, uint32_t,
@@ -107,13 +111,13 @@ processingVertexData(const std::string &objName,
     for (const auto &idx : shapes[s].mesh.indices) {
       SoftRasterizer::Vertex vertex;
 
-      vertex.position =
-          Eigen::Vector3f(attrib.vertices[3 * size_t(idx.vertex_index) + 0],
+      vertex.position = glm::vec3(
+                          attrib.vertices[3 * size_t(idx.vertex_index) + 0],
                           attrib.vertices[3 * size_t(idx.vertex_index) + 1],
                           attrib.vertices[3 * size_t(idx.vertex_index) + 2]);
 
-      vertex.color =
-          Eigen::Vector3f(attrib.colors[3 * size_t(idx.vertex_index) + 0],
+      vertex.color = glm::vec3(
+                          attrib.colors[3 * size_t(idx.vertex_index) + 0],
                           attrib.colors[3 * size_t(idx.vertex_index) + 1],
                           attrib.colors[3 * size_t(idx.vertex_index) + 2]);
 
@@ -122,8 +126,8 @@ processingVertexData(const std::string &objName,
         /*normal exist*/
         noNormal = false;
 
-        vertex.normal =
-            Eigen::Vector3f(attrib.normals[3 * size_t(idx.normal_index) + 0],
+        vertex.normal =glm::vec3(
+                            attrib.normals[3 * size_t(idx.normal_index) + 0],
                             attrib.normals[3 * size_t(idx.normal_index) + 1],
                             attrib.normals[3 * size_t(idx.normal_index) + 2]);
       }
@@ -131,9 +135,8 @@ processingVertexData(const std::string &objName,
       // Check if `texcoord_index` is zero or positive. negative = no texcoord
       // data
       if (idx.texcoord_index >= 0) {
-        vertex.texCoord = Eigen::Vector2f(
+        vertex.texCoord = glm::vec2(
             attrib.texcoords[2 * size_t(idx.texcoord_index) + 0],
-            // attrib.texcoords[2 * size_t(idx.texcoord_index) + 1]
             1.0f - attrib.texcoords[2 * size_t(idx.texcoord_index) + 1]);
       }
 
@@ -157,7 +160,7 @@ processingVertexData(const std::string &objName,
     auto &B = vertices[b_pos];
     auto &C = vertices[c_pos];
 
-    faces[i] = Eigen::Vector3i(a_pos, b_pos, c_pos);
+    faces[i] = glm::uvec3(a_pos, b_pos, c_pos);
 
     /*no normal found*/
     if (noNormal) {
@@ -215,13 +218,6 @@ SoftRasterizer::ObjLoader::startLoadingFromFile(const std::string &objName) {
   return mesh;
 }
 
-SoftRasterizer::ObjLoader::~ObjLoader() {}
-
-void SoftRasterizer::ObjLoader::updateModelMatrix(
-    const Eigen::Matrix4f &model) {
-  m_model = model;
-}
-
-const Eigen::Matrix4f &SoftRasterizer::ObjLoader::getModelMatrix() {
+const glm::mat4x4& SoftRasterizer::ObjLoader::getModelMatrix() {
   return m_model;
 }

@@ -28,37 +28,33 @@ public:
   };
 
   Scene(const std::string &sceneName,
-        const Eigen::Matrix4f &view = Eigen::Matrix4f::Identity(),
-        const Eigen::Matrix4f &projection = Eigen::Matrix4f::Identity());
+            const glm::vec3& eye,
+            const glm::vec3& center,
+            const glm::vec3& up);
 
   virtual ~Scene();
 
 public:
-  const Eigen::Vector3f &loadEyeVec() const;
+  const glm::vec3&loadEyeVec() const;
 
   /*set MVP*/
   bool setModelMatrix(const std::string &meshName,
-                      const Eigen::Matrix4f &model);
+            const glm::vec3& axis, const float angle,
+            const glm::vec3& translation,
+            const glm::vec3& scale);
 
-  void setViewMatrix(const Eigen::Vector3f &eye, const Eigen::Vector3f &center,
-                     const Eigen::Vector3f &up);
+  void setViewMatrix(const glm::vec3&eye, const glm::vec3&center,
+                     const glm::vec3&up);
 
   void setProjectionMatrix(float fovy, float zNear, float zFar);
 
   /*load ObjLoader object to load wavefront obj file*/
   bool addGraphicObj(const std::string &path, const std::string &meshName);
-
   bool addGraphicObj(
       const std::string &path, const std::string &meshName,
-      const Eigen::Matrix4f &rotation,
-      const Eigen::Vector3f &translation = Eigen::Vector3f(0.f, 0.f, 0.f),
-      const Eigen::Vector3f &scale = Eigen::Matrix4f::Identity());
-
-  bool addGraphicObj(
-      const std::string &path, const std::string &meshName,
-      const Eigen::Vector3f &axis, const float angle,
-      const Eigen::Vector3f &translation = Eigen::Vector3f(0.f, 0.f, 0.f),
-      const Eigen::Vector3f &scale = Eigen::Matrix4f::Identity());
+            const glm::vec3& axis, const float angle,
+            const glm::vec3& translation,
+            const glm::vec3& scale);
 
   bool startLoadingMesh(const std::string &meshName);
 
@@ -77,11 +73,6 @@ public:
                 lights);
 
 protected:
-  /*we don't want other user to deploy it directly
-   * because we need to record detailed arguments*/
-  void setProjectionMatrix(const Eigen::Matrix4f &projection);
-  void setViewMatrix(const Eigen::Matrix4f &view);
-
   std::vector<ObjTuple> loadTriangleStream();
   std::vector<SoftRasterizer::light_struct> loadLights();
 
@@ -97,8 +88,8 @@ private:
   float m_aspectRatio;
 
   /*Matrix View*/
-  Eigen::Vector3f m_eye, m_center, m_up;
-  Eigen::Matrix4f m_view;
+  glm::vec3 m_eye, m_center, m_up;
+  glm::mat4 m_view;
 
   /*Matrix Projection*/
   // near and far clipping planes
@@ -131,10 +122,10 @@ private:
 #else
 #endif
 
-  Eigen::Matrix4f m_projection;
+  glm::mat4 m_projection;
 
   /*Transform normalized coordinates into screen space coordinates*/
-  Eigen::Matrix4f m_ndcToScreenMatrix;
+  glm::mat4 m_ndcToScreenMatrix;
 
   /*We Prepare this for loading fragment_shader_payload parallelly!*/
   std::vector<ObjFuture> m_future;
