@@ -138,21 +138,21 @@ private:
                      const std::vector<SoftRasterizer::light_struct> &lists,
                      std::shared_ptr<SoftRasterizer::Shader> shader,
                      const SoftRasterizer::Triangle &packed,
-                     const glm::vec3&eye);
+                     const glm::vec3 &eye);
 
   template <typename _simd>
   inline void processFragByAVX2(
       const int x, const int y, const _simd &z0, const _simd &z1,
       const _simd &z2, const std::vector<SoftRasterizer::light_struct> &lists,
       std::shared_ptr<SoftRasterizer::Shader> shader,
-      const SoftRasterizer::Triangle &packed, const glm::vec3&eye);
+      const SoftRasterizer::Triangle &packed, const glm::vec3 &eye);
 
   inline void
   rasterizeBatchScalar(const int startx, const int endx, const int y,
                        const std::vector<SoftRasterizer::light_struct> &lists,
                        std::shared_ptr<SoftRasterizer::Shader> shader,
                        const SoftRasterizer::Triangle &scalar,
-                       const glm::vec3&eye);
+                       const glm::vec3 &eye);
 
   inline void processFragByScalar(
       const int startx, const int x, const int y, const float old_z,
@@ -160,7 +160,7 @@ private:
       float *__restrict r, float *__restrict g, float *__restrict b,
       const std::vector<SoftRasterizer::light_struct> &lists,
       std::shared_ptr<SoftRasterizer::Shader> shader,
-      const SoftRasterizer::Triangle &scalar, const glm::vec3&eye);
+      const SoftRasterizer::Triangle &scalar, const glm::vec3 &eye);
 
   inline void rasterizeBatchSSE(const SoftRasterizer::Triangle &) = delete;
 
@@ -173,7 +173,7 @@ private:
   inline void writePixel(const long long x, const long long y,
                          const glm::vec3 &color);
   inline void writePixel(const long long x, const long long y,
-                         const glm::uvec3&color);
+                         const glm::uvec3 &color);
   inline void writePixel(const long long start_pos, const ColorSIMD &color);
 
   template <typename _simd>
@@ -189,8 +189,8 @@ private:
   inline std::tuple<_simd, _simd, _simd> readPixel(const long long start_pos);
 
   /*Bresenham algorithm*/
-  void drawLine(const glm::vec3 &p0, const glm::vec3&p1,
-                const glm::uvec3&color);
+  void drawLine(const glm::vec3 &p0, const glm::vec3 &p1,
+                const glm::uvec3 &color);
 
 private:
   /*SIMD Support*/

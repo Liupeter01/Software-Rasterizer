@@ -2,14 +2,12 @@
 #include <Triangle.hpp>
 #include <algorithm>
 
-SoftRasterizer::Triangle::Triangle()
-          :box()
-{
+SoftRasterizer::Triangle::Triangle() : box() {
   for (std::size_t index = 0; index < 3; ++index) {
-            m_vertex[index] = glm::vec3(0.f);
-            m_color[index] = glm::vec3(0.f);
-            m_texCoords[index] = glm::vec2(0.f);
-            m_normal[index] =  glm::vec3(0.f);
+    m_vertex[index] = glm::vec3(0.f);
+    m_color[index] = glm::vec3(0.f);
+    m_texCoords[index] = glm::vec2(0.f);
+    m_normal[index] = glm::vec3(0.f);
   }
 }
 
@@ -35,7 +33,7 @@ void SoftRasterizer::Triangle::setColor(
     throw std::runtime_error("Invalid number of colors");
   }
   auto it = m_color.begin();
-  std::for_each(_color.begin(), _color.end(), [&it](const glm::vec3&c) {
+  std::for_each(_color.begin(), _color.end(), [&it](const glm::vec3 &c) {
     if ((c[0] < 0) || (c[0] > 255) || (c[1] < 0) || (c[1] > 255) ||
         (c[2] < 0) || (c[2] > 255)) {
       throw std::runtime_error("Invalid color values");
@@ -55,22 +53,18 @@ void SoftRasterizer::Triangle::setTexCoord(
 
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,
                                                const std::size_t height) {
-  box.startX =
-      std::clamp(static_cast<long long>(std::min(
-                     {m_vertex[0].x, m_vertex[1].x, m_vertex[2].x})),
-                 0LL, static_cast<long long>(width - 1));
-  box.startY =
-      std::clamp(static_cast<long long>(std::min(
-                     {m_vertex[0].y, m_vertex[1].y, m_vertex[2].y})),
-                 0LL, static_cast<long long>(height - 1));
-  box.endX =
-      std::clamp(static_cast<long long>(std::max(
-                     {m_vertex[0].x, m_vertex[1].x, m_vertex[2].x})),
-                 0LL, static_cast<long long>(width - 1));
-  box.endY =
-      std::clamp(static_cast<long long>(std::max(
-                     {m_vertex[0].y, m_vertex[1].y, m_vertex[2].y})),
-                 0LL, static_cast<long long>(height - 1));
+  box.startX = std::clamp(static_cast<long long>(std::min(
+                              {m_vertex[0].x, m_vertex[1].x, m_vertex[2].x})),
+                          0LL, static_cast<long long>(width - 1));
+  box.startY = std::clamp(static_cast<long long>(std::min(
+                              {m_vertex[0].y, m_vertex[1].y, m_vertex[2].y})),
+                          0LL, static_cast<long long>(height - 1));
+  box.endX = std::clamp(static_cast<long long>(std::max(
+                            {m_vertex[0].x, m_vertex[1].x, m_vertex[2].x})),
+                        0LL, static_cast<long long>(width - 1));
+  box.endY = std::clamp(static_cast<long long>(std::max(
+                            {m_vertex[0].y, m_vertex[1].y, m_vertex[2].y})),
+                        0LL, static_cast<long long>(height - 1));
 }
 
 bool SoftRasterizer::Triangle::isOverlapping(const Triangle &box1,

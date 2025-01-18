@@ -1,14 +1,14 @@
 #pragma once
 #ifndef _TEXTURELOADER_HPP_
 #define _TEXTURELOADER_HPP_
-#include <tuple>
-#include <vector>
-#include <iostream>
 #include <Tools.hpp>
 #include <algorithm> // Required for std::max and std::min
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <iostream>
 #include <opencv2/opencv.hpp>
+#include <tuple>
+#include <vector>
 
 namespace SoftRasterizer {
 class Shader;

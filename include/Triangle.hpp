@@ -11,12 +11,7 @@ struct alignas(32) Triangle {
   Triangle();
 
   struct BoundingBox {
-            BoundingBox()
-                      :startY(0)
-                      ,startX(0)
-                      ,endX(0)
-                      ,endY(0)
-            { }
+    BoundingBox() : startY(0), startX(0), endX(0), endY(0) {}
 
     long long startX;
     long long startY;
@@ -25,9 +20,9 @@ struct alignas(32) Triangle {
     long long endY;
   };
 
-  const glm::vec3& a() const { return m_vertex[0]; }
-  const glm::vec3& b() const { return m_vertex[1]; }
-  const glm::vec3& c() const { return m_vertex[2]; }
+  const glm::vec3 &a() const { return m_vertex[0]; }
+  const glm::vec3 &b() const { return m_vertex[1]; }
+  const glm::vec3 &c() const { return m_vertex[2]; }
 
   void setVertex(std::initializer_list<glm::vec3> _vertex);
   void setNormal(std::initializer_list<glm::vec3> _normal);
@@ -40,9 +35,10 @@ struct alignas(32) Triangle {
   /*the original coordinates of the triangle, v0, v1, v2 in counter clockwise
    * order*/
   std::array<glm::vec3, 3> m_vertex;
-  std::array<glm::vec3, 3> m_color;                          // Color for each vertex
-  std::array<glm::vec2, 3> m_texCoords;                  // texture u,v coordinates for each vertex
-  std::array<glm::vec3, 3> m_normal;                       // normal vector for each vertex
+  std::array<glm::vec3, 3> m_color; // Color for each vertex
+  std::array<glm::vec2, 3>
+      m_texCoords;                   // texture u,v coordinates for each vertex
+  std::array<glm::vec3, 3> m_normal; // normal vector for each vertex
 
   /*BoundBox Calculation!*/
   BoundingBox box;

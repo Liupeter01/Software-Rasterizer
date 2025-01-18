@@ -12,22 +12,21 @@ int main() {
 
   auto render = std::make_shared<SoftRasterizer::RenderingPipeline>(
       1024, 1024); // Create Render Main Class
-  auto scene =
-      std::make_shared<SoftRasterizer::Scene>("TestScene",              
-                /*eye=*/glm::vec3(0.0f, 0.0f, 0.9f),
-                /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
-                /*up=*/glm::vec3(0.0f, 1.0f, 0.0f)); // Create A Scene
+  auto scene = std::make_shared<SoftRasterizer::Scene>(
+      "TestScene",
+      /*eye=*/glm::vec3(0.0f, 0.0f, 0.9f),
+      /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
+      /*up=*/glm::vec3(0.0f, 1.0f, 0.0f)); // Create A Scene
 
-  scene->addGraphicObj(
-            CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
-            glm::vec3(0, 1, 0), degree,
-            glm::vec3(0.f, 0.0f, 0.0f), 
-            glm::vec3(0.3f, 0.3f, 0.3f));
+  scene->addGraphicObj(CONFIG_HOME
+                       "examples/models/spot/spot_triangulated_good.obj",
+                       "spot", glm::vec3(0, 1, 0), degree,
+                       glm::vec3(0.f, 0.0f, 0.0f), glm::vec3(0.3f, 0.3f, 0.3f));
 
   scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
-            glm::vec3(0.f, 1.f, 0.f), degree,
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.2f, 0.2f, 0.2f));
+                       glm::vec3(0.f, 1.f, 0.f), degree,
+                       glm::vec3(0.0f, 0.0f, 0.0f),
+                       glm::vec3(0.2f, 0.2f, 0.2f));
 
   scene->addShader("spot_shader",
                    CONFIG_HOME "examples/models/spot/spot_texture.png",
@@ -38,7 +37,7 @@ int main() {
                    SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
   scene->startLoadingMesh("spot");
- scene->startLoadingMesh("Crate");
+  scene->startLoadingMesh("Crate");
   scene->bindShader2Mesh("spot", "spot_shader");
   scene->bindShader2Mesh("Crate", "crate_shader");
 
@@ -65,24 +64,24 @@ int main() {
 
     /*Model Matrix*/
     scene->setModelMatrix(
-              "spot",
-              /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-              /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-              /*transform=*/glm::vec3(0.0f, 0.2f, 0.f),
-              /*scale=*/glm::vec3(0.3f, 0.3f, 0.3f));
+        "spot",
+        /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+        /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
+        /*transform=*/glm::vec3(0.0f, 0.2f, 0.f),
+        /*scale=*/glm::vec3(0.3f, 0.3f, 0.3f));
 
     scene->setModelMatrix(
-              "Crate",
-              /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-              /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-              /*transform=*/glm::vec3(0.0f, -0.3f, 0.f),
-              /*scale=*/glm::vec3(0.3f, 0.3f, 0.3f));
+        "Crate",
+        /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+        /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
+        /*transform=*/glm::vec3(0.0f, -0.3f, 0.f),
+        /*scale=*/glm::vec3(0.3f, 0.3f, 0.3f));
 
     /*View Matrix*/
     scene->setViewMatrix(
-              /*eye=*/glm::vec3(0.7f, 0.4f, -0.9f),
-              /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
-              /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
+        /*eye=*/glm::vec3(0.7f, 0.4f, -0.9f),
+        /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
+        /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
 
     /*Projection Matrix*/
     scene->setProjectionMatrix(

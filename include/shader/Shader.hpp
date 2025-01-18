@@ -26,7 +26,7 @@ struct light_struct {
 };
 
 struct vertex_displacement {
-  vertex_displacement(const glm::vec3&pos, const glm::vec3&normal)
+  vertex_displacement(const glm::vec3 &pos, const glm::vec3 &normal)
       : new_position(pos), new_normal(normal) {}
   glm::vec3 new_position;
   glm::vec3 new_normal;
@@ -42,9 +42,9 @@ enum class SHADERS_TYPE : std::uint8_t {
 
 /*pixel shader*/
 struct fragment_shader_payload {
-          fragment_shader_payload(const glm::vec3& _p, const glm::vec3& _n,
-                    const glm::vec2& _texcoord,
-                    const glm::vec3& _color = glm::vec3(1.f));
+  fragment_shader_payload(const glm::vec3 &_p, const glm::vec3 &_n,
+                          const glm::vec2 &_texcoord,
+                          const glm::vec3 &_color = glm::vec3(1.f));
 
   glm::vec3 position = glm::vec3(0.f);
   glm::vec3 normal = glm::vec3(0.f);
@@ -55,11 +55,11 @@ struct fragment_shader_payload {
 struct Shader {
 
   using simd_shader = std::function<void(
-      const glm::vec3&, const std::vector<light_struct> &,
-      const PointSIMD &, NormalSIMD &, TexCoordSIMD &, ColorSIMD &)>;
+      const glm::vec3 &, const std::vector<light_struct> &, const PointSIMD &,
+      NormalSIMD &, TexCoordSIMD &, ColorSIMD &)>;
 
   using standard_shader = std::function<glm::vec3(
-      const glm::vec3&, const std::vector<light_struct> &,
+      const glm::vec3 &, const std::vector<light_struct> &,
       const fragment_shader_payload &)>;
 
   static glm::vec3 ka;
@@ -74,20 +74,20 @@ public:
   bool setFragmentShader(SHADERS_TYPE type);
 
   /*User Vertex Shader*/
-  vertex_displacement applyVertexShader(const glm::mat4&Model,
-                                        const glm::mat4&View,
-                                        const glm::mat4&Projection,
+  vertex_displacement applyVertexShader(const glm::mat4 &Model,
+                                        const glm::mat4 &View,
+                                        const glm::mat4 &Projection,
                                         const fragment_shader_payload &payload);
 
   /*Use Fragment Shader*/
-  void applyFragmentShader(const glm::vec3&camera,
+  void applyFragmentShader(const glm::vec3 &camera,
                            const std::vector<light_struct> &lights,
                            const PointSIMD &point, NormalSIMD &normal,
                            TexCoordSIMD &texcoord, ColorSIMD &colour);
 
-  glm::vec3 applyFragmentShader(const glm::vec3&camera,
-                                      const std::vector<light_struct> &lights,
-                                      const fragment_shader_payload &payload);
+  glm::vec3 applyFragmentShader(const glm::vec3 &camera,
+                                const std::vector<light_struct> &lights,
+                                const fragment_shader_payload &payload);
 
 private:
   /*register multiple shader models*/
@@ -147,8 +147,9 @@ private:
                            simde_mm256_sub_ps(light_pos_z, shading_pointz));
 
       // sqrt(x^2 + y^2)
-      _simd distanceSquared = simde_mm256_rcp_ps(simde_mm256_sqrt_ps(simde_mm256_fmadd_ps(
-                light_dir.x, light_dir.x, simde_mm256_mul_ps(light_dir.y, light_dir.y))));
+      _simd distanceSquared = simde_mm256_rcp_ps(simde_mm256_sqrt_ps(
+          simde_mm256_fmadd_ps(light_dir.x, light_dir.x,
+                               simde_mm256_mul_ps(light_dir.y, light_dir.y))));
 
       distribution_x = simde_mm256_mul_ps(light_intense_x, distanceSquared);
       distribution_y = simde_mm256_mul_ps(light_intense_y, distanceSquared);
@@ -224,20 +225,20 @@ private:
       // + y * y + z * z
 
       _simd cosAlpha = simde_mm256_max_ps(
-                zero,
-                simde_mm256_fmadd_ps(light_dir_normalized.x, normal.x,
-                          simde_mm256_fmadd_ps(light_dir_normalized.y, normal.y,
-                                    simde_mm256_mul_ps(light_dir_normalized.z,
-                                              normal.z))));
+          zero, simde_mm256_fmadd_ps(
+                    light_dir_normalized.x, normal.x,
+                    simde_mm256_fmadd_ps(
+                        light_dir_normalized.y, normal.y,
+                        simde_mm256_mul_ps(light_dir_normalized.z, normal.z))));
 
       // std::pow(cosTheta, p);
       _simd cosTheta = simde_mm256_pow_ps(
-                simde_mm256_max_ps(
-                          zero,
-                          simde_mm256_fmadd_ps(h.x, normal.x,
-                                    simde_mm256_fmadd_ps(h.y, normal.y,
-                                              simde_mm256_mul_ps(h.z, normal.z)))),
-                _p);
+          simde_mm256_max_ps(
+              zero, simde_mm256_fmadd_ps(
+                        h.x, normal.x,
+                        simde_mm256_fmadd_ps(
+                            h.y, normal.y, simde_mm256_mul_ps(h.z, normal.z)))),
+          _p);
 
       // Combine all lighting components (La + Ld + Ls) * Kd
       _simd kd_dist_x = simde_mm256_mul_ps(distribution_x, kd_r);
@@ -275,7 +276,7 @@ private:
     }
   }
 
-  void simd_normal_fragment_shader_impl(const glm::vec3&camera,
+  void simd_normal_fragment_shader_impl(const glm::vec3 &camera,
                                         const std::vector<light_struct> &lights,
                                         const PointSIMD &point,
                                         NormalSIMD &normal,
@@ -283,12 +284,12 @@ private:
                                         ColorSIMD &colour);
 
   void
-  simd_texture_fragment_shader_impl(const glm::vec3&camera,
+  simd_texture_fragment_shader_impl(const glm::vec3 &camera,
                                     const std::vector<light_struct> &lights,
                                     const PointSIMD &point, NormalSIMD &normal,
                                     TexCoordSIMD &texcoord, ColorSIMD &colour);
 
-  void simd_phong_fragment_shader_impl(const glm::vec3&camera,
+  void simd_phong_fragment_shader_impl(const glm::vec3 &camera,
                                        const std::vector<light_struct> &lights,
                                        const PointSIMD &point,
                                        NormalSIMD &normal,
@@ -296,11 +297,11 @@ private:
                                        ColorSIMD &colour);
 
   void simd_displacement_fragment_shader_impl(
-      const glm::vec3&camera, const std::vector<light_struct> &lights,
+      const glm::vec3 &camera, const std::vector<light_struct> &lights,
       const PointSIMD &point, NormalSIMD &normal, TexCoordSIMD &texcoord,
       ColorSIMD &colour);
 
-  void simd_bump_fragment_shader_impl(const glm::vec3&camera,
+  void simd_bump_fragment_shader_impl(const glm::vec3 &camera,
                                       const std::vector<light_struct> &lights,
                                       const PointSIMD &point,
                                       NormalSIMD &normal,
@@ -308,16 +309,15 @@ private:
                                       ColorSIMD &colour);
 
   // Static function to compute the Blinn-Phong reflection model
-  static glm::vec3
-  BlinnPhong(const glm::vec3&camera,
-             const fragment_shader_payload &shading_point,
-             const light_struct &light, const glm::vec3&ka,
-             const glm::vec3&kd, const glm::vec3&ks,
-             const float p);
+  static glm::vec3 BlinnPhong(const glm::vec3 &camera,
+                              const fragment_shader_payload &shading_point,
+                              const light_struct &light, const glm::vec3 &ka,
+                              const glm::vec3 &kd, const glm::vec3 &ks,
+                              const float p);
 
   /*Compute Bump Mapping*/
   glm::vec3 calcBumpMapping(const fragment_shader_payload &payload,
-                                  const float kh, const float kn);
+                            const float kh, const float kn);
 
   /*Compute Displacement Mapping*/
   vertex_displacement
@@ -327,26 +327,26 @@ private:
   /*Visualizing normal directions or checking surface normal directions in some
    * debugging scenarios*/
   glm::vec3
-  standard_normal_fragment_shader_impl(const glm::vec3&camera,
+  standard_normal_fragment_shader_impl(const glm::vec3 &camera,
                                        const std::vector<light_struct> &lights,
                                        const fragment_shader_payload &payload);
 
   glm::vec3
-  standard_texture_fragment_shader_impl(const glm::vec3&camera,
+  standard_texture_fragment_shader_impl(const glm::vec3 &camera,
                                         const std::vector<light_struct> &lights,
                                         const fragment_shader_payload &payload);
 
   glm::vec3
-  standard_phong_fragment_shader_impl(const glm::vec3&camera,
+  standard_phong_fragment_shader_impl(const glm::vec3 &camera,
                                       const std::vector<light_struct> &lights,
                                       const fragment_shader_payload &payload);
 
   glm::vec3 standard_displacement_fragment_shader_impl(
-      const glm::vec3&camera, const std::vector<light_struct> &lights,
+      const glm::vec3 &camera, const std::vector<light_struct> &lights,
       const fragment_shader_payload &payload);
 
   glm::vec3
-  standard_bump_fragment_shader_impl(const glm::vec3&camera,
+  standard_bump_fragment_shader_impl(const glm::vec3 &camera,
                                      const std::vector<light_struct> &lights,
                                      const fragment_shader_payload &payload);
 

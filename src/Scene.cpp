@@ -5,41 +5,35 @@
 #include <service/ThreadPool.hpp>
 #include <spdlog/spdlog.h>
 
-SoftRasterizer::Scene::Scene(const std::string& sceneName,
-          const glm::vec3& eye,
-          const glm::vec3& center,
-          const glm::vec3& up)
-          : m_width(0), m_height(0), m_sceneName(sceneName) {
-          try {
-                    setViewMatrix(eye, center, up);
-          }
-          catch (const std::exception& e) {
-          }
+SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
+                             const glm::vec3 &center, const glm::vec3 &up)
+    : m_width(0), m_height(0), m_sceneName(sceneName) {
+  try {
+    setViewMatrix(eye, center, up);
+  } catch (const std::exception &e) {
+  }
 }
 
 SoftRasterizer::Scene::~Scene() {}
 
-bool SoftRasterizer::Scene::addGraphicObj(const std::string& path,
-          const std::string& meshName,
-          const glm::vec3& axis, const float angle,
-          const glm::vec3& translation,
-          const glm::vec3& scale) {
-          /*This Object has already been identified!*/
-          if (m_loadedObjs.find(meshName) != m_loadedObjs.end()) {
-                    spdlog::error(
-                              "Add Graphic Obj Error! This Object has already been identified");
-                    return false;
-          }
+bool SoftRasterizer::Scene::addGraphicObj(
+    const std::string &path, const std::string &meshName, const glm::vec3 &axis,
+    const float angle, const glm::vec3 &translation, const glm::vec3 &scale) {
+  /*This Object has already been identified!*/
+  if (m_loadedObjs.find(meshName) != m_loadedObjs.end()) {
+    spdlog::error(
+        "Add Graphic Obj Error! This Object has already been identified");
+    return false;
+  }
 
-          try {
-                    m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(
-                              path, meshName, axis, angle, translation, scale);
-          }
-          catch (const std::exception& e) {
-                    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
-                    return false;
-          }
-          return true;
+  try {
+    m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(
+        path, meshName, axis, angle, translation, scale);
+  } catch (const std::exception &e) {
+    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
+    return false;
+  }
+  return true;
 }
 
 bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
@@ -176,34 +170,33 @@ void SoftRasterizer::Scene::addLights(
   }
 }
 
-const glm::vec3&SoftRasterizer::Scene::loadEyeVec() const {
-  return m_eye;
-}
+const glm::vec3 &SoftRasterizer::Scene::loadEyeVec() const { return m_eye; }
 
 /*set MVP*/
 bool SoftRasterizer::Scene::setModelMatrix(const std::string &meshName,
-          const glm::vec3& axis, const float angle,
-          const glm::vec3& translation,
-          const glm::vec3& scale) {
+                                           const glm::vec3 &axis,
+                                           const float angle,
+                                           const glm::vec3 &translation,
+                                           const glm::vec3 &scale) {
   if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
     spdlog::error("Editing Model Matrix Failed! Because {} Not Found",
                   meshName);
     return false;
   }
 
-  m_loadedObjs[meshName].loader->updateModelMatrix(axis, angle, translation, scale);
+  m_loadedObjs[meshName].loader->updateModelMatrix(axis, angle, translation,
+                                                   scale);
   return true;
 }
 
-void SoftRasterizer::Scene::setViewMatrix(const glm::vec3&eye,
-                                          const glm::vec3&center,
-                                          const glm::vec3&up) {
+void SoftRasterizer::Scene::setViewMatrix(const glm::vec3 &eye,
+                                          const glm::vec3 &center,
+                                          const glm::vec3 &up) {
   m_eye = eye;
   m_center = center;
   m_up = up;
 
-  m_view =
-            glm::lookAtLH(eye, center, up);
+  m_view = glm::lookAtLH(eye, center, up);
 }
 
 void SoftRasterizer::Scene::setProjectionMatrix(float fovy, float zNear,
@@ -254,13 +247,12 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
 
   glm::mat4 matrix(1.0f);
 
-  matrix[0][0] = width / 2.0f * m_aspectRatio;  // x scaling
-  matrix[1][1] = height / 2.0f;              // y scaling (flipping y)
-  matrix[3][0] = width / 2.0f;                // x translation
-  matrix[3][1] = height / 2.0f;               // y translation
+  matrix[0][0] = width / 2.0f * m_aspectRatio; // x scaling
+  matrix[1][1] = height / 2.0f;                // y scaling (flipping y)
+  matrix[3][0] = width / 2.0f;                 // x translation
+  matrix[3][1] = height / 2.0f;                // y translation
 
   m_ndcToScreenMatrix = matrix;
-
 }
 
 std::vector<SoftRasterizer::Scene::ObjTuple>
@@ -312,23 +304,17 @@ SoftRasterizer::Scene::loadTriangleStream() {
             SoftRasterizer::Vertex B = vertices[face.y];
             SoftRasterizer::Vertex C = vertices[face.z];
 
-            A.position =
-                Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
+            A.position = Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
             A.position.z = A.position.z * scale + offset; // Z-Depth
-            A.normal =
-                Tools::to_vec3(Normal_M * glm::vec4(A.normal, 1.0f));
+            A.normal = Tools::to_vec3(Normal_M * glm::vec4(A.normal, 1.0f));
 
-            B.position =
-                Tools::to_vec3(NDC_MVP * glm::vec4(B.position, 1.0f));
+            B.position = Tools::to_vec3(NDC_MVP * glm::vec4(B.position, 1.0f));
             B.position.z = B.position.z * scale + offset; // Z-Depth
-            B.normal =
-                Tools::to_vec3(Normal_M * glm::vec4(B.normal, 1.0f));
+            B.normal = Tools::to_vec3(Normal_M * glm::vec4(B.normal, 1.0f));
 
-            C.position =
-                Tools::to_vec3(NDC_MVP * glm::vec4(C.position, 1.0f));
+            C.position = Tools::to_vec3(NDC_MVP * glm::vec4(C.position, 1.0f));
             C.position.z = C.position.z * scale + offset; // Z-Depth
-            C.normal =
-                Tools::to_vec3(Normal_M * glm::vec4(C.normal, 1.0f));
+            C.normal = Tools::to_vec3(Normal_M * glm::vec4(C.normal, 1.0f));
 
             SoftRasterizer::Triangle T;
             T.setVertex({A.position, B.position, C.position});

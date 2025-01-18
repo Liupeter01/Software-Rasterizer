@@ -27,34 +27,29 @@ public:
     std::unique_ptr<Mesh> mesh;
   };
 
-  Scene(const std::string &sceneName,
-            const glm::vec3& eye,
-            const glm::vec3& center,
-            const glm::vec3& up);
+  Scene(const std::string &sceneName, const glm::vec3 &eye,
+        const glm::vec3 &center, const glm::vec3 &up);
 
   virtual ~Scene();
 
 public:
-  const glm::vec3&loadEyeVec() const;
+  const glm::vec3 &loadEyeVec() const;
 
   /*set MVP*/
-  bool setModelMatrix(const std::string &meshName,
-            const glm::vec3& axis, const float angle,
-            const glm::vec3& translation,
-            const glm::vec3& scale);
+  bool setModelMatrix(const std::string &meshName, const glm::vec3 &axis,
+                      const float angle, const glm::vec3 &translation,
+                      const glm::vec3 &scale);
 
-  void setViewMatrix(const glm::vec3&eye, const glm::vec3&center,
-                     const glm::vec3&up);
+  void setViewMatrix(const glm::vec3 &eye, const glm::vec3 &center,
+                     const glm::vec3 &up);
 
   void setProjectionMatrix(float fovy, float zNear, float zFar);
 
   /*load ObjLoader object to load wavefront obj file*/
   bool addGraphicObj(const std::string &path, const std::string &meshName);
-  bool addGraphicObj(
-      const std::string &path, const std::string &meshName,
-            const glm::vec3& axis, const float angle,
-            const glm::vec3& translation,
-            const glm::vec3& scale);
+  bool addGraphicObj(const std::string &path, const std::string &meshName,
+                     const glm::vec3 &axis, const float angle,
+                     const glm::vec3 &translation, const glm::vec3 &scale);
 
   bool startLoadingMesh(const std::string &meshName);
 

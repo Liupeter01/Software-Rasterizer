@@ -11,18 +11,16 @@ SoftRasterizer::TextureLoader::TextureLoader(const std::string &path)
   m_height = m_texture.rows;
 }
 
-glm::vec3
-SoftRasterizer::TextureLoader::getTextureColor(const glm::vec2&uv) {
+glm::vec3 SoftRasterizer::TextureLoader::getTextureColor(const glm::vec2 &uv) {
   auto x = static_cast<int>(uv.x * m_width);
   auto y = static_cast<int>(uv.y * m_height);
 
   if (x < 0 || x > m_width || y < 0 || y > m_height) {
-            return {};
+    return {};
   }
 
   auto color = m_texture.at<cv::Vec3b>(y, x);
-  return glm::vec3(color[0] / 255.0f, color[1] / 255.0f,
-                         color[2] / 255.0f);
+  return glm::vec3(color[0] / 255.0f, color[1] / 255.0f, color[2] / 255.0f);
 }
 
 SoftRasterizer::TextureLoader::~TextureLoader() {}

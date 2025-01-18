@@ -1,25 +1,24 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <Tools.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <loader/ObjLoader.hpp>
 #include <spdlog/spdlog.h>
 #include <tiny_obj_loader.h>
 #include <unordered_map>
-#include <glm/gtc/matrix_transform.hpp>
 
 SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
                                      const std::string &meshName,
-                                      const glm::mat4x4& model )
+                                     const glm::mat4x4 &model)
     : m_path(path), m_meshName(meshName), m_model(model) {}
 
 SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
                                      const std::string &meshName,
-          const glm::vec3& axis, const float angle,
-          const glm::vec3& translation,
-          const glm::vec3& scale)
-    : ObjLoader(path, meshName)
-{
-          this->updateModelMatrix(axis, angle, translation, scale);
+                                     const glm::vec3 &axis, const float angle,
+                                     const glm::vec3 &translation,
+                                     const glm::vec3 &scale)
+    : ObjLoader(path, meshName) {
+  this->updateModelMatrix(axis, angle, translation, scale);
 }
 
 SoftRasterizer::ObjLoader::~ObjLoader() {}
@@ -28,14 +27,14 @@ void SoftRasterizer::ObjLoader::setObjFilePath(const std::string &path) {
   m_path = path;
 }
 
-void SoftRasterizer::ObjLoader::updateModelMatrix(const glm::vec3& axis, const float angle,
-          const glm::vec3& translation,
-          const glm::vec3& scale)
-{
-          auto T = glm::translate(glm::mat4(1.0f), translation);
-          auto R = glm::rotate(glm::mat4(1.0f), glm::radians(angle), axis);
-          auto S = glm::scale(glm::mat4(1.0f), scale);
-          m_model = T * R * S;
+void SoftRasterizer::ObjLoader::updateModelMatrix(const glm::vec3 &axis,
+                                                  const float angle,
+                                                  const glm::vec3 &translation,
+                                                  const glm::vec3 &scale) {
+  auto T = glm::translate(glm::mat4(1.0f), translation);
+  auto R = glm::rotate(glm::mat4(1.0f), glm::radians(angle), axis);
+  auto S = glm::scale(glm::mat4(1.0f), scale);
+  m_model = T * R * S;
 }
 
 static SoftRasterizer::Material
@@ -50,15 +49,15 @@ processMatrial(const std::vector<tinyobj::material_t> &_material) {
 
     // Ambient Texture Map
     m.Ka = glm::vec3(material.ambient[0], material.ambient[1],
-                           material.ambient[2]);
+                     material.ambient[2]);
 
     //  Diffuse Texture Map
     m.Kd = glm::vec3(material.diffuse[0], material.diffuse[1],
-                           material.diffuse[2]);
+                     material.diffuse[2]);
 
     // Specular Color
     m.Ks = glm::vec3(material.specular[0], material.specular[1],
-                           material.specular[2]);
+                     material.specular[2]);
 
     m.illum = material.illum;
     m.d = material.dissolve;
@@ -111,25 +110,24 @@ processingVertexData(const std::string &objName,
     for (const auto &idx : shapes[s].mesh.indices) {
       SoftRasterizer::Vertex vertex;
 
-      vertex.position = glm::vec3(
-                          attrib.vertices[3 * size_t(idx.vertex_index) + 0],
-                          attrib.vertices[3 * size_t(idx.vertex_index) + 1],
-                          attrib.vertices[3 * size_t(idx.vertex_index) + 2]);
+      vertex.position =
+          glm::vec3(attrib.vertices[3 * size_t(idx.vertex_index) + 0],
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 1],
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 2]);
 
-      vertex.color = glm::vec3(
-                          attrib.colors[3 * size_t(idx.vertex_index) + 0],
-                          attrib.colors[3 * size_t(idx.vertex_index) + 1],
-                          attrib.colors[3 * size_t(idx.vertex_index) + 2]);
+      vertex.color = glm::vec3(attrib.colors[3 * size_t(idx.vertex_index) + 0],
+                               attrib.colors[3 * size_t(idx.vertex_index) + 1],
+                               attrib.colors[3 * size_t(idx.vertex_index) + 2]);
 
       // Check if `normal_index` is zero or positive. negative = no normal data
       if (idx.normal_index >= 0) {
         /*normal exist*/
         noNormal = false;
 
-        vertex.normal =glm::vec3(
-                            attrib.normals[3 * size_t(idx.normal_index) + 0],
-                            attrib.normals[3 * size_t(idx.normal_index) + 1],
-                            attrib.normals[3 * size_t(idx.normal_index) + 2]);
+        vertex.normal =
+            glm::vec3(attrib.normals[3 * size_t(idx.normal_index) + 0],
+                      attrib.normals[3 * size_t(idx.normal_index) + 1],
+                      attrib.normals[3 * size_t(idx.normal_index) + 2]);
       }
 
       // Check if `texcoord_index` is zero or positive. negative = no texcoord
@@ -218,6 +216,6 @@ SoftRasterizer::ObjLoader::startLoadingFromFile(const std::string &objName) {
   return mesh;
 }
 
-const glm::mat4x4& SoftRasterizer::ObjLoader::getModelMatrix() {
+const glm::mat4x4 &SoftRasterizer::ObjLoader::getModelMatrix() {
   return m_model;
 }

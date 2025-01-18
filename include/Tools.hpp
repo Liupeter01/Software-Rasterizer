@@ -1,8 +1,8 @@
 #pragma once
 #ifndef _TOOLS_HPP_
 #define _TOOLS_HPP_
-#include <glm/glm.hpp>
 #include <algorithm>
+#include <glm/glm.hpp>
 #include <hpc/Simd.hpp>
 
 namespace SoftRasterizer {
@@ -89,7 +89,7 @@ struct Tools {
     return std::max(first, max(args...)); // Recursively compare
   }
 
-  static glm::vec3 to_vec3(const glm::vec4& vec);
+  static glm::vec3 to_vec3(const glm::vec4 &vec);
 
   /**
    * @brief Converts normalized color values (range [0, 1]) to RGB values (range
@@ -108,53 +108,47 @@ struct Tools {
    * 255].
    */
   static glm::uvec3 normalizedToRGB(float red, float green, float blue);
-  static glm::uvec3 normalizedToRGB(const glm::vec3&color);
+  static glm::uvec3 normalizedToRGB(const glm::vec3 &color);
 
-  static  glm::vec3 interpolateNormal(float alpha, float beta, float gamma,
-            const glm::vec3& normal1,
-            const glm::vec3& normal2,
-            const glm::vec3& normal3);
+  static glm::vec3 interpolateNormal(float alpha, float beta, float gamma,
+                                     const glm::vec3 &normal1,
+                                     const glm::vec3 &normal2,
+                                     const glm::vec3 &normal3);
 
 #if defined(__x86_64__) || defined(_WIN64)
   static NormalSIMD interpolateNormal(const __m256 &alpha, const __m256 &beta,
                                       const __m256 &gamma,
-            const glm::vec3& normal1,
-            const glm::vec3& normal2,
-            const glm::vec3& normal3);
+                                      const glm::vec3 &normal1,
+                                      const glm::vec3 &normal2,
+                                      const glm::vec3 &normal3);
 
-  static TexCoordSIMD interpolateTexCoord(const __m256 &alpha,
-                                          const __m256 &beta,
-                                          const __m256 &gamma,
-            const glm::vec2& textCoord1,
-            const glm::vec2& textCoord2,
-            const glm::vec2& textCoord3);
+  static TexCoordSIMD
+  interpolateTexCoord(const __m256 &alpha, const __m256 &beta,
+                      const __m256 &gamma, const glm::vec2 &textCoord1,
+                      const glm::vec2 &textCoord2, const glm::vec2 &textCoord3);
 
 #elif defined(__arm__) || defined(__aarch64__)
-  static NormalSIMD interpolateNormal(const simde__m256 &alpha,
-                                      const simde__m256 &beta,
-                                      const simde__m256 &gamma,
-                                      const glm::vec3&normal1,
-                                      const glm::vec3&normal2,
-                                      const glm::vec3&normal3);
+  static NormalSIMD
+  interpolateNormal(const simde__m256 &alpha, const simde__m256 &beta,
+                    const simde__m256 &gamma, const glm::vec3 &normal1,
+                    const glm::vec3 &normal2, const glm::vec3 &normal3);
 
-  static TexCoordSIMD interpolateTexCoord(const simde__m256& alpha,
-            const simde__m256& beta,
-            const simde__m256& gamma,
-            const glm::vec2& textCoord1,
-            const glm::vec2& textCoord2, 
-            const glm::vec2& textCoord3);
+  static TexCoordSIMD
+  interpolateTexCoord(const simde__m256 &alpha, const simde__m256 &beta,
+                      const simde__m256 &gamma, const glm::vec2 &textCoord1,
+                      const glm::vec2 &textCoord2, const glm::vec2 &textCoord3);
 
 #else
 #endif
 
-  static glm::vec2  interpolateTexCoord(float alpha, float beta,
-                                             float gamma,
-                                             const glm::vec2&textCoord1,
-                                             const glm::vec2&textCoord2,
-                                             const glm::vec2&textCoord3);
+  static glm::vec2 interpolateTexCoord(float alpha, float beta, float gamma,
+                                       const glm::vec2 &textCoord1,
+                                       const glm::vec2 &textCoord2,
+                                       const glm::vec2 &textCoord3);
 
-  static glm::vec3 calculateNormalWithWeight(
-                      const glm::vec3& pa, const glm::vec3& pb, const glm::vec3& pc);
+  static glm::vec3 calculateNormalWithWeight(const glm::vec3 &pa,
+                                             const glm::vec3 &pb,
+                                             const glm::vec3 &pc);
 
   template <size_t Begin, size_t End, typename F> static void static_for(F f) {
     if constexpr (Begin < End) {

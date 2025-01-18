@@ -69,8 +69,8 @@ SoftRasterizer::ColorSIMD::ColorSIMD(const simde__m256 &_r,
 #else
 #endif
 
-glm::vec3 SoftRasterizer::Tools::to_vec3(const glm::vec4& vec){
-          return glm::vec3(vec.x / vec.w, vec.y / vec.w, vec.z / vec.w);
+glm::vec3 SoftRasterizer::Tools::to_vec3(const glm::vec4 &vec) {
+  return glm::vec3(vec.x / vec.w, vec.y / vec.w, vec.z / vec.w);
 }
 
 /**
@@ -90,7 +90,7 @@ glm::vec3 SoftRasterizer::Tools::to_vec3(const glm::vec4& vec){
  * 255].
  */
 glm::uvec3 SoftRasterizer::Tools::normalizedToRGB(float red, float green,
-                                                       float blue) {
+                                                  float blue) {
 
   // Clamp values to ensure they're within the range [0, 1]
   red = std::clamp(red, 0.0f, 1.0f);
@@ -101,66 +101,65 @@ glm::uvec3 SoftRasterizer::Tools::normalizedToRGB(float red, float green,
   return glm::uvec3(red * 255.0f, green * 255.0f, blue * 255.0f);
 }
 
-glm::uvec3
-SoftRasterizer::Tools::normalizedToRGB(const glm::vec3&color) {
+glm::uvec3 SoftRasterizer::Tools::normalizedToRGB(const glm::vec3 &color) {
   return normalizedToRGB(color.x, color.y, color.z);
 }
 
-glm::vec3 SoftRasterizer::Tools::interpolateNormal(
-    float alpha, float beta, float gamma, const glm::vec3& normal1,
-          const glm::vec3& normal2,
-          const glm::vec3& normal3) {
- return glm::normalize(alpha * normal1 + beta * normal2 + gamma * normal3);
+glm::vec3 SoftRasterizer::Tools::interpolateNormal(float alpha, float beta,
+                                                   float gamma,
+                                                   const glm::vec3 &normal1,
+                                                   const glm::vec3 &normal2,
+                                                   const glm::vec3 &normal3) {
+  return glm::normalize(alpha * normal1 + beta * normal2 + gamma * normal3);
 }
 
 #if defined(__x86_64__) || defined(_WIN64)
 SoftRasterizer::NormalSIMD SoftRasterizer::Tools::interpolateNormal(
     const __m256 &alpha, const __m256 &beta, const __m256 &gamma,
-          const glm::vec3& normal1,
-          const glm::vec3& normal2,
-          const glm::vec3& normal3) {
+    const glm::vec3 &normal1, const glm::vec3 &normal2,
+    const glm::vec3 &normal3) {
 
-          auto x1 = _mm256_set1_ps(normal1.x);
-          auto x2 = _mm256_set1_ps(normal2.x);
-          auto x3 = _mm256_set1_ps(normal3.x);
-          auto y1 = _mm256_set1_ps(normal1.y);
-          auto y2 = _mm256_set1_ps(normal2.y);
-          auto y3 = _mm256_set1_ps(normal3.y);
-          auto z1 = _mm256_set1_ps(normal1.z);
-          auto z2 = _mm256_set1_ps(normal2.z);
-          auto z3 = _mm256_set1_ps(normal3.z);
+  auto x1 = _mm256_set1_ps(normal1.x);
+  auto x2 = _mm256_set1_ps(normal2.x);
+  auto x3 = _mm256_set1_ps(normal3.x);
+  auto y1 = _mm256_set1_ps(normal1.y);
+  auto y2 = _mm256_set1_ps(normal2.y);
+  auto y3 = _mm256_set1_ps(normal3.y);
+  auto z1 = _mm256_set1_ps(normal1.z);
+  auto z2 = _mm256_set1_ps(normal2.z);
+  auto z3 = _mm256_set1_ps(normal3.z);
 
-          return NormalSIMD(
-                    _mm256_fmadd_ps(alpha, x1, _mm256_fmadd_ps(beta, x2, _mm256_mul_ps(gamma, x3))),
-                    _mm256_fmadd_ps(alpha, y1, _mm256_fmadd_ps(beta, y2, _mm256_mul_ps(gamma, y3))),
-                    _mm256_fmadd_ps(alpha, z1, _mm256_fmadd_ps(beta, z2, _mm256_mul_ps(gamma, z3))))
-                    .normalized();
+  return NormalSIMD(_mm256_fmadd_ps(
+                        alpha, x1,
+                        _mm256_fmadd_ps(beta, x2, _mm256_mul_ps(gamma, x3))),
+                    _mm256_fmadd_ps(
+                        alpha, y1,
+                        _mm256_fmadd_ps(beta, y2, _mm256_mul_ps(gamma, y3))),
+                    _mm256_fmadd_ps(
+                        alpha, z1,
+                        _mm256_fmadd_ps(beta, z2, _mm256_mul_ps(gamma, z3))))
+      .normalized();
 }
 
 SoftRasterizer::TexCoordSIMD SoftRasterizer::Tools::interpolateTexCoord(
     const __m256 &alpha, const __m256 &beta, const __m256 &gamma,
-          const glm::vec2& textCoord1,
-          const glm::vec2& textCoord2,
-          const glm::vec2& textCoord3){
+    const glm::vec2 &textCoord1, const glm::vec2 &textCoord2,
+    const glm::vec2 &textCoord3) {
   TexCoordSIMD result;
 
   auto x1 = _mm256_set1_ps(textCoord1.x);
   auto x2 = _mm256_set1_ps(textCoord2.x);
   auto x3 = _mm256_set1_ps(textCoord3.x);
 
-  auto y1 =_mm256_set1_ps(textCoord1.y);
-  auto y2 =_mm256_set1_ps(textCoord2.y);
+  auto y1 = _mm256_set1_ps(textCoord1.y);
+  auto y2 = _mm256_set1_ps(textCoord2.y);
   auto y3 = _mm256_set1_ps(textCoord3.y);
 
   result.u = _mm256_fmadd_ps(
-            alpha, x1,
-            _mm256_fmadd_ps(beta, x2,
-                      _mm256_mul_ps(gamma, x3)));
+      alpha, x1, _mm256_fmadd_ps(beta, x2, _mm256_mul_ps(gamma, x3)));
 
   result.v = _mm256_fmadd_ps(
-            alpha, y1,
-            _mm256_fmadd_ps(beta, y2,
-                      _mm256_mul_ps(gamma, y3)));
+      alpha, y1, _mm256_fmadd_ps(beta, y2, _mm256_mul_ps(gamma, y3)));
 
   // Return as a struct containing both components (x and y)
   return result;
@@ -169,81 +168,79 @@ SoftRasterizer::TexCoordSIMD SoftRasterizer::Tools::interpolateTexCoord(
 #elif defined(__arm__) || defined(__aarch64__)
 SoftRasterizer::NormalSIMD SoftRasterizer::Tools::interpolateNormal(
     const simde__m256 &alpha, const simde__m256 &beta, const simde__m256 &gamma,
-          const glm::vec3& normal1,
-          const glm::vec3& normal2,
-          const glm::vec3& normal3){ 
+    const glm::vec3 &normal1, const glm::vec3 &normal2,
+    const glm::vec3 &normal3) {
 
-          auto x1 = simde_mm256_set1_ps(normal1.x);
-          auto x2 = simde_mm256_set1_ps(normal2.x);
-          auto x3 = simde_mm256_set1_ps(normal3.x);
-          auto y1 = simde_mm256_set1_ps(normal1.y);
-          auto y2 = simde_mm256_set1_ps(normal2.y);
-          auto y3 = simde_mm256_set1_ps(normal3.y);
-          auto z1 = simde_mm256_set1_ps(normal1.z);
-          auto z2 = simde_mm256_set1_ps(normal2.z);
-          auto z3 = simde_mm256_set1_ps(normal3.z);
+  auto x1 = simde_mm256_set1_ps(normal1.x);
+  auto x2 = simde_mm256_set1_ps(normal2.x);
+  auto x3 = simde_mm256_set1_ps(normal3.x);
+  auto y1 = simde_mm256_set1_ps(normal1.y);
+  auto y2 = simde_mm256_set1_ps(normal2.y);
+  auto y3 = simde_mm256_set1_ps(normal3.y);
+  auto z1 = simde_mm256_set1_ps(normal1.z);
+  auto z2 = simde_mm256_set1_ps(normal2.z);
+  auto z3 = simde_mm256_set1_ps(normal3.z);
 
-          return NormalSIMD(
-                    simde_mm256_fmadd_ps(alpha, x1, simde_mm256_fmadd_ps(beta, x2, simde_mm256_mul_ps(gamma, x3))),
-                    simde_mm256_fmadd_ps(alpha, y1, simde_mm256_fmadd_ps(beta, y2, simde_mm256_mul_ps(gamma, y3))),
-                    simde_mm256_fmadd_ps(alpha, z1, simde_mm256_fmadd_ps(beta, z2, simde_mm256_mul_ps(gamma, z3))))
-                    .normalized();
+  return NormalSIMD(
+             simde_mm256_fmadd_ps(
+                 alpha, x1,
+                 simde_mm256_fmadd_ps(beta, x2, simde_mm256_mul_ps(gamma, x3))),
+             simde_mm256_fmadd_ps(
+                 alpha, y1,
+                 simde_mm256_fmadd_ps(beta, y2, simde_mm256_mul_ps(gamma, y3))),
+             simde_mm256_fmadd_ps(
+                 alpha, z1,
+                 simde_mm256_fmadd_ps(beta, z2, simde_mm256_mul_ps(gamma, z3))))
+      .normalized();
 }
 
 SoftRasterizer::TexCoordSIMD SoftRasterizer::Tools::interpolateTexCoord(
     const simde__m256 &alpha, const simde__m256 &beta, const simde__m256 &gamma,
-          const glm::vec2& textCoord1,
-          const glm::vec2& textCoord2,
-          const glm::vec2& textCoord3){ 
+    const glm::vec2 &textCoord1, const glm::vec2 &textCoord2,
+    const glm::vec2 &textCoord3) {
 
   // Return as a struct containing both components (x and y)
-          TexCoordSIMD result;
+  TexCoordSIMD result;
 
-          auto x1 = simde_mm256_set1_ps(textCoord1.x);
-          auto x2 = simde_mm256_set1_ps(textCoord2.x);
-          auto x3 = simde_mm256_set1_ps(textCoord3.x);
+  auto x1 = simde_mm256_set1_ps(textCoord1.x);
+  auto x2 = simde_mm256_set1_ps(textCoord2.x);
+  auto x3 = simde_mm256_set1_ps(textCoord3.x);
 
-          auto y1 = simde_mm256_set1_ps(textCoord1.y);
-          auto y2 = simde_mm256_set1_ps(textCoord2.y);
-          auto y3 = simde_mm256_set1_ps(textCoord3.y);
+  auto y1 = simde_mm256_set1_ps(textCoord1.y);
+  auto y2 = simde_mm256_set1_ps(textCoord2.y);
+  auto y3 = simde_mm256_set1_ps(textCoord3.y);
 
-          result.u = simde_mm256_fmadd_ps(
-                    alpha, x1,
-                    simde_mm256_fmadd_ps(beta, x2,
-                              simde_mm256_mul_ps(gamma, x3)));
+  result.u = simde_mm256_fmadd_ps(
+      alpha, x1, simde_mm256_fmadd_ps(beta, x2, simde_mm256_mul_ps(gamma, x3)));
 
-          result.v = simde_mm256_fmadd_ps(
-                    alpha, y1,
-                    simde_mm256_fmadd_ps(beta, y2,
-                              simde_mm256_mul_ps(gamma, y3)));
+  result.v = simde_mm256_fmadd_ps(
+      alpha, y1, simde_mm256_fmadd_ps(beta, y2, simde_mm256_mul_ps(gamma, y3)));
 
-          // Return as a struct containing both components (x and y)
-          return result;
+  // Return as a struct containing both components (x and y)
+  return result;
 }
 
 #else
 #endif
 
-glm::vec2  SoftRasterizer::Tools::interpolateTexCoord(
-    float alpha, float beta, float gamma, const glm::vec2&textCoord1,
-    const glm::vec2&textCoord2, const glm::vec2&textCoord3) {
+glm::vec2 SoftRasterizer::Tools::interpolateTexCoord(
+    float alpha, float beta, float gamma, const glm::vec2 &textCoord1,
+    const glm::vec2 &textCoord2, const glm::vec2 &textCoord3) {
   return alpha * textCoord1 + beta * textCoord2 + gamma * textCoord3;
 }
 
-glm::vec3 
-SoftRasterizer::Tools::calculateNormalWithWeight(
-          const glm::vec3 &pa, const glm::vec3& pb, const glm::vec3& pc)
-{
-          const glm::vec3 AB = pb - pa;
-          const glm::vec3 AC = pc - pa;
-          glm::vec3 normal = glm::cross(AB, AC);     //calculate normal vector
+glm::vec3 SoftRasterizer::Tools::calculateNormalWithWeight(
+    const glm::vec3 &pa, const glm::vec3 &pb, const glm::vec3 &pc) {
+  const glm::vec3 AB = pb - pa;
+  const glm::vec3 AC = pc - pa;
+  glm::vec3 normal = glm::cross(AB, AC); // calculate normal vector
 
-          const float length = glm::length(normal);               //length of normal vector
-          const float arc_sin_degree = length / (glm::length(AB) * glm::length(AC));
+  const float length = glm::length(normal); // length of normal vector
+  const float arc_sin_degree = length / (glm::length(AB) * glm::length(AC));
 
-          /*length must not equal to zero*/
-          if (!(-(1e-8) <= length && length <= 1e-8)) {
-                    normal = normal * (glm::asin(arc_sin_degree) / length);
-          }
-          return normal;
+  /*length must not equal to zero*/
+  if (!(-(1e-8) <= length && length <= 1e-8)) {
+    normal = normal * (glm::asin(arc_sin_degree) / length);
+  }
+  return normal;
 }

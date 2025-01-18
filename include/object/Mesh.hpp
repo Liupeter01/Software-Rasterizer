@@ -1,12 +1,12 @@
 #pragma once
 #ifndef _MESH_HPP_
 #define _MESH_HPP_
-#define GLM_ENABLE_EXPERIMENTAL  // Enable experimental features
+#define GLM_ENABLE_EXPERIMENTAL // Enable experimental features
+#include <functional>           // For std::hash
 #include <glm/gtx/hash.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <memory>
-#include <functional> // For std::hash
 #include <string>
 
 namespace SoftRasterizer {
@@ -29,9 +29,9 @@ struct Material {
   }
 
   std::string name;     // Material Name
-  glm::vec3 Ka;   // Ambient Color
-  glm::vec3 Kd;   // Diffuse Color
-  glm::vec3 Ks;   // Specular Color
+  glm::vec3 Ka;         // Ambient Color
+  glm::vec3 Kd;         // Diffuse Color
+  glm::vec3 Ks;         // Specular Color
   float Ns;             // Specular Exponent
   float Ni;             // Optical Density
   float d;              // Dissolve
@@ -59,20 +59,17 @@ struct Vertex {
 struct Mesh {
   Mesh() : Mesh("") {}
   Mesh(const std::string &name) : meshname(name), m_shader(nullptr) {}
-  Mesh(const std::string& name, const SoftRasterizer::Material& _material,
-            const std::vector<Vertex>& _vertices,
-            const std::vector<glm::uvec3>& _faces)
-            : meshname(name), MeshMaterial(_material), vertices(_vertices),
-            faces(_faces), m_shader(nullptr) {
-  }
+  Mesh(const std::string &name, const SoftRasterizer::Material &_material,
+       const std::vector<Vertex> &_vertices,
+       const std::vector<glm::uvec3> &_faces)
+      : meshname(name), MeshMaterial(_material), vertices(_vertices),
+        faces(_faces), m_shader(nullptr) {}
 
-
-  Mesh(const std::string& name, SoftRasterizer::Material&& _material,
-            std::vector<Vertex>&& _vertices, std::vector<glm::uvec3>&& _faces)
-            : meshname(name), MeshMaterial(std::move(_material)),
-            vertices(std::move(_vertices)), faces(std::move(_faces)),
-            m_shader(nullptr) {
-  }
+  Mesh(const std::string &name, SoftRasterizer::Material &&_material,
+       std::vector<Vertex> &&_vertices, std::vector<glm::uvec3> &&_faces)
+      : meshname(name), MeshMaterial(std::move(_material)),
+        vertices(std::move(_vertices)), faces(std::move(_faces)),
+        m_shader(nullptr) {}
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) {
     /*bind shader2 mesh without dtor,  the life od this pointer is maintained by
@@ -96,20 +93,20 @@ struct Mesh {
 // Hash function for Eigen types (Vector3f, Vector2f)
 namespace std {
 template <> struct std::hash<SoftRasterizer::Vertex> {
-          size_t operator()(const SoftRasterizer::Vertex& vertex) const {
-                    // Combine the hashes of position, color, normal, and texCoord
-                    size_t seed = 0;
-                    hash<glm::vec3> vec3Hasher;
-                    hash<glm::vec2> vec2Hasher;
+  size_t operator()(const SoftRasterizer::Vertex &vertex) const {
+    // Combine the hashes of position, color, normal, and texCoord
+    size_t seed = 0;
+    hash<glm::vec3> vec3Hasher;
+    hash<glm::vec2> vec2Hasher;
 
-                    SoftRasterizer::hash_combine_impl(seed, vec3Hasher(vertex.position));
-                    SoftRasterizer::hash_combine_impl(seed, vec3Hasher(vertex.normal));
-                    SoftRasterizer::hash_combine_impl(seed, vec3Hasher(vertex.color));
-                    SoftRasterizer::hash_combine_impl(seed, vec2Hasher(vertex.texCoord));
+    SoftRasterizer::hash_combine_impl(seed, vec3Hasher(vertex.position));
+    SoftRasterizer::hash_combine_impl(seed, vec3Hasher(vertex.normal));
+    SoftRasterizer::hash_combine_impl(seed, vec3Hasher(vertex.color));
+    SoftRasterizer::hash_combine_impl(seed, vec2Hasher(vertex.texCoord));
 
-                    // Combine all hashes using bit manipulation
-                    return seed;
-          }
+    // Combine all hashes using bit manipulation
+    return seed;
+  }
 };
 } // namespace std
 
