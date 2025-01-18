@@ -147,8 +147,8 @@ private:
                            simde_mm256_sub_ps(light_pos_z, shading_pointz));
 
       // sqrt(x^2 + y^2)
-      _simd distanceSquared = simd_mm256_rcp_ps(simd_mm256_sqrt_ps(simd_mm256_fmadd_ps(
-                light_dir.x, light_dir.x, simd_mm256_mul_ps(light_dir.y, light_dir.y))));
+      _simd distanceSquared = simde_mm256_rcp_ps(simde_mm256_sqrt_ps(simde_mm256_fmadd_ps(
+                light_dir.x, light_dir.x, simde_mm256_mul_ps(light_dir.y, light_dir.y))));
 
       distribution_x = simde_mm256_mul_ps(light_intense_x, distanceSquared);
       distribution_y = simde_mm256_mul_ps(light_intense_y, distanceSquared);
