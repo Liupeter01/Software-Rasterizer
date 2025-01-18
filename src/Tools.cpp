@@ -215,7 +215,7 @@ SoftRasterizer::TexCoordSIMD SoftRasterizer::Tools::interpolateTexCoord(
           result.v = simde_mm256_fmadd_ps(
                     alpha, y1,
                     simde_mm256_fmadd_ps(beta, y2,
-                              simde_mm256_mul_ps(gamma, y3))));
+                              simde_mm256_mul_ps(gamma, y3)));
 
           // Return as a struct containing both components (x and y)
           return result;
