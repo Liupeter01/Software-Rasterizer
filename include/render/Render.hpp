@@ -1,7 +1,7 @@
 #pragma once
 #ifndef _RENDER_HPP_
 #define _RENDER_HPP_
-#include <Triangle.hpp>
+#include <object/Triangle.hpp>
 #include <algorithm>
 #include <hpc/Simd.hpp>
 #include <loader/ObjLoader.hpp>

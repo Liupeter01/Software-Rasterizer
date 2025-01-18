@@ -4,6 +4,9 @@
 #include <service/ThreadPool.hpp>
 #include <spdlog/spdlog.h>
 #include <type_traits>
+#include <tbb/task_arena.h>
+#include <tbb/parallel_for.h>
+#include <tbb/enumerable_thread_specific.h>
 
 SoftRasterizer::RenderingPipeline::RenderingPipeline()
     : RenderingPipeline(800, 600) {}
@@ -420,6 +423,9 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
     throw std::runtime_error("Primitive Type is not supported!");
   }
 
+  static oneapi::tbb::affinity_partitioner ap;
+  oneapi::tbb::enumerable_thread_specific<std::size_t> ets;
+
   for (auto &[SceneName, SceneObj] : m_scenes) {
 
     /*Load All Triangle in one scene*/
@@ -431,26 +437,39 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
     /*Traversal All The Triangle*/
     for (auto &[shader, CurrentObj] : stream) {
 
-      for (auto &triangle : CurrentObj) {
+              std::size_t triangles_number = CurrentObj.size();
 
-        auto box_startX = triangle.box.startX, box_endX = triangle.box.endX;
+              //Find Non Overlapping Triangles
+              oneapi::tbb::parallel_for(static_cast<std::size_t>(0), triangles_number, [&](std::size_t index) {
+                        // Set a thread specific value
+                        //ets.local() = index;
 
-        // Split into AVX2-compatible chunks (use the largest multiple of 8 for
-        // AVX2 if possible)
-        auto avx2_chunks = (box_endX - box_startX + 1) >> 3;
-        auto avx2_size = (avx2_chunks << 3);
+                        oneapi::tbb::this_task_arena::isolate([&]() {
 
-        // Largest multiple of 8 for AVX2
-        auto avx2_end = box_startX + avx2_size;
+                                 // ets.local() = index;
+                                  auto& triangle = CurrentObj[index];
 
-        for (auto y = triangle.box.startY; y <= triangle.box.endY; ++y) {
-          rasterizeBatchAVX2(triangle.box.startX, avx2_end, y, lights, shader,
-                             triangle, eye);
+                                  auto box_startX = triangle.box.startX, box_endX = triangle.box.endX;
 
-          rasterizeBatchScalar(avx2_end, triangle.box.endX, y, lights, shader,
-                               triangle, eye);
-        }
-      }
+                                  // Split into AVX2-compatible chunks (use the largest multiple of 8 for AVX2 if possible)
+                                  auto avx2_chunks = (box_endX - box_startX + 1) >> 3;
+                                  auto avx2_size = (avx2_chunks << 3);
+                                  auto avx2_end = box_startX + avx2_size;//  Largest multiple of 8 for AVX2
+
+                                  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<std::size_t>(triangle.box.startY, triangle.box.endY + 1),
+                                            [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
+
+                                                      for (auto x = range.begin(); x != range.end(); ++x) {
+                                                                rasterizeBatchAVX2(triangle.box.startX, avx2_end, x, lights, shader,
+                                                                          triangle, eye);
+
+                                                                rasterizeBatchScalar(avx2_end, triangle.box.endX, x, lights, shader,
+                                                                          triangle, eye);
+                                                      }
+                                            }, ap);
+                         });
+              });
+              //ets.clear();
     }
   }
 }
