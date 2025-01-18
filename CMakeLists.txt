@@ -67,8 +67,8 @@ add_executable(Software-Rasterizer ${source_file} ${header_file})
 target_include_directories(
   Software-Rasterizer PUBLIC include external/simde/simde external/sse2neon
                              ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES}
-                                                 spdlog tinyobjloader glm)
+target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} spdlog
+                                                 tinyobjloader glm)
 
 # Enable OpenMP
 find_package(OpenMP)
