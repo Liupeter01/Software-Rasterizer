@@ -1,10 +1,6 @@
-#include <Tools.hpp>
-#include <Triangle.hpp>
-#include <loader/ObjLoader.hpp>
 #include <opencv2/opencv.hpp>
 #include <render/Render.hpp>
-#include <shader/Shader.hpp>
-#include <spdlog/spdlog.h>
+#include <scene/Scene.hpp>
 
 int main() {
   int key = 0;
