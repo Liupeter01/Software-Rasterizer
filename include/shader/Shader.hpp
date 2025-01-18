@@ -146,12 +146,9 @@ private:
                            simde_mm256_sub_ps(light_pos_y, shading_pointy),
                            simde_mm256_sub_ps(light_pos_z, shading_pointz));
 
-      auto tempy = simde_mm256_mul_ps(light_dir.y, light_dir.y);
-      auto tempx = simde_mm256_mul_ps(light_dir.x, light_dir.x);
-
       // sqrt(x^2 + y^2)
-      _simd distanceSquared = simde_mm256_rcp_ps(
-          simde_mm256_sqrt_ps(simde_mm256_add_ps(tempy, tempx)));
+      _simd distanceSquared = simd_mm256_rcp_ps(simd_mm256_sqrt_ps(simd_mm256_fmadd_ps(
+                light_dir.x, light_dir.x, simd_mm256_mul_ps(light_dir.y, light_dir.y))));
 
       distribution_x = simde_mm256_mul_ps(light_intense_x, distanceSquared);
       distribution_y = simde_mm256_mul_ps(light_intense_y, distanceSquared);
@@ -226,23 +223,21 @@ private:
       // Diffuse reflection (Lambertian reflectance)  dot(light, normal) = x * x
       // + y * y + z * z
 
-      auto tempz = simde_mm256_mul_ps(light_dir_normalized.z, normal.z);
-      tempy = simde_mm256_mul_ps(light_dir_normalized.y, normal.y);
-      tempx = simde_mm256_mul_ps(light_dir_normalized.x, normal.x);
-
       _simd cosAlpha = simde_mm256_max_ps(
-          zero, simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz));
+                zero,
+                simde_mm256_fmadd_ps(light_dir_normalized.x, normal.x,
+                          simde_mm256_fmadd_ps(light_dir_normalized.y, normal.y,
+                                    simde_mm256_mul_ps(light_dir_normalized.z,
+                                              normal.z))));
 
       // std::pow(cosTheta, p);
-      tempz = simde_mm256_mul_ps(h.z, normal.z);
-      tempy = simde_mm256_mul_ps(h.y, normal.y);
-      tempx = simde_mm256_mul_ps(h.x, normal.x);
-
       _simd cosTheta = simde_mm256_pow_ps(
-          simde_mm256_max_ps(
-              zero,
-              simde_mm256_add_ps(simde_mm256_add_ps(tempx, tempy), tempz)),
-          _p);
+                simde_mm256_max_ps(
+                          zero,
+                          simde_mm256_fmadd_ps(h.x, normal.x,
+                                    simde_mm256_fmadd_ps(h.y, normal.y,
+                                              simde_mm256_mul_ps(h.z, normal.z)))),
+                _p);
 
       // Combine all lighting components (La + Ld + Ls) * Kd
       _simd kd_dist_x = simde_mm256_mul_ps(distribution_x, kd_r);
