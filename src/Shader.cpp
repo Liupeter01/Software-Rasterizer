@@ -240,6 +240,7 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
         _mm256_set1_ps(light.position.z), _mm256_set1_ps(light.intensity.x),
         _mm256_set1_ps(light.intensity.y),
         _mm256_set1_ps(light.intensity.z),
+
 #elif defined(__arm__) || defined(__aarch64__)
         simde_mm256_set1_ps(light.position.x),
         simde_mm256_set1_ps(light.position.y),
@@ -260,6 +261,7 @@ void SoftRasterizer::Shader::simd_texture_fragment_shader_impl(
     colour.r = simde_mm256_add_ps(colour.r, Lr);
     colour.g = simde_mm256_add_ps(colour.g, Lg);
     colour.b = simde_mm256_add_ps(colour.b, Lb);
+
 #else
 #endif
   }
@@ -339,6 +341,7 @@ void SoftRasterizer::Shader::simd_phong_fragment_shader_impl(
         _mm256_set1_ps(light.position.z), _mm256_set1_ps(light.intensity.x),
         _mm256_set1_ps(light.intensity.y),
         _mm256_set1_ps(light.intensity.z),
+
 #elif defined(__arm__) || defined(__aarch64__)
         simde_mm256_set1_ps(light.position.x),
         simde_mm256_set1_ps(light.position.y),
