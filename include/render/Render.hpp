@@ -7,7 +7,6 @@
 #include <loader/ObjLoader.hpp>
 #include <optional>
 #include <scene/Scene.hpp>
-#include <service/LockFree.hpp>
 #include <shader/Shader.hpp>
 #include <tuple>
 #include <unordered_map>
@@ -131,6 +130,10 @@ private:
 
 #else
 #endif
+  inline void rasterizeTriangle(const SoftRasterizer::Triangle& triangle,
+            const std::vector<SoftRasterizer::light_struct>& lists,
+            std::shared_ptr<SoftRasterizer::Shader> shader,
+            const glm::vec3& eye);
 
   /*Rasterize a triangle*/
   inline void
@@ -225,7 +228,6 @@ private:
   std::unordered_map<std::string, std::shared_ptr<Scene>> m_scenes;
 
   /*RGB(3 channels)*/
-  // SpinLock m_channelLock;
   constexpr static std::size_t numbers = 3;
   std::vector<cv::Mat> m_channels;
 
