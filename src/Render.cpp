@@ -4,9 +4,7 @@
 #include <service/ThreadPool.hpp>
 #include <spdlog/spdlog.h>
 #include <type_traits>
-#include <tbb/task_arena.h>
 #include <tbb/parallel_for.h>
-#include <tbb/enumerable_thread_specific.h>
 
 SoftRasterizer::RenderingPipeline::RenderingPipeline()
     : RenderingPipeline(800, 600) {}
@@ -118,19 +116,19 @@ SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos,
   writePixel(start_pos, color.r, color.g, color.b);
 }
 
-inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long x,
-                                                            const long long y,
-                                                            const float depth) {
-  if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
-
-    auto cur_depth = m_zBuffer[x + y * m_width];
-    if (depth < cur_depth) {
-      m_zBuffer[x + y * m_width] = depth;
-      return true;
-    }
-  }
-  return false;
-}
+//inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long x,
+//                                                            const long long y,
+//                                                            const float depth) {
+//  if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
+//
+//    auto cur_depth = m_zBuffer[x + y * m_width];
+//    if (depth < cur_depth) {
+//      m_zBuffer[x + y * m_width] = depth;
+//      return true;
+//    }
+//  }
+//  return false;
+//}
 
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
@@ -424,54 +422,48 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
   }
 
   static oneapi::tbb::affinity_partitioner ap;
-  oneapi::tbb::enumerable_thread_specific<std::size_t> ets;
 
   for (auto &[SceneName, SceneObj] : m_scenes) {
-
     /*Load All Triangle in one scene*/
-    std::vector<SoftRasterizer::Scene::ObjTuple> stream =
+            tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> stream =
         SceneObj->loadTriangleStream();
     std::vector<SoftRasterizer::light_struct> lights = SceneObj->loadLights();
     const glm::vec3 eye = SceneObj->loadEyeVec();
 
     /*Traversal All The Triangle*/
     for (auto &[shader, CurrentObj] : stream) {
-
-              std::size_t triangles_number = CurrentObj.size();
-
-              //Find Non Overlapping Triangles
-              oneapi::tbb::parallel_for(static_cast<std::size_t>(0), triangles_number, [&](std::size_t index) {
-                        // Set a thread specific value
-                        //ets.local() = index;
-
-                        oneapi::tbb::this_task_arena::isolate([&]() {
-
-                                 // ets.local() = index;
-                                  auto& triangle = CurrentObj[index];
-
-                                  auto box_startX = triangle.box.startX, box_endX = triangle.box.endX;
-
-                                  // Split into AVX2-compatible chunks (use the largest multiple of 8 for AVX2 if possible)
-                                  auto avx2_chunks = (box_endX - box_startX + 1) >> 3;
-                                  auto avx2_size = (avx2_chunks << 3);
-                                  auto avx2_end = box_startX + avx2_size;//  Largest multiple of 8 for AVX2
-
-                                  oneapi::tbb::parallel_for(oneapi::tbb::blocked_range<std::size_t>(triangle.box.startY, triangle.box.endY + 1),
-                                            [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
-
-                                                      for (auto x = range.begin(); x != range.end(); ++x) {
-                                                                rasterizeBatchAVX2(triangle.box.startX, avx2_end, x, lights, shader,
-                                                                          triangle, eye);
-
-                                                                rasterizeBatchScalar(avx2_end, triangle.box.endX, x, lights, shader,
-                                                                          triangle, eye);
-                                                      }
-                                            }, ap);
-                         });
-              });
-              //ets.clear();
+              for (auto& triangle : CurrentObj) {
+                        rasterizeTriangle(triangle, lights, shader, eye);
+              }
     }
   }
+}
+
+inline void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
+          const SoftRasterizer::Triangle& triangle,
+          const std::vector<SoftRasterizer::light_struct>& lists,
+          std::shared_ptr<SoftRasterizer::Shader> shader,
+         const glm::vec3& eye){
+
+          auto box_startX = triangle.box.startX;
+          auto box_endX = triangle.box.endX;
+
+          // Split into AVX2-compatible chunks (use the largest multiple of 8 for AVX2 if possible)
+          auto avx2_chunks = (box_endX - box_startX + 1) >> 3;
+          auto avx2_size = (avx2_chunks << 3);
+          auto avx2_end = box_startX + avx2_size;//  Largest multiple of 8 for AVX2
+
+          tbb::task_group group;
+          tbb::parallel_for(
+                    tbb::blocked_range<std::size_t>(triangle.box.startY, triangle.box.endY + 1),
+                    [&](const tbb::blocked_range<std::size_t>& range) {
+                              for (std::size_t y = range.begin(); y != range.end(); ++y) {
+                                        group.run([&, y] { rasterizeBatchAVX2(triangle.box.startX, avx2_end, y, lists, shader, triangle, eye); });
+                                        group.run([&, y] { rasterizeBatchScalar(avx2_end, triangle.box.endX, y, lists, shader, triangle, eye); });
+                              }
+                    }
+          );
+          group.wait();
 }
 
 inline void SoftRasterizer::RenderingPipeline::rasterizeBatchAVX2(
