@@ -8,6 +8,7 @@
 #include <shader/Shader.hpp>
 #include <tuple>
 #include <unordered_map>
+#include <tbb/concurrent_vector.h>
 
 namespace SoftRasterizer {
 class Triangle;
@@ -18,7 +19,7 @@ class Scene {
 
 public:
   using ObjTuple = std::tuple<std::shared_ptr<Shader>,
-                              std::vector<SoftRasterizer::Triangle>>;
+            tbb::concurrent_vector<SoftRasterizer::Triangle>>;
   using ObjFuture = std::future<ObjTuple>;
 
 public:
@@ -68,7 +69,7 @@ public:
                 lights);
 
 protected:
-  std::vector<ObjTuple> loadTriangleStream();
+  tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> loadTriangleStream();
   std::vector<SoftRasterizer::light_struct> loadLights();
 
 private:

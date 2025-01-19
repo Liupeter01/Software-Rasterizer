@@ -4,6 +4,7 @@
 #include <scene/Scene.hpp>
 #include <service/ThreadPool.hpp>
 #include <spdlog/spdlog.h>
+#include <tbb/parallel_for.h>
 
 SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const glm::vec3 &center, const glm::vec3 &up)
@@ -255,15 +256,11 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
   m_ndcToScreenMatrix = matrix;
 }
 
-std::vector<SoftRasterizer::Scene::ObjTuple>
+tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple>
 SoftRasterizer::Scene::loadTriangleStream() {
 
-  /*clean ObjFuture std::vector */
-  m_future.clear();
-
-  /*We will retrieve all the triangle by only using one vector struture*/
-
-  std::vector<ObjTuple> stream;
+  // Use tbb::concurrent_vector to collect results safely in parallel
+  tbb::concurrent_vector<ObjTuple> stream;
 
   // Estimate and reserve the total size for triangle_stream to avoid
   // reallocations
@@ -277,62 +274,45 @@ SoftRasterizer::Scene::loadTriangleStream() {
     const auto &mesh = objData.mesh;
     const auto &shader = mesh->m_shader;
     const auto &modelMatrix = objData.loader->getModelMatrix();
+    
+    auto NDC_MVP = m_ndcToScreenMatrix * m_projection * m_view * modelMatrix;
+    auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
 
-    m_future.emplace_back(ThreadPool::get_instance()->commit(
-        [shader, modelMatrix, view = m_view, projection = m_projection,
-         width = m_width, height = m_height](
-            const float scale, const float offset, const glm::mat4 &NDC,
-            const std::vector<Vertex> &vertices,
-            const std::vector<glm::uvec3> &faces) -> ObjTuple {
-          const std::size_t face_number = faces.size();
+    tbb::concurrent_vector < SoftRasterizer::Triangle> ret;
 
-          /*NDC MVP*/
-          auto NDC_MVP = NDC * projection * view * modelMatrix;
+    tbb::parallel_for(tbb::blocked_range<long long>(0, mesh->faces.size()),
+              [&](const tbb::blocked_range<long long>& r) {
+                        for (long long face_index = r.begin(); face_index < r.end(); ++face_index) {
+                                  const auto& face = mesh->faces[face_index];
+                                  SoftRasterizer::Vertex A = mesh->vertices[face.x];
+                                  SoftRasterizer::Vertex B = mesh->vertices[face.y];
+                                  SoftRasterizer::Vertex C = mesh->vertices[face.z];
 
-          /*Inverse Normal*/
-          auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
+                                  A.position = Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
+                                  A.position.z = A.position.z * scale + offset; // Z-Depth
+                                  A.normal = Tools::to_vec3(Normal_M * glm::vec4(A.normal, 1.0f));
 
-          // Prepare transformed triangles for rasterization.
-          std::vector<SoftRasterizer::Triangle> res;
-          res.reserve(face_number);
+                                  B.position = Tools::to_vec3(NDC_MVP * glm::vec4(B.position, 1.0f));
+                                  B.position.z = B.position.z * scale + offset; // Z-Depth
+                                  B.normal = Tools::to_vec3(Normal_M * glm::vec4(B.normal, 1.0f));
 
-          for (long long face_index = 0; face_index < face_number;
-               ++face_index) {
+                                  C.position = Tools::to_vec3(NDC_MVP * glm::vec4(C.position, 1.0f));
+                                  C.position.z = C.position.z * scale + offset; // Z-Depth
+                                  C.normal = Tools::to_vec3(Normal_M * glm::vec4(C.normal, 1.0f));
 
-            const auto &face = faces[face_index];
-            SoftRasterizer::Vertex A = vertices[face.x];
-            SoftRasterizer::Vertex B = vertices[face.y];
-            SoftRasterizer::Vertex C = vertices[face.z];
+                                  SoftRasterizer::Triangle T;
+                                  T.setVertex({ A.position, B.position, C.position });
+                                  T.setNormal({ A.normal, B.normal, C.normal });
+                                  T.setTexCoord({ A.texCoord, B.texCoord, C.texCoord });
+                                  T.calcBoundingBox(m_width, m_height);
 
-            A.position = Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
-            A.position.z = A.position.z * scale + offset; // Z-Depth
-            A.normal = Tools::to_vec3(Normal_M * glm::vec4(A.normal, 1.0f));
-
-            B.position = Tools::to_vec3(NDC_MVP * glm::vec4(B.position, 1.0f));
-            B.position.z = B.position.z * scale + offset; // Z-Depth
-            B.normal = Tools::to_vec3(Normal_M * glm::vec4(B.normal, 1.0f));
-
-            C.position = Tools::to_vec3(NDC_MVP * glm::vec4(C.position, 1.0f));
-            C.position.z = C.position.z * scale + offset; // Z-Depth
-            C.normal = Tools::to_vec3(Normal_M * glm::vec4(C.normal, 1.0f));
-
-            SoftRasterizer::Triangle T;
-            T.setVertex({A.position, B.position, C.position});
-            T.setNormal({A.normal, B.normal, C.normal});
-            T.setTexCoord({A.texCoord, B.texCoord, C.texCoord});
-            T.calcBoundingBox(width, height);
-
-            /*write it inside vector*/
-            res.emplace_back(std::move(T));
-          }
-          return {/*shader*/ shader, /*vector=*/res};
-        },
-        scale, offset, m_ndcToScreenMatrix, mesh->vertices, mesh->faces));
+                                  // Thread-safe insertion into concurrent_vector
+                                 ret.emplace_back(std::move(T));
+                        }
+              });
+ 
+    stream.push_back({ shader, ret });
   }
 
-  /* Wait for all tasks to finish, Block until all tasks are complete*/
-  for (auto &future : m_future) {
-    stream.insert(stream.end(), std::move(future.get()));
-  }
   return stream;
 }
