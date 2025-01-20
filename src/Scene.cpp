@@ -2,7 +2,6 @@
 #include <numeric> // For std::accumulate
 #include <render/Render.hpp>
 #include <scene/Scene.hpp>
-#include <service/ThreadPool.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
 
@@ -274,44 +273,46 @@ SoftRasterizer::Scene::loadTriangleStream() {
     const auto &mesh = objData.mesh;
     const auto &shader = mesh->m_shader;
     const auto &modelMatrix = objData.loader->getModelMatrix();
-    
+
     auto NDC_MVP = m_ndcToScreenMatrix * m_projection * m_view * modelMatrix;
     auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
 
-    tbb::concurrent_vector < SoftRasterizer::Triangle> ret;
+    tbb::concurrent_vector<SoftRasterizer::Triangle> ret;
 
-    tbb::parallel_for(tbb::blocked_range<long long>(0, mesh->faces.size()),
-              [&](const tbb::blocked_range<long long>& r) {
-                        for (long long face_index = r.begin(); face_index < r.end(); ++face_index) {
-                                  const auto& face = mesh->faces[face_index];
-                                  SoftRasterizer::Vertex A = mesh->vertices[face.x];
-                                  SoftRasterizer::Vertex B = mesh->vertices[face.y];
-                                  SoftRasterizer::Vertex C = mesh->vertices[face.z];
+    tbb::parallel_for(
+        tbb::blocked_range<long long>(0, mesh->faces.size()),
+        [&](const tbb::blocked_range<long long> &r) {
+          for (long long face_index = r.begin(); face_index < r.end();
+               ++face_index) {
+            const auto &face = mesh->faces[face_index];
+            SoftRasterizer::Vertex A = mesh->vertices[face.x];
+            SoftRasterizer::Vertex B = mesh->vertices[face.y];
+            SoftRasterizer::Vertex C = mesh->vertices[face.z];
 
-                                  A.position = Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
-                                  A.position.z = A.position.z * scale + offset; // Z-Depth
-                                  A.normal = Tools::to_vec3(Normal_M * glm::vec4(A.normal, 1.0f));
+            A.position = Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
+            A.position.z = A.position.z * scale + offset; // Z-Depth
+            A.normal = Tools::to_vec3(Normal_M * glm::vec4(A.normal, 1.0f));
 
-                                  B.position = Tools::to_vec3(NDC_MVP * glm::vec4(B.position, 1.0f));
-                                  B.position.z = B.position.z * scale + offset; // Z-Depth
-                                  B.normal = Tools::to_vec3(Normal_M * glm::vec4(B.normal, 1.0f));
+            B.position = Tools::to_vec3(NDC_MVP * glm::vec4(B.position, 1.0f));
+            B.position.z = B.position.z * scale + offset; // Z-Depth
+            B.normal = Tools::to_vec3(Normal_M * glm::vec4(B.normal, 1.0f));
 
-                                  C.position = Tools::to_vec3(NDC_MVP * glm::vec4(C.position, 1.0f));
-                                  C.position.z = C.position.z * scale + offset; // Z-Depth
-                                  C.normal = Tools::to_vec3(Normal_M * glm::vec4(C.normal, 1.0f));
+            C.position = Tools::to_vec3(NDC_MVP * glm::vec4(C.position, 1.0f));
+            C.position.z = C.position.z * scale + offset; // Z-Depth
+            C.normal = Tools::to_vec3(Normal_M * glm::vec4(C.normal, 1.0f));
 
-                                  SoftRasterizer::Triangle T;
-                                  T.setVertex({ A.position, B.position, C.position });
-                                  T.setNormal({ A.normal, B.normal, C.normal });
-                                  T.setTexCoord({ A.texCoord, B.texCoord, C.texCoord });
-                                  T.calcBoundingBox(m_width, m_height);
+            SoftRasterizer::Triangle T;
+            T.setVertex({A.position, B.position, C.position});
+            T.setNormal({A.normal, B.normal, C.normal});
+            T.setTexCoord({A.texCoord, B.texCoord, C.texCoord});
+            T.calcBoundingBox(m_width, m_height);
 
-                                  // Thread-safe insertion into concurrent_vector
-                                 ret.emplace_back(std::move(T));
-                        }
-              });
- 
-    stream.push_back({ shader, ret });
+            // Thread-safe insertion into concurrent_vector
+            ret.emplace_back(std::move(T));
+          }
+        });
+
+    stream.push_back({shader, ret});
   }
 
   return stream;

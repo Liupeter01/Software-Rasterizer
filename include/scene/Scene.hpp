@@ -6,9 +6,9 @@
 #include <hpc/Simd.hpp>
 #include <loader/ObjLoader.hpp>
 #include <shader/Shader.hpp>
+#include <tbb/concurrent_vector.h>
 #include <tuple>
 #include <unordered_map>
-#include <tbb/concurrent_vector.h>
 
 namespace SoftRasterizer {
 class Triangle;
@@ -19,7 +19,7 @@ class Scene {
 
 public:
   using ObjTuple = std::tuple<std::shared_ptr<Shader>,
-            tbb::concurrent_vector<SoftRasterizer::Triangle>>;
+                              tbb::concurrent_vector<SoftRasterizer::Triangle>>;
   using ObjFuture = std::future<ObjTuple>;
 
 public:

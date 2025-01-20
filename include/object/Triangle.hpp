@@ -2,15 +2,15 @@
 #ifndef _TRIANGLE_HPP_
 #define _TRIANGLE_HPP_
 #include <array>
+#include <bvh/Bounds3.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <initializer_list>
-#include <bvh/Bounds3.hpp>
-#include <object/Object.hpp>
 #include <object/Material.hpp>
+#include <object/Object.hpp>
 
 namespace SoftRasterizer {
-struct alignas(32) Triangle:public Object {
+struct alignas(32) Triangle : public Object {
   Triangle();
 
   const glm::vec3 &a() const { return m_vertex[0]; }
@@ -36,11 +36,11 @@ struct alignas(32) Triangle:public Object {
 
   /*BoundBox Calculation!*/
   struct BoundingBox {
-            BoundingBox() : startY(0), startX(0), endX(0), endY(0) {}
-            long long startX;
-            long long startY;
-            long long endX;
-            long long endY;
+    BoundingBox() : startY(0), startX(0), endX(0), endY(0) {}
+    long long startX;
+    long long startY;
+    long long endX;
+    long long endY;
   };
   BoundingBox box;
 };
