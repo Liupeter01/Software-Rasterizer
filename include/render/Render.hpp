@@ -10,6 +10,7 @@
 #include <shader/Shader.hpp>
 #include <tuple>
 #include <unordered_map>
+#include <tbb/parallel_for.h>
 
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
@@ -237,6 +238,8 @@ private:
   /*z buffer*/
   // SpinLock m_zBufferLock;
   alignas(64) std::vector<float> m_zBuffer;
+
+  oneapi::tbb::affinity_partitioner ap;
 };
 } // namespace SoftRasterizer
 
