@@ -1,6 +1,6 @@
 #include <Tools.hpp>
-#include <object/Triangle.hpp>
 #include <algorithm>
+#include <object/Triangle.hpp>
 
 SoftRasterizer::Triangle::Triangle() : box() {
   for (std::size_t index = 0; index < 3; ++index) {
@@ -51,8 +51,8 @@ void SoftRasterizer::Triangle::setTexCoord(
   std::copy(_texCoords.begin(), _texCoords.end(), m_texCoords.begin());
 }
 
-SoftRasterizer::Bounds3 SoftRasterizer::Triangle::getBounds(){
-          return BoundsUnion(m_vertex[0], Bounds3(m_vertex[1], m_vertex[2]));
+SoftRasterizer::Bounds3 SoftRasterizer::Triangle::getBounds() {
+  return BoundsUnion(m_vertex[0], Bounds3(m_vertex[1], m_vertex[2]));
 }
 
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,

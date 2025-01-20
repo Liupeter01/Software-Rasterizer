@@ -1,10 +1,10 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <Tools.hpp>
+#include <bvh/Bounds3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <loader/ObjLoader.hpp>
 #include <spdlog/spdlog.h>
-#include <bvh/Bounds3.hpp>
 #include <tiny_obj_loader.h>
 #include <unordered_map>
 
@@ -93,7 +93,7 @@ processingVertexData(const std::string &objName,
                      std::hash<SoftRasterizer::Vertex>>
       uniqueVertices = {};
 
-  //BoundingBox
+  // BoundingBox
   SoftRasterizer::Bounds3 box;
 
   // Loop over shapes
@@ -119,16 +119,14 @@ processingVertexData(const std::string &objName,
                     attrib.vertices[3 * size_t(idx.vertex_index) + 1],
                     attrib.vertices[3 * size_t(idx.vertex_index) + 2]);
 
-      //Calculating BoundingBox
-      box.min = glm::vec3(
-                std::min(box.min.x, vertex.position.x),
-                std::min(box.min.y, vertex.position.y),
-                std::min(box.min.z, vertex.position.z));
+      // Calculating BoundingBox
+      box.min = glm::vec3(std::min(box.min.x, vertex.position.x),
+                          std::min(box.min.y, vertex.position.y),
+                          std::min(box.min.z, vertex.position.z));
 
-      box.max = glm::vec3(
-                std::max(box.max.x, vertex.position.x),
-                std::max(box.max.y, vertex.position.y),
-                std::max(box.max.z, vertex.position.z));
+      box.max = glm::vec3(std::max(box.max.x, vertex.position.x),
+                          std::max(box.max.y, vertex.position.y),
+                          std::max(box.max.z, vertex.position.z));
 
       vertex.color = glm::vec3(attrib.colors[3 * size_t(idx.vertex_index) + 0],
                                attrib.colors[3 * size_t(idx.vertex_index) + 1],
@@ -187,11 +185,10 @@ processingVertexData(const std::string &objName,
   }
 
   auto material = processMatrial(materials);
-  auto mesh = std::make_unique<SoftRasterizer::Mesh>(objName.empty() ? meshname : objName, 
-            material, 
-            std::move(vertices),
-            std::move(faces),
-            /*BoundingBox for BVH init*/std::move(box));
+  auto mesh = std::make_unique<SoftRasterizer::Mesh>(
+      objName.empty() ? meshname : objName, material, std::move(vertices),
+      std::move(faces),
+      /*BoundingBox for BVH init*/ std::move(box));
 
   return std::move(mesh);
 }
