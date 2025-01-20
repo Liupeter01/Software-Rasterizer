@@ -1,13 +1,15 @@
 #pragma once
+#include "oneapi/tbb/partitioner.h"
 #ifndef _RENDER_HPP_
 #define _RENDER_HPP_
-#include <object/Triangle.hpp>
 #include <algorithm>
 #include <hpc/Simd.hpp>
 #include <loader/ObjLoader.hpp>
+#include <object/Triangle.hpp>
 #include <optional>
 #include <scene/Scene.hpp>
 #include <shader/Shader.hpp>
+#include <tbb/parallel_for.h>
 #include <tuple>
 #include <unordered_map>
 
@@ -130,11 +132,6 @@ private:
 
 #else
 #endif
-  inline void rasterizeTriangle(const SoftRasterizer::Triangle& triangle,
-            const std::vector<SoftRasterizer::light_struct>& lists,
-            std::shared_ptr<SoftRasterizer::Shader> shader,
-            const glm::vec3& eye);
-
   /*Rasterize a triangle*/
   inline void
   rasterizeBatchAVX2(const int startx, const int endx, const int y,
@@ -237,6 +234,8 @@ private:
   /*z buffer*/
   // SpinLock m_zBufferLock;
   alignas(64) std::vector<float> m_zBuffer;
+
+  oneapi::tbb::affinity_partitioner ap;
 };
 } // namespace SoftRasterizer
 

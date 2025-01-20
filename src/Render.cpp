@@ -1,10 +1,11 @@
-﻿#include <Tools.hpp>
+﻿#include "oneapi/tbb/blocked_range.h"
+#include "oneapi/tbb/parallel_for.h"
+#include <Tools.hpp>
 #include <opencv2/opencv.hpp>
 #include <render/Render.hpp>
-#include <service/ThreadPool.hpp>
 #include <spdlog/spdlog.h>
-#include <type_traits>
 #include <tbb/parallel_for.h>
+#include <type_traits>
 
 SoftRasterizer::RenderingPipeline::RenderingPipeline()
     : RenderingPipeline(800, 600) {}
@@ -14,9 +15,6 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(const std::size_t width,
     : m_width(width), m_height(height), m_channels(numbers) /*set to three*/
       ,
       m_frameBuffer(m_height, m_width, CV_32FC3) {
-
-  /*init Thread Pool*/
-  ThreadPool::get_instance();
 
   /*set channel ammount to three!*/
   m_channels.resize(numbers);
@@ -28,10 +26,7 @@ SoftRasterizer::RenderingPipeline::RenderingPipeline(const std::size_t width,
   clear(SoftRasterizer::Buffers::Color | SoftRasterizer::Buffers::Depth);
 }
 
-SoftRasterizer::RenderingPipeline::~RenderingPipeline() {
-  /*Shutdown Thread Pool*/
-  ThreadPool::get_instance()->terminate();
-}
+SoftRasterizer::RenderingPipeline::~RenderingPipeline() {}
 
 void SoftRasterizer::RenderingPipeline::clearFrameBuffer() {
   // #pragma omp parallel for
@@ -116,19 +111,21 @@ SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos,
   writePixel(start_pos, color.r, color.g, color.b);
 }
 
-//inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long x,
-//                                                            const long long y,
-//                                                            const float depth) {
-//  if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
+// inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long
+// x,
+//                                                             const long long
+//                                                             y, const float
+//                                                             depth) {
+//   if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
 //
-//    auto cur_depth = m_zBuffer[x + y * m_width];
-//    if (depth < cur_depth) {
-//      m_zBuffer[x + y * m_width] = depth;
-//      return true;
-//    }
-//  }
-//  return false;
-//}
+//     auto cur_depth = m_zBuffer[x + y * m_width];
+//     if (depth < cur_depth) {
+//       m_zBuffer[x + y * m_width] = depth;
+//       return true;
+//     }
+//   }
+//   return false;
+// }
 
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
@@ -425,45 +422,47 @@ void SoftRasterizer::RenderingPipeline::draw(SoftRasterizer::Primitive type) {
 
   for (auto &[SceneName, SceneObj] : m_scenes) {
     /*Load All Triangle in one scene*/
-            tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> stream =
+    tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> stream =
         SceneObj->loadTriangleStream();
     std::vector<SoftRasterizer::light_struct> lights = SceneObj->loadLights();
     const glm::vec3 eye = SceneObj->loadEyeVec();
 
     /*Traversal All The Triangle*/
     for (auto &[shader, CurrentObj] : stream) {
-              for (auto& triangle : CurrentObj) {
-                        rasterizeTriangle(triangle, lights, shader, eye);
+      for (auto &triangle : CurrentObj) {
+        auto box_startX = triangle.box.startX;
+        auto box_endX = triangle.box.endX;
+
+        // Split into AVX2-compatible chunks (use the largest multiple of 8 for
+        // AVX2 if possible)
+        auto avx2_chunks = (box_endX - box_startX + 1) >> 3;
+        auto avx2_size = (avx2_chunks << 3);
+        auto avx2_end =
+            box_startX + avx2_size; //  Largest multiple of 8 for AVX2
+
+        tbb::parallel_for(
+            tbb::blocked_range<std::size_t>(triangle.box.startY,
+                                            triangle.box.endY + 1, 1),
+            [&, shader](const tbb::blocked_range<std::size_t> &range) {
+              for (std::size_t y = range.begin(); y != range.end(); ++y) {
+
+                auto load_pos = triangle.box.startX + y * m_width;
+
+                PREFETCH(&m_zBuffer[load_pos]);
+                PREFETCH(m_channels[0].ptr<float>(0) + load_pos);
+                PREFETCH(m_channels[1].ptr<float>(0) + load_pos);
+                PREFETCH(m_channels[2].ptr<float>(0) + load_pos);
+
+                rasterizeBatchAVX2(triangle.box.startX, avx2_end, y, lights,
+                                   shader, triangle, eye);
+                rasterizeBatchScalar(avx2_end, triangle.box.endX, y, lights,
+                                     shader, triangle, eye);
               }
+            },
+            ap);
+      }
     }
   }
-}
-
-inline void SoftRasterizer::RenderingPipeline::rasterizeTriangle(
-          const SoftRasterizer::Triangle& triangle,
-          const std::vector<SoftRasterizer::light_struct>& lists,
-          std::shared_ptr<SoftRasterizer::Shader> shader,
-         const glm::vec3& eye){
-
-          auto box_startX = triangle.box.startX;
-          auto box_endX = triangle.box.endX;
-
-          // Split into AVX2-compatible chunks (use the largest multiple of 8 for AVX2 if possible)
-          auto avx2_chunks = (box_endX - box_startX + 1) >> 3;
-          auto avx2_size = (avx2_chunks << 3);
-          auto avx2_end = box_startX + avx2_size;//  Largest multiple of 8 for AVX2
-
-          tbb::task_group group;
-          tbb::parallel_for(
-                    tbb::blocked_range<std::size_t>(triangle.box.startY, triangle.box.endY + 1),
-                    [&](const tbb::blocked_range<std::size_t>& range) {
-                              for (std::size_t y = range.begin(); y != range.end(); ++y) {
-                                        group.run([&, y] { rasterizeBatchAVX2(triangle.box.startX, avx2_end, y, lists, shader, triangle, eye); });
-                                        group.run([&, y] { rasterizeBatchScalar(avx2_end, triangle.box.endX, y, lists, shader, triangle, eye); });
-                              }
-                    }
-          );
-          group.wait();
 }
 
 inline void SoftRasterizer::RenderingPipeline::rasterizeBatchAVX2(
@@ -490,6 +489,16 @@ inline void SoftRasterizer::RenderingPipeline::rasterizeBatchAVX2(
   for (auto x = startx; x < endx; x += AVX2) {
     processFragByAVX2(x, y, z0, z1, z2, lists, shader, packed, eye);
   }
+
+  // oneapi::tbb::parallel_for(
+  //     tbb::blocked_range<std::size_t>(startx, endx, AVX2),
+  //     [&](const tbb::blocked_range<std::size_t> &range) {
+  //       for (int x = range.begin(); x < range.end(); x += AVX2) {
+  //         processFragByAVX2(x, y, z0, z1, z2, lists, shader, packed, eye);
+  //       }
+  //     },
+  //     ap
+  //);
 }
 
 template <typename _simd>
@@ -653,6 +662,11 @@ inline void SoftRasterizer::RenderingPipeline::rasterizeBatchScalar(
               sizeof(float) * read_length);
   std::memcpy(b, m_channels[2].ptr<float>(0) + read_pos,
               sizeof(float) * read_length);
+
+  PREFETCH(z);
+  PREFETCH(r);
+  PREFETCH(g);
+  PREFETCH(b);
 
   for (auto x = startx; x <= endx; x += SCALAR) {
     processFragByScalar(startx, x, y, z[x - startx], z0, z1, z2, z, r, g, b,
