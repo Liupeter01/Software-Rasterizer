@@ -213,6 +213,11 @@ void SoftRasterizer::TraditionalRasterizer::draw(SoftRasterizer::Primitive type)
                                                   [&, shader](const tbb::blocked_range<std::size_t>& range) {
                                                             for (std::size_t y = range.begin(); y != range.end(); ++y) {
 
+                                                                      //Backface, Face Culling
+                                                                      if (glm::dot(triangle.getFaceNormal(), eye) > 0) {
+                                                                                return;
+                                                                      }
+
                                                                       auto load_pos = triangle.box.startX + y * m_width;
 
                                                                       PREFETCH(&m_zBuffer[load_pos]);
