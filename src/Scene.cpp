@@ -7,14 +7,14 @@
 
 SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const glm::vec3 &center, const glm::vec3 &up)
-    : m_width(0), m_height(0), m_sceneName(sceneName) {
+    : m_width(0), m_height(0), m_sceneName(sceneName), m_bvh(std::make_unique<BVHAcceleration>()) {
   try {
     setViewMatrix(eye, center, up);
-  } catch (const std::exception &e) {
+  }
+  catch (const std::exception& e) {
+            spdlog::error("Scene Constructor Error! Reason: {}", e.what());
   }
 }
-
-SoftRasterizer::Scene::~Scene() {}
 
 bool SoftRasterizer::Scene::addGraphicObj(
     const std::string &path, const std::string &meshName, const glm::vec3 &axis,
@@ -253,6 +253,19 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
   matrix[3][1] = height / 2.0f;                // y translation
 
   m_ndcToScreenMatrix = matrix;
+}
+
+std::vector<SoftRasterizer::Object*> SoftRasterizer::Scene::getLoadedObjs(){
+          std::vector<SoftRasterizer::Object*> ret(m_loadedObjs.size());
+          std::transform(m_loadedObjs.begin(), m_loadedObjs.end(), ret.begin(), [](const auto& obj) {
+                    return obj.second.mesh.get();
+                    });
+          return ret;
+}
+
+void SoftRasterizer::Scene::buildBVHAccel(){ 
+          m_bvh->loadNewObjects(getLoadedObjs());
+          m_bvh->startBuilding();
 }
 
 tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple>

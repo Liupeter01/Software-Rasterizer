@@ -1,14 +1,15 @@
 #pragma once
 #ifndef _SCENE_HPP_
 #define _SCENE_HPP_
+#include <tuple>
 #include <atomic>
 #include <future>
 #include <hpc/Simd.hpp>
-#include <loader/ObjLoader.hpp>
-#include <shader/Shader.hpp>
-#include <tbb/concurrent_vector.h>
-#include <tuple>
 #include <unordered_map>
+#include <shader/Shader.hpp>
+#include <loader/ObjLoader.hpp>
+#include <tbb/concurrent_vector.h>
+#include  <bvh/BVHAcceleration.hpp>
 
 namespace SoftRasterizer {
 class Triangle;
@@ -23,15 +24,8 @@ public:
   using ObjFuture = std::future<ObjTuple>;
 
 public:
-  struct ObjInfo {
-    std::unique_ptr<ObjLoader> loader;
-    std::unique_ptr<Mesh> mesh;
-  };
-
   Scene(const std::string &sceneName, const glm::vec3 &eye,
         const glm::vec3 &center, const glm::vec3 &up);
-
-  virtual ~Scene();
 
 public:
   const glm::vec3 &loadEyeVec() const;
@@ -68,13 +62,18 @@ public:
   addLights(std::vector<std::pair<std::string, std::shared_ptr<light_struct>>>
                 lights);
 
+  /*Generating BVH Structure*/
+  void buildBVHAccel();
+
 protected:
+          /*For Rasterizer, Not Ray Tracing*/
   tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> loadTriangleStream();
   std::vector<SoftRasterizer::light_struct> loadLights();
 
 private:
   /*NDC Matrix Function is prepare for renderpipeline class!*/
   void setNDCMatrix(const std::size_t width, const std::size_t height);
+  std::vector<Object*> getLoadedObjs();
 
 private:
   std::string m_sceneName;
@@ -123,6 +122,9 @@ private:
   /*Transform normalized coordinates into screen space coordinates*/
   glm::mat4 m_ndcToScreenMatrix;
 
+  /*BVH Acceleration Structure*/
+  std::unique_ptr<BVHAcceleration> m_bvh;
+
   /*We Prepare this for loading fragment_shader_payload parallelly!*/
   std::vector<ObjFuture> m_future;
 
@@ -131,6 +133,11 @@ private:
 
   // creating the scene (adding objects and lights)
   std::unordered_map<std::string, std::shared_ptr<light_struct>> m_lights;
+
+  struct ObjInfo {
+            std::unique_ptr<ObjLoader> loader;
+            std::unique_ptr<Mesh> mesh;
+  };
   std::unordered_map<std::string, ObjInfo> m_loadedObjs;
 };
 } // namespace SoftRasterizer
