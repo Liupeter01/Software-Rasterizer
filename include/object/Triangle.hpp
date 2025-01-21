@@ -10,8 +10,16 @@
 #include <object/Object.hpp>
 
 namespace SoftRasterizer {
+
+          enum class FaceNormalType {
+                    PerGeometry,        //calculate by using cross product
+                    InterpolatedFace    //calculate by using barycentric coordinates
+          };
+
 struct alignas(32) Triangle : public Object {
   Triangle();
+
+  constexpr static float zero_point_3 = 0.3333333f;
 
   const glm::vec3 &a() const { return m_vertex[0]; }
   const glm::vec3 &b() const { return m_vertex[1]; }
@@ -23,6 +31,12 @@ struct alignas(32) Triangle : public Object {
   void setTexCoord(std::initializer_list<glm::vec2> _texCoords);
 
   Bounds3 getBounds() override;
+  [[nodiscard]]bool intersect(const Ray& ray) override;
+  [[nodiscard]] bool intersect(const Ray& ray, float& tNear) override;
+
+  //Moller Trumbore Algorithm
+  [[nodiscard]] Intersection getIntersect(Ray& ray) override;
+  [[nodiscard]] glm::vec3 getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);
 
