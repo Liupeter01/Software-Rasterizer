@@ -111,22 +111,6 @@ SoftRasterizer::RenderingPipeline::writePixel(const long long start_pos,
   writePixel(start_pos, color.r, color.g, color.b);
 }
 
-// inline bool SoftRasterizer::RenderingPipeline::writeZBuffer(const long long
-// x,
-//                                                             const long long
-//                                                             y, const float
-//                                                             depth) {
-//   if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
-//
-//     auto cur_depth = m_zBuffer[x + y * m_width];
-//     if (depth < cur_depth) {
-//       m_zBuffer[x + y * m_width] = depth;
-//       return true;
-//     }
-//   }
-//   return false;
-// }
-
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
                                                 const float depth) {
