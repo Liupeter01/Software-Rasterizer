@@ -1,15 +1,15 @@
 #pragma once
 #ifndef _SCENE_HPP_
 #define _SCENE_HPP_
-#include <tuple>
 #include <atomic>
+#include <bvh/BVHAcceleration.hpp>
 #include <future>
 #include <hpc/Simd.hpp>
-#include <unordered_map>
-#include <shader/Shader.hpp>
 #include <loader/ObjLoader.hpp>
+#include <shader/Shader.hpp>
 #include <tbb/concurrent_vector.h>
-#include  <bvh/BVHAcceleration.hpp>
+#include <tuple>
+#include <unordered_map>
 
 namespace SoftRasterizer {
 class Triangle;
@@ -18,9 +18,9 @@ class TraditionalRasterizer;
 class RayTracing;
 
 class Scene {
-          friend class TraditionalRasterizer;
-          friend class RayTracing;
-          friend class RenderingPipeline;
+  friend class TraditionalRasterizer;
+  friend class RayTracing;
+  friend class RenderingPipeline;
 
 public:
   using ObjTuple = std::tuple<std::shared_ptr<Shader>,
@@ -70,14 +70,14 @@ public:
   void buildBVHAccel();
 
 protected:
-          /*For Rasterizer, Not Ray Tracing*/
+  /*For Rasterizer, Not Ray Tracing*/
   tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> loadTriangleStream();
   std::vector<SoftRasterizer::light_struct> loadLights();
 
 private:
   /*NDC Matrix Function is prepare for renderpipeline class!*/
   void setNDCMatrix(const std::size_t width, const std::size_t height);
-  std::vector<Object*> getLoadedObjs();
+  std::vector<Object *> getLoadedObjs();
 
 private:
   std::string m_sceneName;
@@ -139,8 +139,8 @@ private:
   std::unordered_map<std::string, std::shared_ptr<light_struct>> m_lights;
 
   struct ObjInfo {
-            std::unique_ptr<ObjLoader> loader;
-            std::unique_ptr<Mesh> mesh;
+    std::unique_ptr<ObjLoader> loader;
+    std::unique_ptr<Mesh> mesh;
   };
   std::unordered_map<std::string, ObjInfo> m_loadedObjs;
 };

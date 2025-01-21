@@ -11,10 +11,10 @@
 
 namespace SoftRasterizer {
 
-          enum class FaceNormalType {
-                    PerGeometry,        //calculate by using cross product
-                    InterpolatedFace    //calculate by using barycentric coordinates
-          };
+enum class FaceNormalType {
+  PerGeometry,     // calculate by using cross product
+  InterpolatedFace // calculate by using barycentric coordinates
+};
 
 struct alignas(32) Triangle : public Object {
   Triangle();
@@ -31,12 +31,13 @@ struct alignas(32) Triangle : public Object {
   void setTexCoord(std::initializer_list<glm::vec2> _texCoords);
 
   Bounds3 getBounds() override;
-  [[nodiscard]]bool intersect(const Ray& ray) override;
-  [[nodiscard]] bool intersect(const Ray& ray, float& tNear) override;
+  [[nodiscard]] bool intersect(const Ray &ray) override;
+  [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override;
 
-  //Moller Trumbore Algorithm
-  [[nodiscard]] Intersection getIntersect(Ray& ray) override;
-  [[nodiscard]] glm::vec3 getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
+  // Moller Trumbore Algorithm
+  [[nodiscard]] Intersection getIntersect(Ray &ray) override;
+  [[nodiscard]] glm::vec3
+  getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);
 

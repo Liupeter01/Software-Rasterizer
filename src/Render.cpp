@@ -1,8 +1,8 @@
 ﻿#include "oneapi/tbb/blocked_range.h"
 #include "oneapi/tbb/parallel_for.h"
 #include <Tools.hpp>
-#include <opencv2/opencv.hpp>
 #include <base/Render.hpp>
+#include <opencv2/opencv.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
 #include <type_traits>
