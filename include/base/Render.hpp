@@ -82,7 +82,7 @@ public:
 
 protected:
   /*draw graphics*/
-  void draw(Primitive type);
+          virtual void draw(Primitive type) = 0;
   void clearFrameBuffer();
   void clearZDepth();
 
@@ -94,106 +94,127 @@ public:
   bool addScene(std::shared_ptr<Scene> scene,
                 std::optional<std::string> name = std::nullopt);
 
-private:
-  /*Only Draw Line*/
-  void rasterizeWireframe(const SoftRasterizer::Triangle &triangle);
-
-  inline static bool insideTriangle(const std::size_t x_pos,
-                                    const std::size_t y_pos,
-                                    const SoftRasterizer::Triangle &triangle);
-
-  static inline std::tuple<float, float, float>
-  barycentric(const std::size_t x_pos, const std::size_t y_pos,
-              const SoftRasterizer::Triangle &triangle);
-
-  /**
-   * @brief Calculates the barycentric coordinates (alpha, beta, gamma) for a
-   * given point (x_pos, y_pos) with respect to a triangle. Also checks if the
-   * point is inside the triangle using the `insideTriangle` function and
-   * applies the result as a mask to ensure the coordinates are only valid for
-   * points inside the triangle.
-   *
-   * @param x_pos SIMD register containing x positions of points.
-   * @param y_pos SIMD register containing y positions of points.
-   * @param triangle The triangle whose barycentric coordinates are to be
-   * calculated.
-   * @return A tuple of three simde__m256 values representing the barycentric
-   * coordinates (alpha, beta, gamma) for the point (x_pos, y_pos). The
-   * coordinates are zeroed out for points outside the triangle using a mask.
-   */
+protected:
+          template <typename _simd>
+          inline void writePixel(
+                    const long long start_pos, const _simd& r, const _simd& g, const _simd& b) {
 #if defined(__x86_64__) || defined(_WIN64)
-  static inline std::tuple<__m256, __m256, __m256>
-  barycentric(const __m256 &x_pos, const __m256 &y_pos,
-              const SoftRasterizer::Triangle &triangle);
+                    if constexpr (std::is_same_v<_simd, __m256>) {
+                              _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+                              _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+                              _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
 
 #elif defined(__arm__) || defined(__aarch64__)
-  static inline std::tuple<simde__m256, simde__m256, simde__m256>
-  barycentric(const simde__m256 &x_pos, const simde__m256 &y_pos,
-              const SoftRasterizer::Triangle &triangle);
+                    if constexpr (std::is_same_v<_simd, simde__m256>) {
+                              simde_mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+                              simde_mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+                              simde_mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
 
 #else
 #endif
-  /*Rasterize a triangle*/
-  inline void
-  rasterizeBatchAVX2(const int startx, const int endx, const int y,
-                     const std::vector<SoftRasterizer::light_struct> &lists,
-                     std::shared_ptr<SoftRasterizer::Shader> shader,
-                     const SoftRasterizer::Triangle &packed,
-                     const glm::vec3 &eye);
+                    }
+ else if constexpr (std::is_same_v<_simd, __m128>) {
+                              _mm_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+                              _mm_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+                              _mm_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+                              }
+                    }
 
-  template <typename _simd>
-  inline void processFragByAVX2(
-      const int x, const int y, const _simd &z0, const _simd &z1,
-      const _simd &z2, const std::vector<SoftRasterizer::light_struct> &lists,
-      std::shared_ptr<SoftRasterizer::Shader> shader,
-      const SoftRasterizer::Triangle &packed, const glm::vec3 &eye);
 
-  inline void
-  rasterizeBatchScalar(const int startx, const int endx, const int y,
-                       const std::vector<SoftRasterizer::light_struct> &lists,
-                       std::shared_ptr<SoftRasterizer::Shader> shader,
-                       const SoftRasterizer::Triangle &scalar,
-                       const glm::vec3 &eye);
 
-  inline void processFragByScalar(
-      const int startx, const int x, const int y, const float old_z,
-      const float z0, const float z1, const float z2, float *__restrict z,
-      float *__restrict r, float *__restrict g, float *__restrict b,
-      const std::vector<SoftRasterizer::light_struct> &lists,
-      std::shared_ptr<SoftRasterizer::Shader> shader,
-      const SoftRasterizer::Triangle &scalar, const glm::vec3 &eye);
-
-  inline void rasterizeBatchSSE(const SoftRasterizer::Triangle &) = delete;
-
-  /*My Computer Doesn't support AVX512*/
-  inline void rasterizeBatchAVX512(const SoftRasterizer::Triangle &) = delete;
-
-  template <typename _simd>
-  inline void writePixel(const long long start_pos, const _simd &r,
-                         const _simd &g, const _simd &b);
   inline void writePixel(const long long x, const long long y,
                          const glm::vec3 &color);
   inline void writePixel(const long long x, const long long y,
                          const glm::uvec3 &color);
-  inline void writePixel(const long long start_pos, const ColorSIMD &color);
+  inline void
+            writePixel(const long long start_pos,
+                      const ColorSIMD& color) {
+            writePixel(start_pos, color.r, color.g, color.b);
+  }
 
   template <typename _simd>
-  inline void writeZBuffer(const long long start_pos, const _simd &depth);
+  inline void
+            writeZBuffer(const long long start_pos,
+                      const _simd& depth) {
+#if defined(__x86_64__) || defined(_WIN64)
+            if constexpr (std::is_same_v<_simd, __m256>) {
+                      _mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+
+#elif defined(__arm__) || defined(__aarch64__)
+            if constexpr (std::is_same_v<_simd, simde__m256>) {
+                      simde_mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]),
+                                depth);
+#else
+#endif
+            }
+ else if constexpr (std::is_same_v<_simd, __m128>) {
+           _mm_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+  }
+            }
+
   inline bool writeZBuffer(const long long x, const long long y,
                            const float depth);
   inline void writeZBuffer(const long long start_pos, const float depth);
 
-  template <typename _simd> inline _simd readZBuffer(const long long start_pos);
+  template <typename _simd>
+  inline _simd
+            readZBuffer(const long long start_pos) {
+#if defined(__x86_64__) || defined(_WIN64)
+            if constexpr (std::is_same_v<_simd, __m256>) {
+                      return _mm256_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+
+#elif defined(__arm__) || defined(__aarch64__)
+            if constexpr (std::is_same_v<_simd, simde__m256>) {
+                      return simde_mm256_loadu_ps(
+                                reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+#else
+#endif
+            }
+ else if constexpr (std::is_same_v<_simd, __m128>) {
+           return _mm_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+  }
+  return {};
+            }
+
   inline const float readZBuffer(const long long x, const long long y);
 
   template <typename _simd>
-  inline std::tuple<_simd, _simd, _simd> readPixel(const long long start_pos);
+  inline std::tuple<_simd, _simd, _simd>
+            readPixel(const long long start_pos) {
+
+#if defined(__x86_64__) || defined(_WIN64)
+            if constexpr (std::is_same_v<_simd, __m256>) {
+                      return {
+                          _mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
+                          _mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
+                          _mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
+                      };
+
+#elif defined(__arm__) || defined(__aarch64__)
+            if constexpr (std::is_same_v<_simd, simde__m256>) {
+                      return {
+                          simde_mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
+                          simde_mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
+                          simde_mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
+                      };
+#else
+#endif
+            }
+ else if constexpr (std::is_same_v<_simd, __m128>) {
+           return {
+               _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
+               _mm_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
+               _mm_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
+           };
+  }
+  return {};
+            }
 
   /*Bresenham algorithm*/
   void drawLine(const glm::vec3 &p0, const glm::vec3 &p1,
                 const glm::uvec3 &color);
 
-private:
+protected:
   /*SIMD Support*/
   constexpr static std::size_t AVX512 = 16;
   constexpr static std::size_t AVX2 = 8;
