@@ -197,6 +197,12 @@ void SoftRasterizer::TraditionalRasterizer::draw(SoftRasterizer::Primitive type)
                     /*Traversal All The Triangle*/
                     for (auto& [shader, CurrentObj] : stream) {
                               for (auto& triangle : CurrentObj) {
+
+                                        //Backface, Face Culling
+                                        if (glm::dot(triangle.getFaceNormal(), eye) > 0) {
+                                                  continue;
+                                        }
+
                                         auto box_startX = triangle.box.startX;
                                         auto box_endX = triangle.box.endX;
 
@@ -212,11 +218,6 @@ void SoftRasterizer::TraditionalRasterizer::draw(SoftRasterizer::Primitive type)
                                                             triangle.box.endY + 1, 1),
                                                   [&, shader](const tbb::blocked_range<std::size_t>& range) {
                                                             for (std::size_t y = range.begin(); y != range.end(); ++y) {
-
-                                                                      //Backface, Face Culling
-                                                                      if (glm::dot(triangle.getFaceNormal(), eye) > 0) {
-                                                                                return;
-                                                                      }
 
                                                                       auto load_pos = triangle.box.startX + y * m_width;
 
