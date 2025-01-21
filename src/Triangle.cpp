@@ -1,6 +1,6 @@
 #include <Tools.hpp>
-#include <Triangle.hpp>
 #include <algorithm>
+#include <object/Triangle.hpp>
 
 SoftRasterizer::Triangle::Triangle() : box() {
   for (std::size_t index = 0; index < 3; ++index) {
@@ -51,6 +51,79 @@ void SoftRasterizer::Triangle::setTexCoord(
   std::copy(_texCoords.begin(), _texCoords.end(), m_texCoords.begin());
 }
 
+SoftRasterizer::Bounds3 SoftRasterizer::Triangle::getBounds() {
+  return BoundsUnion(m_vertex[0], Bounds3(m_vertex[1], m_vertex[2]));
+}
+
+bool SoftRasterizer::Triangle::intersect(const Ray& ray) { return true; }
+
+bool  SoftRasterizer::Triangle::intersect(const Ray& ray, float& tNear) { return false; }
+
+//Moller Trumbore Algorithm
+SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray& ray){
+          Intersection ret;
+          glm::vec3 normal = getFaceNormal();
+
+          //back face culling
+          if (glm::dot(normal, ray.direction) > 0) {       
+                    return ret;
+          }
+
+          //Caculate Edge Vectors
+          glm::vec3 e1 = m_vertex[1] - m_vertex[0];
+          glm::vec3 e2 = m_vertex[2] - m_vertex[0];
+
+          //light and surface is parallel or not?
+          glm::vec3 pvec = glm::cross(ray.direction, e2);
+          float det = glm::dot(e1, pvec);
+          if (std::abs(det) < std::numeric_limits<float>::epsilon()) {
+                    return ret;
+          }
+
+          //barycentric coordinates
+          double det_inv = 1.f / det;
+          glm::vec3 tvec = ray.origin - m_vertex[0];
+          float u = glm::dot(tvec, pvec) * det_inv;
+          if (u < 0 || u > 1) {
+                    return ret;
+          }
+
+          glm::vec3 qvec = glm::cross(tvec, e1);
+          float v = glm::dot(ray.direction, qvec) * det_inv;
+          if (v < 0 || u + v > 1) {
+                    return ret;
+          }
+
+          // calculate the intersect time
+          float t0 = glm::dot(e2, qvec) * det_inv;
+          if (t0 < 0) {
+                    return ret;
+          }
+
+          ret.obj = this;
+          ret.intersect_time = t0;
+          ret.coords = ray.direction * t0 + ray.origin;
+
+          /*Normal of a sphere!*/
+          ret.normal = normal;
+
+          //we could find a intersect time point
+          ret.intersected = true;
+          return ret;
+}
+
+glm::vec3 SoftRasterizer::Triangle::getFaceNormal(FaceNormalType type) const {
+          if (type == FaceNormalType::PerGeometry) {
+                    return glm::normalize(glm::cross(m_vertex[1] - m_vertex[0], m_vertex[2] - m_vertex[0]));
+          }
+          else if (type == FaceNormalType::InterpolatedFace) {
+                    return Tools::interpolateNormal(zero_point_3, zero_point_3, zero_point_3, m_normal[0], m_normal[1], m_normal[2]);
+          }
+          else {
+                    throw std::runtime_error("Invalid Face Normal Type");
+          }
+}
+
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,
                                                const std::size_t height) {
   box.startX = std::clamp(static_cast<long long>(std::min(
@@ -65,15 +138,4 @@ void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,
   box.endY = std::clamp(static_cast<long long>(std::max(
                             {m_vertex[0].y, m_vertex[1].y, m_vertex[2].y})),
                         0LL, static_cast<long long>(height - 1));
-}
-
-bool SoftRasterizer::Triangle::isOverlapping(const Triangle &box1,
-                                             const Triangle &box2) const {
-  return isOverlapping(box1.box, box2.box);
-}
-
-bool SoftRasterizer::Triangle::isOverlapping(const BoundingBox &box1,
-                                             const BoundingBox &box2) const {
-  return !(box1.endX < box2.startX || box1.startX > box2.endX ||
-           box1.endY < box2.startY || box1.startY > box2.endY);
 }

@@ -3,6 +3,7 @@
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(TBB_TEST OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -51,7 +52,7 @@ endif()
 
 project(
   Software-Rasterizer
-  VERSION 0.2.0
+  VERSION 0.2.4
   LANGUAGES C CXX)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
@@ -62,13 +63,14 @@ file(GLOB_RECURSE header_file CONFIGURE_DEPENDS include/*.hpp include/*.h)
 add_subdirectory(external/spdlog)
 add_subdirectory(external/tinyobjloader)
 add_subdirectory(external/glm)
+add_subdirectory(external/oneTBB)
 
 add_executable(Software-Rasterizer ${source_file} ${header_file})
 target_include_directories(
   Software-Rasterizer PUBLIC include external/simde/simde external/sse2neon
                              ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(Software-Rasterizer PUBLIC ${OpenCV_LIBRARIES} spdlog
-                                                 tinyobjloader glm)
+                                                 tinyobjloader glm TBB::tbb)
 
 # Enable OpenMP
 find_package(OpenMP)

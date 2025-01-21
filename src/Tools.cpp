@@ -1,5 +1,5 @@
 #include <Tools.hpp>
-#include <Triangle.hpp>
+#include <object/Triangle.hpp>
 #include <spdlog/spdlog.h>
 
 #if defined(__x86_64__) || defined(_WIN64)

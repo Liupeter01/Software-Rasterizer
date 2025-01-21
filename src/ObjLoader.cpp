@@ -1,5 +1,6 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <Tools.hpp>
+#include <bvh/Bounds3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <loader/ObjLoader.hpp>
@@ -92,6 +93,9 @@ processingVertexData(const std::string &objName,
                      std::hash<SoftRasterizer::Vertex>>
       uniqueVertices = {};
 
+  // BoundingBox
+  SoftRasterizer::Bounds3 box;
+
   // Loop over shapes
   for (std::size_t s = 0; s < shapes.size(); s++) {
     meshname = shapes[s].name;
@@ -114,6 +118,15 @@ processingVertexData(const std::string &objName,
           glm::vec3(attrib.vertices[3 * size_t(idx.vertex_index) + 0],
                     attrib.vertices[3 * size_t(idx.vertex_index) + 1],
                     attrib.vertices[3 * size_t(idx.vertex_index) + 2]);
+
+      // Calculating BoundingBox
+      box.min = glm::vec3(std::min(box.min.x, vertex.position.x),
+                          std::min(box.min.y, vertex.position.y),
+                          std::min(box.min.z, vertex.position.z));
+
+      box.max = glm::vec3(std::max(box.max.x, vertex.position.x),
+                          std::max(box.max.y, vertex.position.y),
+                          std::max(box.max.z, vertex.position.z));
 
       vertex.color = glm::vec3(attrib.colors[3 * size_t(idx.vertex_index) + 0],
                                attrib.colors[3 * size_t(idx.vertex_index) + 1],
@@ -172,10 +185,12 @@ processingVertexData(const std::string &objName,
   }
 
   auto material = processMatrial(materials);
-
-  return std::make_unique<SoftRasterizer::Mesh>(
+  auto mesh = std::make_unique<SoftRasterizer::Mesh>(
       objName.empty() ? meshname : objName, material, std::move(vertices),
-      std::move(faces));
+      std::move(faces),
+      /*BoundingBox for BVH init*/ std::move(box));
+
+  return std::move(mesh);
 }
 
 std::optional<std::unique_ptr<SoftRasterizer::Mesh>>

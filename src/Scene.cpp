@@ -1,20 +1,20 @@
 #include <Tools.hpp>
 #include <numeric> // For std::accumulate
-#include <render/Render.hpp>
+#include <base/Render.hpp>
 #include <scene/Scene.hpp>
-#include <service/ThreadPool.hpp>
 #include <spdlog/spdlog.h>
+#include <tbb/parallel_for.h>
 
 SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const glm::vec3 &center, const glm::vec3 &up)
-    : m_width(0), m_height(0), m_sceneName(sceneName) {
+    : m_width(0), m_height(0), m_sceneName(sceneName), m_bvh(std::make_unique<BVHAcceleration>()) {
   try {
     setViewMatrix(eye, center, up);
-  } catch (const std::exception &e) {
+  }
+  catch (const std::exception& e) {
+            spdlog::error("Scene Constructor Error! Reason: {}", e.what());
   }
 }
-
-SoftRasterizer::Scene::~Scene() {}
 
 bool SoftRasterizer::Scene::addGraphicObj(
     const std::string &path, const std::string &meshName, const glm::vec3 &axis,
@@ -255,15 +255,24 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
   m_ndcToScreenMatrix = matrix;
 }
 
-std::vector<SoftRasterizer::Scene::ObjTuple>
+std::vector<SoftRasterizer::Object*> SoftRasterizer::Scene::getLoadedObjs(){
+          std::vector<SoftRasterizer::Object*> ret(m_loadedObjs.size());
+          std::transform(m_loadedObjs.begin(), m_loadedObjs.end(), ret.begin(), [](const auto& obj) {
+                    return obj.second.mesh.get();
+                    });
+          return ret;
+}
+
+void SoftRasterizer::Scene::buildBVHAccel(){ 
+          m_bvh->loadNewObjects(getLoadedObjs());
+          m_bvh->startBuilding();
+}
+
+tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple>
 SoftRasterizer::Scene::loadTriangleStream() {
 
-  /*clean ObjFuture std::vector */
-  m_future.clear();
-
-  /*We will retrieve all the triangle by only using one vector struture*/
-
-  std::vector<ObjTuple> stream;
+  // Use tbb::concurrent_vector to collect results safely in parallel
+  tbb::concurrent_vector<ObjTuple> stream;
 
   // Estimate and reserve the total size for triangle_stream to avoid
   // reallocations
@@ -278,31 +287,20 @@ SoftRasterizer::Scene::loadTriangleStream() {
     const auto &shader = mesh->m_shader;
     const auto &modelMatrix = objData.loader->getModelMatrix();
 
-    m_future.emplace_back(ThreadPool::get_instance()->commit(
-        [shader, modelMatrix, view = m_view, projection = m_projection,
-         width = m_width, height = m_height](
-            const float scale, const float offset, const glm::mat4 &NDC,
-            const std::vector<Vertex> &vertices,
-            const std::vector<glm::uvec3> &faces) -> ObjTuple {
-          const std::size_t face_number = faces.size();
+    auto NDC_MVP = m_ndcToScreenMatrix * m_projection * m_view * modelMatrix;
+    auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
 
-          /*NDC MVP*/
-          auto NDC_MVP = NDC * projection * view * modelMatrix;
+    tbb::concurrent_vector<SoftRasterizer::Triangle> ret;
 
-          /*Inverse Normal*/
-          auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
-
-          // Prepare transformed triangles for rasterization.
-          std::vector<SoftRasterizer::Triangle> res;
-          res.reserve(face_number);
-
-          for (long long face_index = 0; face_index < face_number;
+    tbb::parallel_for(
+        tbb::blocked_range<long long>(0, mesh->faces.size()),
+        [&](const tbb::blocked_range<long long> &r) {
+          for (long long face_index = r.begin(); face_index < r.end();
                ++face_index) {
-
-            const auto &face = faces[face_index];
-            SoftRasterizer::Vertex A = vertices[face.x];
-            SoftRasterizer::Vertex B = vertices[face.y];
-            SoftRasterizer::Vertex C = vertices[face.z];
+            const auto &face = mesh->faces[face_index];
+            SoftRasterizer::Vertex A = mesh->vertices[face.x];
+            SoftRasterizer::Vertex B = mesh->vertices[face.y];
+            SoftRasterizer::Vertex C = mesh->vertices[face.z];
 
             A.position = Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
             A.position.z = A.position.z * scale + offset; // Z-Depth
@@ -320,19 +318,15 @@ SoftRasterizer::Scene::loadTriangleStream() {
             T.setVertex({A.position, B.position, C.position});
             T.setNormal({A.normal, B.normal, C.normal});
             T.setTexCoord({A.texCoord, B.texCoord, C.texCoord});
-            T.calcBoundingBox(width, height);
+            T.calcBoundingBox(m_width, m_height);
 
-            /*write it inside vector*/
-            res.emplace_back(std::move(T));
+            // Thread-safe insertion into concurrent_vector
+            ret.emplace_back(std::move(T));
           }
-          return {/*shader*/ shader, /*vector=*/res};
-        },
-        scale, offset, m_ndcToScreenMatrix, mesh->vertices, mesh->faces));
+        });
+
+    stream.push_back({shader, ret});
   }
 
-  /* Wait for all tasks to finish, Block until all tasks are complete*/
-  for (auto &future : m_future) {
-    stream.insert(stream.end(), std::move(future.get()));
-  }
   return stream;
 }
