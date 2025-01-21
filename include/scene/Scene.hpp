@@ -14,9 +14,13 @@
 namespace SoftRasterizer {
 class Triangle;
 class RenderingPipeline;
+class TraditionalRasterizer;
+class RayTracing;
 
 class Scene {
-  friend class RenderingPipeline;
+          friend class TraditionalRasterizer;
+          friend class RayTracing;
+          friend class RenderingPipeline;
 
 public:
   using ObjTuple = std::tuple<std::shared_ptr<Shader>,

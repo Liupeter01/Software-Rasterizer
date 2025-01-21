@@ -1,6 +1,6 @@
 #include <Tools.hpp>
 #include <numeric> // For std::accumulate
-#include <render/Render.hpp>
+#include <base/Render.hpp>
 #include <scene/Scene.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
