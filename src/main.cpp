@@ -1,12 +1,12 @@
 #include <opencv2/opencv.hpp>
-#include <render/Render.hpp>
+#include <render/Rasterizer.hpp>
 #include <scene/Scene.hpp>
 
 int main() {
   int key = 0;
   float degree = 0.0f;
 
-  auto render = std::make_shared<SoftRasterizer::RenderingPipeline>(
+  auto render = std::make_shared<SoftRasterizer::TraditionalRasterizer>(
       1024, 1024); // Create Render Main Class
   auto scene = std::make_shared<SoftRasterizer::Scene>(
       "TestScene",
@@ -48,6 +48,7 @@ int main() {
 
   scene->addLight("Light1", light1);
   scene->addLight("Light2", light2);
+  scene->buildBVHAccel();
 
   /*Register Scene To Render Main Frame*/
   render->addScene(scene);
