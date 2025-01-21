@@ -2,14 +2,14 @@
 #ifndef _MESH_HPP_
 #define _MESH_HPP_
 #define GLM_ENABLE_EXPERIMENTAL // Enable experimental features
-#include <bvh/Bounds3.hpp>
+#include <string>
+#include <memory>
 #include <functional> // For std::hash
 #include <glm/glm.hpp>
+#include <bvh/Bounds3.hpp>
 #include <glm/gtx/hash.hpp>
-#include <memory>
-#include <object/Material.hpp>
 #include <object/Object.hpp>
-#include <string>
+#include <object/Material.hpp>
 
 namespace SoftRasterizer {
 
@@ -30,39 +30,24 @@ struct Vertex {
 
 struct Mesh : public Object {
 public:
-  Mesh() : Mesh("") {}
-  Mesh(const std::string &name) : meshname(name), m_shader(nullptr) {}
-  Mesh(const std::string &name, const SoftRasterizer::Material &_material,
-       const std::vector<Vertex> &_vertices,
-       const std::vector<glm::uvec3> &_faces, const Bounds3 &box)
-      : meshname(name), MeshMaterial(_material), vertices(_vertices),
-        faces(_faces), bounding_box(box), m_shader(nullptr) {
-    generateBVHAccel();
-  }
+          Mesh();
+          Mesh(const std::string& name);
+          Mesh(const std::string& name, const SoftRasterizer::Material& _material,
+                    const std::vector<Vertex>& _vertices,
+                    const std::vector<glm::uvec3>& _faces, const Bounds3& box);
 
-  Mesh(const std::string &name, SoftRasterizer::Material &&_material,
-       std::vector<Vertex> &&_vertices, std::vector<glm::uvec3> &&_faces,
-       Bounds3 &&box)
-      : meshname(name), MeshMaterial(std::move(_material)),
-        vertices(std::move(_vertices)), faces(std::move(_faces)),
-        bounding_box(std::move(box)), m_shader(nullptr) {
-    generateBVHAccel();
-  }
+          Mesh(const std::string& name, SoftRasterizer::Material&& _material,
+                    std::vector<Vertex>&& _vertices, std::vector<glm::uvec3>&& _faces,
+                    Bounds3&& box);
 
-  void bindShader2Mesh(std::shared_ptr<Shader> shader) {
-    /*bind shader2 mesh without dtor,  the life od this pointer is maintained by
-     * render class*/
-    m_shader.reset();
-    m_shader = shader;
-  }
+  void bindShader2Mesh(std::shared_ptr<Shader> shader);
 
 public:
   void updateBounds(const Bounds3 &new_box) { bounding_box = new_box; }
-  Bounds3 getBounds() { return bounding_box; }
-
-private:
-  /*Generating BVH Structure For First Time Use*/
-  void generateBVHAccel() {}
+  Bounds3 getBounds() override { return bounding_box; }
+  [[nodiscard]] bool intersect(const Ray& ray) override;
+  [[nodiscard]] bool intersect(const Ray& ray, float& tNear) override;
+  [[nodiscard]] Intersection getIntersect(Ray& ray) override;
 
 public:
   // Mesh Name
