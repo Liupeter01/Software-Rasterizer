@@ -244,3 +244,28 @@ glm::vec3 SoftRasterizer::Tools::calculateNormalWithWeight(
   }
   return normal;
 }
+
+float SoftRasterizer::Tools::fresnel(const glm::vec3& rayDirection,
+          const glm::vec3& normal,
+          const float& refractiveIndex) {
+
+          float cosi = std::clamp(glm::dot(rayDirection, normal), -1.0f, 1.0f);
+          float etai = 1, etat = refractiveIndex;
+          if (cosi > 0) { std::swap(etai, etat); }
+          // Compute sini using Snell's law
+          float sint = etai / etat * sqrtf(std::max(0.f, 1 - cosi * cosi));
+          // Total internal reflection
+          if (sint >= 1) {
+                    return 1.0f;
+          }
+          else {
+                    float cost = sqrtf(std::max(0.f, 1 - sint * sint));
+                    cosi = fabsf(cosi);
+                    float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+                    float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+                    return  (Rs * Rs + Rp * Rp) / 2;
+          }
+          // As a consequence of the conservation of energy, transmittance is given by:
+          // kt = 1 - kr;
+          return {};
+}
