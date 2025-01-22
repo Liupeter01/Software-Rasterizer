@@ -46,15 +46,17 @@ void SoftRasterizer::BVHAcceleration::buildBVH() {
   std::chrono::high_resolution_clock::time_point end =
       std::chrono::high_resolution_clock::now();
 
-  spdlog::info("Start BVH Generation complete: {}ms", (end - start).count());
+  spdlog::info("Start BVH Generation complete: {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 }
 
 SoftRasterizer::Intersection
 SoftRasterizer::BVHAcceleration::getIntersection(Ray &ray) const {
-  if (root == nullptr) {
-    return {};
+          Intersection ret;
+  if (root != nullptr) {
+            ret = intersection(root.get(), ray);
+            ret.material = ret.obj->getMaterial();
   }
-  return intersection(root.get(), ray);
+  return ret;
 }
 
 SoftRasterizer::Intersection

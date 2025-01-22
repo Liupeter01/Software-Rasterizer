@@ -8,6 +8,8 @@
 #include <vector>
 
 namespace SoftRasterizer {
+          class Scene;
+
 struct BVHBuildNode {
   BVHBuildNode() : left(nullptr), right(nullptr), box(), obj(nullptr) {}
 
@@ -18,6 +20,8 @@ struct BVHBuildNode {
 };
 
 class BVHAcceleration {
+          friend class Scene;
+
 public:
   BVHAcceleration();
   BVHAcceleration(const std::vector<Object *> &stream);
