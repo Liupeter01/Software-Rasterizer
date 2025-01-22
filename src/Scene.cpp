@@ -5,9 +5,10 @@
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
 
-SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
-                             const glm::vec3 &center, const glm::vec3 &up)
-    : m_width(0), m_height(0), m_sceneName(sceneName),
+SoftRasterizer::Scene::Scene(const std::string& sceneName, const glm::vec3& eye,
+          const glm::vec3& center, const glm::vec3& up, glm::vec3 backgroundColor, const std::size_t maxdepth)
+          : m_width(0), m_height(0), m_sceneName(sceneName), m_maxDepth(maxdepth), m_backgroundColor(backgroundColor),
+          m_eye(eye), m_center(center), m_up(up), m_fovy(45.0f), m_aspectRatio(0.0f), scale(0.0f), offset(0.0f),
       m_bvh(std::make_unique<BVHAcceleration>()) {
   try {
     setViewMatrix(eye, center, up);
@@ -54,7 +55,13 @@ bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
   return true;
 }
 
-bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
+bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName, MaterialType _type,
+          const glm::vec3& _color,
+          const glm::vec3& _Ka ,
+          const glm::vec3& _Kd,
+          const glm::vec3& _Ks,
+          const float _specularExponent,
+          const float _ior) {
 
   /*This Object has already been identified!*/
   if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
@@ -71,7 +78,7 @@ bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
   }
 
   std::optional<std::unique_ptr<Mesh>> mesh_op =
-      m_loadedObjs[meshName].loader->startLoadingFromFile(meshName);
+            m_loadedObjs[meshName].loader->startLoadingFromFile(meshName, _type, _color, _Ka, _Kd, _Ks, _specularExponent, _ior);
   if (!mesh_op.has_value()) {
     spdlog::error("Start Loading Mesh Failed! Because Loading Internel Error!");
     return false;
@@ -260,6 +267,148 @@ std::vector<SoftRasterizer::Object *> SoftRasterizer::Scene::getLoadedObjs() {
   std::transform(m_loadedObjs.begin(), m_loadedObjs.end(), ret.begin(),
                  [](const auto &obj) { return obj.second.mesh.get(); });
   return ret;
+}
+
+//emit ray from eye to pixel and trace the scene to find the nearest object intersected by the ray
+std::optional<std::shared_ptr<SoftRasterizer::Object>> 
+SoftRasterizer::Scene::traceScene(const Ray& ray, float& tNear){
+          Object* nearestObj = nullptr;
+          std::for_each(m_bvh->objs.begin(), m_bvh->objs.end(), [&nearestObj, &tNear, &ray](Object* obj) {
+                    float temp = std::numeric_limits<float>::infinity();
+                    if (obj->intersect(ray, temp)) {
+                              nearestObj = temp < tNear ? obj : nearestObj;
+                              tNear = temp < tNear ? temp : tNear;
+                    }
+          });
+
+          if (nearestObj == nullptr || tNear < 0) {
+                    return std::nullopt;
+          }
+          return std::shared_ptr<SoftRasterizer::Object>(nearestObj, [](Object*) {});
+}
+
+SoftRasterizer::Intersection
+SoftRasterizer::Scene::traceScene(Ray& ray){
+          Intersection ret;
+          float tNear = std::numeric_limits<float>::infinity();
+          std::for_each(m_bvh->objs.begin(), m_bvh->objs.end(), [&ret, &tNear, &ray](auto& obj) {
+                    float temp = std::numeric_limits<float>::infinity();
+                    if (obj->intersect(ray, temp)) {
+                              if (temp < tNear) {
+                                        tNear = temp;
+                                        ret.obj = obj;
+                                        ret.intersect_time = tNear;
+                              }
+                    }
+           });
+          if(ret.obj == nullptr || tNear < 0) {
+                    ret.intersected = false;
+                    return ret;
+          }
+
+          ret.coords = ray.origin + ray.direction * ret.intersect_time;
+          ret.material = ret.obj->getMaterial();
+          ret.normal = ret.obj->getSurfaceProperties(0, ret.coords, ray.direction, glm::vec2(0.f)).normal;
+          ret.intersected = true;
+          return ret;
+}
+
+glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray& ray, int depth, const  std::vector<SoftRasterizer::light_struct>& lights){
+          if (depth > m_maxDepth) {
+                    //Return black if the ray has reached the maximum depth
+                    return glm::vec3(0.f);
+          }
+
+          Intersection intersection = traceScene(ray);
+          if (!intersection.intersected || !intersection.obj) {
+                    //Return black if the ray does not intersect with any object
+                    spdlog::debug("Ray Intersection Not Found On Depth {}", depth);
+                    return  this->m_backgroundColor;
+          }
+
+          glm::vec3 final_color = this->m_backgroundColor;
+
+          //Get the hit point
+          auto hitPoint = intersection.coords;
+
+          /*DON NOT FORGET TO NORMALIZE THE NORMAL*/
+          auto rayDirection = glm::normalize(ray.direction);
+          auto hitNormal = glm::normalize(intersection.normal);
+
+          /*Phong illumation model*/
+          if (intersection.material->getMaterialType() == MaterialType::DIFFUSE_AND_GLOSSY) {
+
+                    /*Self-Intersection Problem Avoidance*/
+                    glm::vec3 shadowCoord = glm::dot(rayDirection, hitNormal) < 0 ?
+                              hitPoint - hitNormal * std::numeric_limits<float>::epsilon() :
+                              hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
+
+                    glm::vec3 ambient(glm::vec3(0.f)), specular(glm::abs(glm::vec3(0.f))), diffuse(glm::vec3(0.f));
+
+                    for (const auto& light : lights) {
+                              /*the direction of intersected coordinate to light position*/
+                              float distance = std::sqrt(std::pow(light.position.x - hitPoint.x, 2) + std::pow(light.position.y - hitPoint.y, 2));
+                              glm::vec3 lightDir = glm::normalize(light.position - hitPoint);
+                              glm::vec3 reflectDir = glm::reflect(-lightDir, hitNormal);            //reflection direction
+                              glm::vec3 intensity = light.intensity / distance;
+
+                              //Diffuse reflection (Lambertian reflectance)
+                              float diff = std::max(0.f, glm::dot(hitNormal, lightDir));
+
+                              //Specular reflection(Blinn - Phong)
+                              float spec = std::pow(std::max(0.f, glm::dot(hitNormal, reflectDir)), intersection.material->specularExponent);
+
+                              /*
+                              * Ambient lighting
+                              * Emit A ray to from point to light, to see is there any obstacles
+                              * When intersected = true, it means there is an obstacle between the point and the light source
+                              */
+                              ambient += traceScene(Ray(shadowCoord, lightDir)).intersected ? glm::vec3(0.f) : light.intensity;
+                              diffuse += intensity * diff;
+                              specular += intensity * spec;
+                    }
+
+                    final_color = ambient * intersection.material->Ka + diffuse * intersection.material->Kd + specular * intersection.material->Ks;
+          }
+          else if (intersection.material->getMaterialType() == MaterialType::REFLECTION_AND_REFRACTION) {
+                    /*Safety Consideration*/
+                    auto reflectPath = glm::normalize(glm::reflect(rayDirection, hitNormal));
+                    auto refractPath = glm::normalize(glm::refract(rayDirection, hitNormal, intersection.material->ior));
+
+                    //prevent relfection and refraction from happening at the same time
+                    auto reflectCoord = glm::dot(reflectPath, hitNormal) < 0 ? 
+                              hitPoint - hitNormal * std::numeric_limits<float>::epsilon() : 
+                              hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
+
+                    auto refractCoord = glm::dot(refractPath, hitNormal) < 0 ?
+                              hitPoint - hitNormal * std::numeric_limits<float>::epsilon() :
+                              hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
+
+                    Ray reflectedRay(reflectCoord, reflectPath);
+                    Ray refractedRay(refractCoord, refractPath);
+
+                    glm::vec3 reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+                    glm::vec3 refractedColor = whittedRayTracing(refractedRay, depth + 1, lights);
+
+                    float kr = Tools::fresnel(rayDirection, hitNormal, intersection.material->ior);
+                    final_color = (reflectedColor * kr + refractedColor * (1 - kr));    
+          }
+          else if (intersection.material->getMaterialType() == MaterialType::REFLECTION) {
+                    /*Safety Consideration*/
+                    auto reflectPath = glm::normalize(glm::reflect(rayDirection, hitNormal));
+
+                    //prevent relfection and refraction from happening at the same time
+                    auto reflectCoord = glm::dot(reflectPath, hitNormal) < 0 ?
+                              hitPoint - hitNormal * std::numeric_limits<float>::epsilon() :
+                              hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
+
+                    Ray reflectedRay(reflectCoord, reflectPath);
+                    glm::vec3 reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+                    float kr = Tools::fresnel(rayDirection, hitNormal, intersection.material->ior);
+                    final_color += reflectedColor * kr;
+          }
+
+          return final_color;
 }
 
 void SoftRasterizer::Scene::buildBVHAccel() {

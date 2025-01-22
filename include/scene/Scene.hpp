@@ -9,6 +9,7 @@
 #include <shader/Shader.hpp>
 #include <tbb/concurrent_vector.h>
 #include <tuple>
+#include <optional>
 #include <unordered_map>
 
 namespace SoftRasterizer {
@@ -16,6 +17,7 @@ class Triangle;
 class RenderingPipeline;
 class TraditionalRasterizer;
 class RayTracing;
+
 
 class Scene {
   friend class TraditionalRasterizer;
@@ -29,7 +31,7 @@ public:
 
 public:
   Scene(const std::string &sceneName, const glm::vec3 &eye,
-        const glm::vec3 &center, const glm::vec3 &up);
+        const glm::vec3 &center, const glm::vec3 &up, glm::vec3 m_backgroundColor = glm::vec3(0.f), const std::size_t maxdepth = 5);
 
 public:
   const glm::vec3 &loadEyeVec() const;
@@ -50,7 +52,13 @@ public:
                      const glm::vec3 &axis, const float angle,
                      const glm::vec3 &translation, const glm::vec3 &scale);
 
-  bool startLoadingMesh(const std::string &meshName);
+  bool startLoadingMesh(const std::string &meshName, MaterialType _type = MaterialType::REFLECTION_AND_REFRACTION,
+            const glm::vec3& _color = glm::vec3(1.0f),
+            const glm::vec3& _Ka = glm::vec3(0.0f),
+            const glm::vec3& _Kd = glm::vec3(0.0f),
+            const glm::vec3& _Ks = glm::vec3(0.0f),
+            const float _specularExponent = 0.0f,
+            const float _ior = 0.f);
 
   bool addShader(const std::string &shaderName, const std::string &texturePath,
                  SHADERS_TYPE type);
@@ -79,8 +87,16 @@ private:
   void setNDCMatrix(const std::size_t width, const std::size_t height);
   std::vector<Object *> getLoadedObjs();
 
+  //emit ray from eye to pixel and trace the scene to find the nearest object intersected by the ray
+  std::optional<std::shared_ptr<Object>> traceScene(const Ray& ray, float& tNear);
+  Intersection traceScene(Ray& ray);
+  glm::vec3 whittedRayTracing(Ray& ray, int depth, const  std::vector<SoftRasterizer::light_struct>& lights);
+
 private:
+          /*Scene Configuration*/
   std::string m_sceneName;
+  const std::size_t m_maxDepth;
+  glm::vec3 m_backgroundColor;
 
   /*display resolution*/
   std::size_t m_width, m_height;
