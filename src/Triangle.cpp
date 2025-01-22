@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <object/Triangle.hpp>
 
-SoftRasterizer::Triangle::Triangle() : box() {
+SoftRasterizer::Triangle::Triangle() : box() ,m_material(std::make_shared<Material>()){
   for (std::size_t index = 0; index < 3; ++index) {
     m_vertex[index] = glm::vec3(0.f);
     m_color[index] = glm::vec3(0.f);
@@ -61,6 +61,39 @@ bool SoftRasterizer::Triangle::intersect(const Ray &ray, float &tNear) {
   return false;
 }
 
+bool  SoftRasterizer::Triangle::rayTriangleIntersect(const Ray& ray, const glm::vec3& v0,
+          const glm::vec3& v1, const glm::vec3& v2,
+          float& tNear, float& u, float& v) {
+
+          glm::vec3 e1 = v1 - v0;
+          glm::vec3 e2 = v2 - v0;
+
+          glm::vec3 pvec = glm::cross(ray.direction, e2);
+          float det = glm::dot(e1, pvec);
+          if (std::abs(det) < std::numeric_limits<float>::epsilon()) {
+                    return false;
+          }
+
+          float inv_det = 1.f / det;
+          glm::vec3 tvec = ray.origin - v0;
+          u = glm::dot(tvec, pvec) * inv_det;
+          if (u < 0 || u > det) {
+                    return false;
+          }
+
+          glm::vec3 qvec = glm::cross(tvec, e1);
+          v = glm::dot(ray.direction, qvec) * inv_det;
+          if (v < 0 || u + v > det) {
+                    return false;
+          }
+
+          tNear = glm::dot(e2, qvec) * inv_det;
+          u *= inv_det;
+          v *= inv_det;
+
+          return tNear > 0;
+}
+
 // Moller Trumbore Algorithm
 SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
   Intersection ret;
@@ -108,6 +141,7 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
 
   /*Normal of a sphere!*/
   ret.normal = normal;
+  ret.material = getMaterial();
 
   // we could find a intersect time point
   ret.intersected = true;
@@ -124,6 +158,18 @@ glm::vec3 SoftRasterizer::Triangle::getFaceNormal(FaceNormalType type) const {
   } else {
     throw std::runtime_error("Invalid Face Normal Type");
   }
+}
+
+std::shared_ptr<SoftRasterizer::Material>  
+SoftRasterizer::Triangle::getMaterial() {
+          return std::shared_ptr<Material>(m_material.get(), [](Material*) {});
+}
+
+SoftRasterizer::Object::Properties SoftRasterizer::Triangle::getSurfaceProperties(const std::size_t faceIndex, const glm::vec3& Point, const glm::vec3& viewDir, const glm::vec2& uv) {
+          Properties ret;
+          ret.valid = true;
+          ret.normal = getFaceNormal();
+          return ret;
 }
 
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,

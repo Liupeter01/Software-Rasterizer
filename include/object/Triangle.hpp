@@ -35,9 +35,19 @@ struct alignas(32) Triangle : public Object {
   [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override;
 
   // Moller Trumbore Algorithm
+  [[nodiscard]] static bool rayTriangleIntersect(const Ray& ray, const glm::vec3& v0,
+                                                                          const glm::vec3& v1, const glm::vec3& v2,
+                                                                          float& tNear, float& u, float& v);
+
+  // Moller Trumbore Algorithm
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
-  [[nodiscard]] glm::vec3
-  getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
+  [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex, 
+                                                                            const glm::vec3& Point, 
+                                                                            const glm::vec3& viewDir, 
+                                                                            const glm::vec2& uv) override;
+
+  [[nodiscard]] glm::vec3 getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
+  [[nodiscard]] std::shared_ptr<Material> getMaterial() override;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);
 
@@ -48,6 +58,8 @@ struct alignas(32) Triangle : public Object {
   std::array<glm::vec2, 3>
       m_texCoords;                   // texture u,v coordinates for each vertex
   std::array<glm::vec3, 3> m_normal; // normal vector for each vertex
+
+  std::shared_ptr<Material> m_material;
 
   /*BoundBox Calculation!*/
   struct BoundingBox {
