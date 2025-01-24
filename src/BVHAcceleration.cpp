@@ -78,6 +78,14 @@ void SoftRasterizer::BVHAcceleration::buildBVH() {
   spdlog::info("Start BVH Generation complete: {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 }
 
+std::optional<SoftRasterizer::Bounds3>
+SoftRasterizer::BVHAcceleration::getBoundingBox() const {
+          if (root == nullptr) {
+                    return std::nullopt;
+          }
+          return root->box;
+}
+
 SoftRasterizer::Intersection
 SoftRasterizer::BVHAcceleration::getIntersection(Ray &ray) const {
           Intersection ret;

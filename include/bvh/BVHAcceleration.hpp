@@ -3,6 +3,7 @@
 #define _BVH_HPP_
 #include <bvh/Bounds3.hpp>
 #include <memory>
+#include <optional>
 #include <object/Object.hpp>
 #include <object/Triangle.hpp>
 #include <vector>
@@ -34,6 +35,7 @@ public:
   void rebuildBVHAccel();
   Intersection getIntersection(Ray &ray) const;
   void clearBVHAccel();
+  std::optional<Bounds3> getBoundingBox() const;
 
 protected:
   void clearBVHAccel(std::unique_ptr< BVHBuildNode> &node);
