@@ -136,3 +136,7 @@ void SoftRasterizer::Mesh::buildBVHAccel(){
 void SoftRasterizer::Mesh::rebuildBVHAccel(){
           m_bvh->rebuildBVHAccel();
 }
+
+std::optional<SoftRasterizer::Bounds3> SoftRasterizer::Mesh::getBoundingBox() const {
+          return m_bvh->getBoundingBox();
+}

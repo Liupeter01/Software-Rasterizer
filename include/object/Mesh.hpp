@@ -55,12 +55,15 @@ public:
   [[nodiscard]] std::shared_ptr<Material> getMaterial() override;
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override;
 
+  /*Rebuild BVH Structure, When Points position moved!*/
+  void rebuildBVHAccel();
+
+  /*Bounding Box*/
+  std::optional<Bounds3> getBoundingBox() const;
+
 protected:
           /*Generating BVH Structure*/
           void buildBVHAccel();
-
-          /*Rebuild BVH Structure, When Points position moved!*/
-          void rebuildBVHAccel();
 
 private:
           /*Generating Triangles*/
