@@ -8,8 +8,8 @@
 namespace SoftRasterizer {
 struct Bounds3 {
   Bounds3()
-      : min(glm::vec3(std::numeric_limits<float>::lowest())),
-        max(glm::vec3(std::numeric_limits<float>::max())) {}
+      : min(glm::vec3(std::numeric_limits<float>::infinity())),
+        max(glm::vec3(-std::numeric_limits<float>::infinity())) {}
 
   Bounds3(const glm::vec3 &p) : min(p), max(p) {}
   Bounds3(const glm::vec3 &p1, const glm::vec3 &p2)
