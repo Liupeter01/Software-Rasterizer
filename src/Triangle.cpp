@@ -172,6 +172,10 @@ SoftRasterizer::Object::Properties SoftRasterizer::Triangle::getSurfacePropertie
           return ret;
 }
 
+glm::vec3 SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2& uv) {
+          return glm::vec3(0.5f);
+}
+
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,
                                                const std::size_t height) {
   box.startX = std::clamp(static_cast<long long>(std::min(
