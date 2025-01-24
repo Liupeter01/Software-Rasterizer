@@ -28,7 +28,13 @@ public:
   const glm::mat4x4 &getModelMatrix();
 
   std::optional<std::unique_ptr<Mesh>>
-  startLoadingFromFile(const std::string &objName = "", MaterialType _type = MaterialType::REFLECTION_AND_REFRACTION,
+  startLoadingFromFile(
+            const glm::mat4x4& model,
+            const glm::mat4x4& view,
+            const glm::mat4x4& projection,
+            const glm::mat4x4& ndc, 
+            const std::string &objName = "",
+            MaterialType _type = MaterialType::REFLECTION_AND_REFRACTION,
             const glm::vec3& _color = glm::vec3(1.0f),
             const glm::vec3& _Ka = glm::vec3(0.0f),
             const glm::vec3& _Kd = glm::vec3(0.0f),

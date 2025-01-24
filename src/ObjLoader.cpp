@@ -195,7 +195,13 @@ processingVertexData(const std::string &objName,
 }
 
 std::optional<std::unique_ptr<SoftRasterizer::Mesh>>
-SoftRasterizer::ObjLoader::startLoadingFromFile(const std::string &objName, MaterialType _type,
+SoftRasterizer::ObjLoader::startLoadingFromFile(
+          const glm::mat4x4& model,
+          const glm::mat4x4& view,
+          const glm::mat4x4& projection,
+          const glm::mat4x4& ndc,
+          const std::string &objName, 
+          MaterialType _type,
           const glm::vec3& _color,
           const glm::vec3& _Ka,
           const glm::vec3& _Kd ,
