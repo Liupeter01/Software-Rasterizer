@@ -1,6 +1,7 @@
 #include <object/Mesh.hpp>
 #include <object/Triangle.hpp>
 #include <tbb/parallel_for.h>
+#include <spdlog/spdlog.h>
 
 SoftRasterizer::Mesh::Mesh() : Mesh("") {}
 
@@ -108,6 +109,9 @@ glm::vec3 SoftRasterizer::Mesh::getDiffuseColor(const glm::vec2& uv) {
 
 /*Generating Triangles*/
 void SoftRasterizer::Mesh::generateTriangles(){
+          m_triangles.resize(faces.size());
+          m_converted.resize(faces.size());
+
           tbb::parallel_for(std::size_t(0), faces.size(), [&](std::size_t i) {
                     const glm::vec3& v0 = vertices[faces[i].x].position;
                     const glm::vec3& v1 = vertices[faces[i].y].position;
@@ -120,21 +124,30 @@ void SoftRasterizer::Mesh::generateTriangles(){
                     tri->setColor({ vertices[faces[i].x].color, vertices[faces[i].y].color, vertices[faces[i].z].color });
                     tri->setTexCoord({ vertices[faces[i].x].texCoord, vertices[faces[i].y].texCoord, vertices[faces[i].z].texCoord });
 
-                    m_triangles.push_back(tri);
+                    m_triangles[i] = tri;
+                    m_converted[i] = (*tri);
                     });
 }
 
 /*Generating BVH Structure*/
 void SoftRasterizer::Mesh::buildBVHAccel(){
-          std::vector<Object*> objs(m_triangles.size());
-          std::transform(m_triangles.begin(), m_triangles.end(), objs.begin(), [](const std::shared_ptr<Triangle>& tri) { return tri.get(); });
-          m_bvh->loadNewObjects(objs);
-          m_bvh->startBuilding();
+
+          try{
+                    std::vector<Object*> objs(m_triangles.size());
+                    std::transform(m_converted.begin(), m_converted.end(), objs.begin(), [](Triangle& tri) { return &tri; });
+                    m_bvh->loadNewObjects(objs);
+                    m_bvh->clearBVHAccel();
+                    m_bvh->startBuilding();
+                    bounding_box = m_bvh->getBoundingBox().value();
+          }
+          catch (const std::exception&e) {
+                    spdlog::error("BoundingBox of Mesh {} Error!", meshname);
+          }
 }
 
 /*Rebuild BVH Structure*/
 void SoftRasterizer::Mesh::rebuildBVHAccel(){
-          m_bvh->rebuildBVHAccel();
+          buildBVHAccel();
 }
 
 std::optional<SoftRasterizer::Bounds3> SoftRasterizer::Mesh::getBoundingBox() const {
