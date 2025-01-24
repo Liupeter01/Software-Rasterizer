@@ -33,6 +33,7 @@ public:
   void startBuilding();
   void rebuildBVHAccel();
   Intersection getIntersection(Ray &ray) const;
+  void clearBVHAccel();
 
 protected:
   void clearBVHAccel(std::unique_ptr< BVHBuildNode> &node);

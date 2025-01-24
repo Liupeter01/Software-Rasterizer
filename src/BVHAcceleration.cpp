@@ -30,6 +30,10 @@ void SoftRasterizer::BVHAcceleration::loadNewObjects(
   std::copy(stream.begin(), stream.end(), objs.begin());
 }
 
+void SoftRasterizer::BVHAcceleration::clearBVHAccel() {
+          clearBVHAccel(root);
+}
+
 void SoftRasterizer::BVHAcceleration::clearBVHAccel(std::unique_ptr< BVHBuildNode>& node) {
           if (node == nullptr) {
                     return;
