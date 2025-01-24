@@ -1,10 +1,14 @@
 #pragma once
 #ifndef _SPHERE_HPP_
 #define _SPHERE_HPP_
+#include <memory>
 #include <object/Material.hpp>
 #include <object/Object.hpp>
 
 namespace SoftRasterizer {
+
+          class Material;
+
 class Sphere : public Object {
 public:
   Sphere();
@@ -17,11 +21,14 @@ public:
   [[nodiscard]] bool intersect(const Ray &ray) override;
   [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override;
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
+  [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex, const glm::vec3& Point, const glm::vec3& viewDir, const glm::vec2& uv);
+  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override;
 
 private:
-  glm::vec3 center;
   float radius;
   float square;
+  glm::vec3 center;
+  std::shared_ptr<Material> material;
 };
 } // namespace SoftRasterizer
 
