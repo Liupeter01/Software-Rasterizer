@@ -26,16 +26,18 @@ public:
   BVHAcceleration();
   BVHAcceleration(const std::vector<Object *> &stream);
   BVHAcceleration(std::vector<Object *> &&stream);
+  virtual ~BVHAcceleration();
 
 public:
   void loadNewObjects(const std::vector<Object *> &stream);
   void startBuilding();
+  void rebuildBVHAccel();
   Intersection getIntersection(Ray &ray) const;
 
 protected:
+  void clearBVHAccel(std::unique_ptr< BVHBuildNode> &node);
   void buildBVH();
-  [[nodiscard]] std::unique_ptr<BVHBuildNode>
-  recursive(std::vector<Object *> objs);
+  [[nodiscard]] std::unique_ptr<BVHBuildNode> recursive(std::vector<Object *> objs);
   [[nodiscard]] Intersection intersection(BVHBuildNode *node, Ray &ray) const;
 
 private:

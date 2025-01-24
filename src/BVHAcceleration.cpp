@@ -19,11 +19,30 @@ SoftRasterizer::BVHAcceleration::BVHAcceleration(
   buildBVH();
 }
 
+SoftRasterizer::BVHAcceleration::~BVHAcceleration() {
+          clearBVHAccel(root);
+}
+
 void SoftRasterizer::BVHAcceleration::loadNewObjects(
     const std::vector<Object *> &stream) {
   objs.erase(objs.begin(), objs.end());
   objs.resize(stream.size());
   std::copy(stream.begin(), stream.end(), objs.begin());
+}
+
+void SoftRasterizer::BVHAcceleration::clearBVHAccel(std::unique_ptr< BVHBuildNode>& node) {
+          if (root == nullptr) {
+                    return;
+          }
+
+          clearBVHAccel(node->left);
+          clearBVHAccel(node->right);
+          node.reset();
+}
+
+void SoftRasterizer::BVHAcceleration::rebuildBVHAccel(){
+          clearBVHAccel(root);
+          startBuilding();
 }
 
 void SoftRasterizer::BVHAcceleration::startBuilding() { buildBVH(); }
@@ -54,7 +73,11 @@ SoftRasterizer::BVHAcceleration::getIntersection(Ray &ray) const {
           Intersection ret;
   if (root != nullptr) {
             ret = intersection(root.get(), ray);
+  }
+
+  if (ret.intersected) {
             ret.material = ret.obj->getMaterial();
+            ret.index = ret.obj->index;
   }
   return ret;
 }
@@ -62,13 +85,15 @@ SoftRasterizer::BVHAcceleration::getIntersection(Ray &ray) const {
 SoftRasterizer::Intersection
 SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
                                               Ray &ray) const {
-  if (node == nullptr || node->obj == nullptr) {
+  if (node == nullptr) {
     return {};
   }
 
-  Intersection temp = node->obj->getIntersect(ray);
-  if (temp.intersected) {
-    return temp;
+  if (node->left == nullptr && node->right == nullptr && node->obj != nullptr) {
+            Intersection temp = node->obj->getIntersect(ray);
+            if (temp.intersected) {
+                      return temp;
+            }
   }
 
   // Check left and right child nodes recursively
