@@ -69,6 +69,10 @@ bool SoftRasterizer::RenderingPipeline::addScene(
     if (scene == nullptr) {
       return false;
     }
+
+    /*Start Building BVH*/
+    scene->buildBVHAccel();
+
     if (name.has_value()) {
       scene->m_sceneName = name.value();
     }
