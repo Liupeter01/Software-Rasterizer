@@ -10,6 +10,8 @@
 #include <object/Material.hpp>
 #include <object/Object.hpp>
 #include <string>
+#include <tbb/concurrent_vector.h>
+#include <bvh/BVHAcceleration.hpp>
 
 namespace SoftRasterizer {
 
@@ -40,6 +42,7 @@ public:
        std::vector<Vertex> &&_vertices, std::vector<glm::uvec3> &&_faces,
        Bounds3 &&box);
 
+  virtual ~Mesh();
   void bindShader2Mesh(std::shared_ptr<Shader> shader);
 
 public:
@@ -48,6 +51,20 @@ public:
   [[nodiscard]] bool intersect(const Ray &ray) override;
   [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override;
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
+  [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex, const glm::vec3& Point, const glm::vec3& viewDir, const glm::vec2& uv)override;
+  [[nodiscard]] std::shared_ptr<Material> getMaterial() override;
+  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override;
+
+protected:
+          /*Generating BVH Structure*/
+          void buildBVHAccel();
+
+          /*Rebuild BVH Structure, When Points position moved!*/
+          void rebuildBVHAccel();
+
+private:
+          /*Generating Triangles*/
+          void generateTriangles();
 
 public:
   // Mesh Name
@@ -56,13 +73,17 @@ public:
   std::vector<glm::uvec3> faces;
 
   // Material
-  Material MeshMaterial;
+  std::shared_ptr<Material> MeshMaterial;
 
   // Bounding Box
   Bounds3 bounding_box;
 
   // Shading structure
   std::shared_ptr<Shader> m_shader;
+
+  /*BVH Acceleration Structure*/
+  std::unique_ptr<BVHAcceleration> m_bvh;
+  tbb::concurrent_vector<std::shared_ptr<Triangle>> m_triangles;
 };
 } // namespace SoftRasterizer
 
