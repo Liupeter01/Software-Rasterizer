@@ -31,12 +31,18 @@ void SoftRasterizer::BVHAcceleration::loadNewObjects(
 }
 
 void SoftRasterizer::BVHAcceleration::clearBVHAccel(std::unique_ptr< BVHBuildNode>& node) {
-          if (root == nullptr) {
+          if (node == nullptr) {
                     return;
           }
 
-          clearBVHAccel(node->left);
-          clearBVHAccel(node->right);
+          if (node->left != nullptr) {
+                    clearBVHAccel(node->left);
+          }
+
+          if (node->right != nullptr) {
+                    clearBVHAccel(node->right);
+          }
+
           node.reset();
 }
 
