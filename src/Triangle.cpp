@@ -11,12 +11,30 @@ SoftRasterizer::Triangle::Triangle() : box() ,m_material(std::make_shared<Materi
   }
 }
 
+SoftRasterizer::Triangle::Triangle(std::shared_ptr< SoftRasterizer::Material> _material)
+          :interpolatedNormal(0.f), geometryNormal(0.f),
+          m_material(_material) {
+          for (std::size_t index = 0; index < 3; ++index) {
+                    m_vertex[index] = glm::vec3(0.f);
+                    m_color[index] = glm::vec3(0.f);
+                    m_texCoords[index] = glm::vec2(0.f);
+                    m_normal[index] = glm::vec3(0.f);
+          }
+}
+
 void SoftRasterizer::Triangle::setVertex(
     std::initializer_list<glm::vec3> _vertex) {
   if (_vertex.size() != 3) {
     throw std::runtime_error("Invalid number of vertices");
   }
   std::copy(_vertex.begin(), _vertex.end(), m_vertex.begin());
+
+  /*Calcuate Vertex Normal While set the vertex*/
+  geometryNormal = glm::normalize(
+            glm::cross(m_vertex[1] - m_vertex[0], m_vertex[2] - m_vertex[0]));
+
+  interpolatedNormal = Tools::interpolateNormal(zero_point_3, zero_point_3, zero_point_3,
+            m_normal[0], m_normal[1], m_normal[2]);
 }
 
 void SoftRasterizer::Triangle::setNormal(
@@ -148,13 +166,11 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
   return ret;
 }
 
-glm::vec3 SoftRasterizer::Triangle::getFaceNormal(FaceNormalType type) const {
+const glm::vec3& SoftRasterizer::Triangle::getFaceNormal(FaceNormalType type) const {
   if (type == FaceNormalType::PerGeometry) {
-    return glm::normalize(
-        glm::cross(m_vertex[1] - m_vertex[0], m_vertex[2] - m_vertex[0]));
+            return geometryNormal;
   } else if (type == FaceNormalType::InterpolatedFace) {
-    return Tools::interpolateNormal(zero_point_3, zero_point_3, zero_point_3,
-                                    m_normal[0], m_normal[1], m_normal[2]);
+            return interpolatedNormal;
   } else {
     throw std::runtime_error("Invalid Face Normal Type");
   }
@@ -167,13 +183,12 @@ SoftRasterizer::Triangle::getMaterial() {
 
 SoftRasterizer::Object::Properties SoftRasterizer::Triangle::getSurfaceProperties(const std::size_t faceIndex, const glm::vec3& Point, const glm::vec3& viewDir, const glm::vec2& uv) {
           Properties ret;
-          ret.valid = true;
           ret.normal = getFaceNormal();
           return ret;
 }
 
 glm::vec3 SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2& uv) {
-          return glm::vec3(0.5f);
+          return glm::vec3(1.0f);
 }
 
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,
