@@ -88,30 +88,23 @@ SoftRasterizer::BVHAcceleration::getBoundingBox() const {
 
 SoftRasterizer::Intersection
 SoftRasterizer::BVHAcceleration::getIntersection(Ray &ray) const {
-          Intersection ret;
-  if (root != nullptr) {
-            ret = intersection(root.get(), ray);
-  }
-
-  if (ret.intersected) {
-            ret.material = ret.obj->getMaterial();
-            ret.index = ret.obj->index;
-  }
-  return ret;
+          if (root == nullptr) {
+                    return {};
+          }
+           return intersection(root.get(), ray);
 }
 
 SoftRasterizer::Intersection
 SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
                                               Ray &ray) const {
-  if (node == nullptr) {
-    return {};
-  }
+          if (!node)  return {};
 
-  if (node->left == nullptr && node->right == nullptr && node->obj != nullptr) {
-            Intersection temp = node->obj->getIntersect(ray);
-            if (temp.intersected) {
-                      return temp;
+  /*Every Obj is on leaf node!*/
+  if (node->left == nullptr && node->right == nullptr) {
+            if (node->obj) {
+                      return node->obj->getIntersect(ray); // Return intersection if object exists
             }
+            return {}; // Return empty intersection if no object in leaf node
   }
 
   // Check left and right child nodes recursively
@@ -120,15 +113,11 @@ SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
 
   // Determine which intersection is closer
   if (left.intersected && right.intersected) {
-    return left.intersect_time < right.intersect_time ? left : right;
-  } else if (left.intersected || !right.intersected) {
-    return left;
-  } else if (right.intersected || !left.intersected) {
-    return right;
+            return left.intersect_time < right.intersect_time ? left : right;
   }
 
-  /*Safty Consideration And Handling All None Intersected situation*/
-  return {};
+  // If one of them is not intersected, return the one that is
+  return left.intersected ? left : right;
 }
 
 std::unique_ptr<SoftRasterizer::BVHBuildNode>
