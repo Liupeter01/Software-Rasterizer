@@ -393,7 +393,8 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray& ray, int depth, const  s
                               * Emit A ray to from point to light, to see is there any obstacles
                               * When intersected = true, it means there is an obstacle between the point and the light source
                               */
-                              bool is_shadow = traceScene(Ray(shadowCoord, lightDir)).intersected;
+                              Ray ray(shadowCoord, lightDir);
+                              bool is_shadow = traceScene(ray).intersected;
 
                               ambient+= is_shadow ? intersection.material->Ka * light.intensity : glm::vec3(0.f);
                               diffuse += diff * intersection.material->Kd /** distribution*/;
