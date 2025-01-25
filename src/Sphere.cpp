@@ -105,7 +105,6 @@ SoftRasterizer::Object::Properties
 SoftRasterizer::Sphere::getSurfaceProperties(const std::size_t faceIndex, const glm::vec3& Point, const glm::vec3& viewDir, const glm::vec2& uv) {
           Properties ret;
           ret.normal = glm::normalize(Point - center);
-          ret.valid = true;
           return ret;
 }
 

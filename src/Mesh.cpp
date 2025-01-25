@@ -95,7 +95,6 @@ SoftRasterizer::Mesh::getSurfaceProperties(const std::size_t faceIndex,
           auto texB = vertices[faces[faceIndex].y].texCoord;
           auto texC = vertices[faces[faceIndex].z].texCoord;
           ret.uv = texA * (1 - uv.x - uv.y) + texB * uv.x + texC * uv.y;
-          ret.valid = true;
           return ret;
 }
 
@@ -117,7 +116,7 @@ void SoftRasterizer::Mesh::generateTriangles(){
                     const glm::vec3& v1 = vertices[faces[i].y].position;
                     const glm::vec3& v2 = vertices[faces[i].z].position;
 
-                    std::shared_ptr<Triangle> tri( std::make_shared<Triangle>());
+                    std::shared_ptr<Triangle> tri( std::make_shared<Triangle>(MeshMaterial));
                     tri->index = i;
                     tri->setVertex({ v0, v1, v2 });
                     tri->setNormal({ vertices[faces[i].x].normal, vertices[faces[i].y].normal, vertices[faces[i].z].normal });
