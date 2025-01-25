@@ -1,54 +1,47 @@
 #include <opencv2/opencv.hpp>
+#include <object/Material.hpp>
 #include <render/Rasterizer.hpp>
+#include <render/RayTracing.hpp>
 #include <scene/Scene.hpp>
 
 int main() {
   int key = 0;
   float degree = 0.0f;
 
-  auto render = std::make_shared<SoftRasterizer::TraditionalRasterizer>(
-      1024, 1024); // Create Render Main Class
+  auto render = std::make_shared<SoftRasterizer::RayTracing>(
+            1024, 1024); // Create Ray Tracing Main Class
   auto scene = std::make_shared<SoftRasterizer::Scene>(
       "TestScene",
-      /*eye=*/glm::vec3(0.0f, 0.0f, 0.9f),
+      /*eye=*/glm::vec3(0.0f, 0.3f, -0.9f),
       /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
-      /*up=*/glm::vec3(0.0f, 1.0f, 0.0f)); // Create A Scene
+      /*up=*/glm::vec3(0.0f, 1.0f, 0.0f), 
+      /*background*/glm::vec3(0.235294, 0.67451, 0.843137)); // Create A Scene
 
-  scene->addGraphicObj(CONFIG_HOME
-                       "examples/models/spot/spot_triangulated_good.obj",
-                       "spot", glm::vec3(0, 1, 0), degree,
-                       glm::vec3(0.f, 0.0f, 0.0f), glm::vec3(0.3f, 0.3f, 0.3f));
+  scene->addGraphicObj(CONFIG_HOME"examples/models/bunny/bunny.obj", 
+            "bunny", glm::vec3(0, 1, 0), 0.f,
+            glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
-                       glm::vec3(0.f, 1.f, 0.f), degree,
-                       glm::vec3(0.0f, 0.0f, 0.0f),
-                       glm::vec3(0.2f, 0.2f, 0.2f));
-
-  scene->addShader("spot_shader",
-                   CONFIG_HOME "examples/models/spot/spot_texture.png",
-                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
-
-  scene->addShader("crate_shader",
-                   CONFIG_HOME "examples/models/Crate/crate1.png",
-                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
-
-  scene->startLoadingMesh("spot");
-  scene->startLoadingMesh("Crate");
-  scene->bindShader2Mesh("spot", "spot_shader");
-  scene->bindShader2Mesh("Crate", "crate_shader");
+  scene->startLoadingMesh("bunny",
+            SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY,
+            glm::vec3(1.f),
+            glm::vec3(0.005f),
+            glm::vec3(1.f),
+            glm::vec3(0.7937f),
+            150.f,
+            1.f / 1.49f   /*Air to Glass*/
+  );
 
   /*Add Light To Scene*/
   auto light1 = std::make_shared<SoftRasterizer::light_struct>();
-  light1->position = glm::vec3{0.9, 0.9, -0.9f};
-  light1->intensity = glm::vec3{100, 100, 100};
+  light1->position = glm::vec3{0.3f, 0.3f, -0.3f};
+  light1->intensity = glm::vec3{10, 10, 10};
 
-  auto light2 = std::make_shared<SoftRasterizer::light_struct>();
-  light2->position = glm::vec3{0.f, 0.8f, 0.9f};
-  light2->intensity = glm::vec3{50, 50, 50};
+  //auto light2 = std::make_shared<SoftRasterizer::light_struct>();
+  //light2->position = glm::vec3{0.f, 0.8f, 0.9f};
+  //light2->intensity = glm::vec3{10, 10, 10};
 
   scene->addLight("Light1", light1);
-  scene->addLight("Light2", light2);
-  scene->buildBVHAccel();
+  //scene->addLight("Light2", light2);
 
   /*Register Scene To Render Main Frame*/
   render->addScene(scene);
@@ -61,22 +54,15 @@ int main() {
 
     /*Model Matrix*/
     scene->setModelMatrix(
-        "spot",
+        "bunny",
         /*axis=*/glm::vec3(0.f, 1.f, 0.f),
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.0f, 0.2f, 0.f),
-        /*scale=*/glm::vec3(0.3f, 0.3f, 0.3f));
-
-    scene->setModelMatrix(
-        "Crate",
-        /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-        /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.0f, -0.3f, 0.f),
-        /*scale=*/glm::vec3(0.3f, 0.3f, 0.3f));
+        /*transform=*/glm::vec3(0.0f, 0.0f, 0.f),
+        /*scale=*/glm::vec3(2.f));
 
     /*View Matrix*/
     scene->setViewMatrix(
-        /*eye=*/glm::vec3(0.7f, 0.4f, -0.9f),
+        /*eye=*/glm::vec3(0.0f, 0.3f, -0.9f),
         /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
         /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -90,9 +76,9 @@ int main() {
 
     key = cv::waitKey(0);
     if (key == 'a' || key == 'A') {
-      degree += 1.0f;
+      degree += 10.0f;
     } else if (key == 'd' || key == 'D') {
-      degree -= 1.0f;
+      degree -= 10.0f;
     }
 
     /*reset the degree*/
