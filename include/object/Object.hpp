@@ -13,7 +13,6 @@ struct Object {
                     glm::vec3 normal;
                     glm::vec2 uv;
                     glm::vec3 color = glm::vec3(0.f);
-                    bool valid = false;
           };
 
           std::size_t index = 0;
