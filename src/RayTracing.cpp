@@ -1,5 +1,6 @@
 #include <spdlog/spdlog.h>
 #include <render/RayTracing.hpp>
+#include <base/Render.hpp>
 #include <algorithm> // Add this include for std::clamp
 
 void SoftRasterizer::RayTracing::draw(Primitive type) {
