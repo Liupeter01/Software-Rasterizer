@@ -4,10 +4,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <loader/ObjLoader.hpp>
+#include <object/Material.hpp>
 #include <spdlog/spdlog.h>
 #include <tiny_obj_loader.h>
 #include <unordered_map>
-#include <object/Material.hpp>
 
 SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
                                      const std::string &meshName,
@@ -196,18 +196,11 @@ processingVertexData(const std::string &objName,
 
 std::optional<std::unique_ptr<SoftRasterizer::Mesh>>
 SoftRasterizer::ObjLoader::startLoadingFromFile(
-          const glm::mat4x4& model,
-          const glm::mat4x4& view,
-          const glm::mat4x4& projection,
-          const glm::mat4x4& ndc,
-          const std::string &objName, 
-          MaterialType _type,
-          const glm::vec3& _color,
-          const glm::vec3& _Ka,
-          const glm::vec3& _Kd ,
-          const glm::vec3& _Ks,
-          const float _specularExponent,
-          const float _ior) {
+    const glm::mat4x4 &model, const glm::mat4x4 &view,
+    const glm::mat4x4 &projection, const glm::mat4x4 &ndc,
+    const std::string &objName, MaterialType _type, const glm::vec3 &_color,
+    const glm::vec3 &_Ka, const glm::vec3 &_Kd, const glm::vec3 &_Ks,
+    const float _specularExponent, const float _ior) {
 
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -243,13 +236,13 @@ SoftRasterizer::ObjLoader::startLoadingFromFile(
 
   /*No Material Found*/
   if (!materials.size()) {
-            mesh->MeshMaterial->type = _type;
-            mesh->MeshMaterial->color = _color;
-            mesh->MeshMaterial->Ka = _Ka;
-            mesh->MeshMaterial->Kd = _Kd;
-            mesh->MeshMaterial->Ks = _Ks;
-            mesh->MeshMaterial->specularExponent = _specularExponent;
-            mesh->MeshMaterial->ior = _ior;
+    mesh->MeshMaterial->type = _type;
+    mesh->MeshMaterial->color = _color;
+    mesh->MeshMaterial->Ka = _Ka;
+    mesh->MeshMaterial->Kd = _Kd;
+    mesh->MeshMaterial->Ks = _Ks;
+    mesh->MeshMaterial->specularExponent = _specularExponent;
+    mesh->MeshMaterial->ior = _ior;
   }
   return mesh;
 }

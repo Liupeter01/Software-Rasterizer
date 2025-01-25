@@ -7,7 +7,7 @@
 
 namespace SoftRasterizer {
 
-          class Material;
+class Material;
 
 class Sphere : public Object {
 public:
@@ -21,8 +21,11 @@ public:
   [[nodiscard]] bool intersect(const Ray &ray) override;
   [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override;
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
-  [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex, const glm::vec3& Point, const glm::vec3& viewDir, const glm::vec2& uv);
-  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override;
+  [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex,
+                                                const glm::vec3 &Point,
+                                                const glm::vec3 &viewDir,
+                                                const glm::vec2 &uv);
+  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
 
 private:
   float radius;

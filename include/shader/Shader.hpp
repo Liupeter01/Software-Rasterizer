@@ -55,7 +55,7 @@ struct fragment_shader_payload {
 
 struct Shader {
 
-          friend class RayTracing;
+  friend class RayTracing;
 
   using simd_shader = std::function<void(
       const glm::vec3 &, const std::vector<light_struct> &, const PointSIMD &,
@@ -93,11 +93,11 @@ public:
                                 const fragment_shader_payload &payload);
 
   // Static function to compute the Blinn-Phong reflection model
-  static glm::vec3 BlinnPhong(const glm::vec3& camera,
-            const fragment_shader_payload& shading_point,
-            const light_struct& light, const glm::vec3& ka,
-            const glm::vec3& kd, const glm::vec3& ks,
-            const float p);
+  static glm::vec3 BlinnPhong(const glm::vec3 &camera,
+                              const fragment_shader_payload &shading_point,
+                              const light_struct &light, const glm::vec3 &ka,
+                              const glm::vec3 &kd, const glm::vec3 &ks,
+                              const float p);
 
 private:
   /*register multiple shader models*/

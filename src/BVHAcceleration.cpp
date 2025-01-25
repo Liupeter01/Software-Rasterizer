@@ -19,9 +19,7 @@ SoftRasterizer::BVHAcceleration::BVHAcceleration(
   buildBVH();
 }
 
-SoftRasterizer::BVHAcceleration::~BVHAcceleration() {
-          clearBVHAccel(root);
-}
+SoftRasterizer::BVHAcceleration::~BVHAcceleration() { clearBVHAccel(root); }
 
 void SoftRasterizer::BVHAcceleration::loadNewObjects(
     const std::vector<Object *> &stream) {
@@ -30,29 +28,28 @@ void SoftRasterizer::BVHAcceleration::loadNewObjects(
   std::copy(stream.begin(), stream.end(), objs.begin());
 }
 
-void SoftRasterizer::BVHAcceleration::clearBVHAccel() {
-          clearBVHAccel(root);
+void SoftRasterizer::BVHAcceleration::clearBVHAccel() { clearBVHAccel(root); }
+
+void SoftRasterizer::BVHAcceleration::clearBVHAccel(
+    std::unique_ptr<BVHBuildNode> &node) {
+  if (node == nullptr) {
+    return;
+  }
+
+  if (node->left != nullptr) {
+    clearBVHAccel(node->left);
+  }
+
+  if (node->right != nullptr) {
+    clearBVHAccel(node->right);
+  }
+
+  node.reset();
 }
 
-void SoftRasterizer::BVHAcceleration::clearBVHAccel(std::unique_ptr< BVHBuildNode>& node) {
-          if (node == nullptr) {
-                    return;
-          }
-
-          if (node->left != nullptr) {
-                    clearBVHAccel(node->left);
-          }
-
-          if (node->right != nullptr) {
-                    clearBVHAccel(node->right);
-          }
-
-          node.reset();
-}
-
-void SoftRasterizer::BVHAcceleration::rebuildBVHAccel(){
-          clearBVHAccel(root);
-          startBuilding();
+void SoftRasterizer::BVHAcceleration::rebuildBVHAccel() {
+  clearBVHAccel(root);
+  startBuilding();
 }
 
 void SoftRasterizer::BVHAcceleration::startBuilding() { buildBVH(); }
@@ -75,36 +72,41 @@ void SoftRasterizer::BVHAcceleration::buildBVH() {
   std::chrono::high_resolution_clock::time_point end =
       std::chrono::high_resolution_clock::now();
 
-  spdlog::info("Start BVH Generation complete: {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+  spdlog::info(
+      "Start BVH Generation complete: {}ms",
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+          .count());
 }
 
 std::optional<SoftRasterizer::Bounds3>
 SoftRasterizer::BVHAcceleration::getBoundingBox() const {
-          if (root == nullptr) {
-                    return std::nullopt;
-          }
-          return root->box;
+  if (root == nullptr) {
+    return std::nullopt;
+  }
+  return root->box;
 }
 
 SoftRasterizer::Intersection
 SoftRasterizer::BVHAcceleration::getIntersection(Ray &ray) const {
-          if (root == nullptr) {
-                    return {};
-          }
-           return intersection(root.get(), ray);
+  if (root == nullptr) {
+    return {};
+  }
+  return intersection(root.get(), ray);
 }
 
 SoftRasterizer::Intersection
 SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
                                               Ray &ray) const {
-          if (!node)  return {};
+  if (!node)
+    return {};
 
   /*Every Obj is on leaf node!*/
   if (node->left == nullptr && node->right == nullptr) {
-            if (node->obj) {
-                      return node->obj->getIntersect(ray); // Return intersection if object exists
-            }
-            return {}; // Return empty intersection if no object in leaf node
+    if (node->obj) {
+      return node->obj->getIntersect(
+          ray); // Return intersection if object exists
+    }
+    return {}; // Return empty intersection if no object in leaf node
   }
 
   // Check left and right child nodes recursively
@@ -113,7 +115,7 @@ SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
 
   // Determine which intersection is closer
   if (left.intersected && right.intersected) {
-            return left.intersect_time < right.intersect_time ? left : right;
+    return left.intersect_time < right.intersect_time ? left : right;
   }
 
   // If one of them is not intersected, return the one that is

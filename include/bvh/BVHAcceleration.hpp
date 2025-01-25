@@ -3,13 +3,13 @@
 #define _BVH_HPP_
 #include <bvh/Bounds3.hpp>
 #include <memory>
-#include <optional>
 #include <object/Object.hpp>
 #include <object/Triangle.hpp>
+#include <optional>
 #include <vector>
 
 namespace SoftRasterizer {
-          class Scene;
+class Scene;
 
 struct BVHBuildNode {
   BVHBuildNode() : left(nullptr), right(nullptr), box(), obj(nullptr) {}
@@ -21,7 +21,7 @@ struct BVHBuildNode {
 };
 
 class BVHAcceleration {
-          friend class Scene;
+  friend class Scene;
 
 public:
   BVHAcceleration();
@@ -38,9 +38,10 @@ public:
   std::optional<Bounds3> getBoundingBox() const;
 
 protected:
-  void clearBVHAccel(std::unique_ptr< BVHBuildNode> &node);
+  void clearBVHAccel(std::unique_ptr<BVHBuildNode> &node);
   void buildBVH();
-  [[nodiscard]] std::unique_ptr<BVHBuildNode> recursive(std::vector<Object *> objs);
+  [[nodiscard]] std::unique_ptr<BVHBuildNode>
+  recursive(std::vector<Object *> objs);
   [[nodiscard]] Intersection intersection(BVHBuildNode *node, Ray &ray) const;
 
 private:

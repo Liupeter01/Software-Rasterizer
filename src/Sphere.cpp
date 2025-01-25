@@ -3,7 +3,8 @@
 SoftRasterizer::Sphere::Sphere() : Sphere(glm::vec3(0.f), 1.f) {}
 
 SoftRasterizer::Sphere::Sphere(const glm::vec3 &_center, const float _radius)
-    : center(_center), radius(_radius), square(radius * radius) ,material(std::make_shared<Material>()){}
+    : center(_center), radius(_radius), square(radius * radius),
+      material(std::make_shared<Material>()) {}
 
 SoftRasterizer::Sphere::~Sphere() {}
 
@@ -101,13 +102,14 @@ SoftRasterizer::Intersection SoftRasterizer::Sphere::getIntersect(Ray &ray) {
   return ret;
 }
 
-SoftRasterizer::Object::Properties 
-SoftRasterizer::Sphere::getSurfaceProperties(const std::size_t faceIndex, const glm::vec3& Point, const glm::vec3& viewDir, const glm::vec2& uv) {
-          Properties ret;
-          ret.normal = glm::normalize(Point - center);
-          return ret;
+SoftRasterizer::Object::Properties SoftRasterizer::Sphere::getSurfaceProperties(
+    const std::size_t faceIndex, const glm::vec3 &Point,
+    const glm::vec3 &viewDir, const glm::vec2 &uv) {
+  Properties ret;
+  ret.normal = glm::normalize(Point - center);
+  return ret;
 }
 
-glm::vec3 SoftRasterizer::Sphere::getDiffuseColor(const glm::vec2& uv) {
-          return material->color;
+glm::vec3 SoftRasterizer::Sphere::getDiffuseColor(const glm::vec2 &uv) {
+  return material->color;
 }

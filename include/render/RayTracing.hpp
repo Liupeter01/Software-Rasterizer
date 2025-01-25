@@ -4,16 +4,15 @@
 #include <base/Render.hpp>
 
 namespace SoftRasterizer {
-          class RayTracing :public RenderingPipeline {
-          public:
-                    RayTracing() :RenderingPipeline() {}
-                    RayTracing(const std::size_t width, const std::size_t height)
-                              : RenderingPipeline(width, height) {
-                    }
+class RayTracing : public RenderingPipeline {
+public:
+  RayTracing() : RenderingPipeline() {}
+  RayTracing(const std::size_t width, const std::size_t height)
+      : RenderingPipeline(width, height) {}
 
-          private:
-                    void draw(Primitive type) override;
-          };
-}
+private:
+  void draw(Primitive type) override;
+};
+} // namespace SoftRasterizer
 
-#endif  //_RAYTRACING_HPP_
+#endif //_RAYTRACING_HPP_

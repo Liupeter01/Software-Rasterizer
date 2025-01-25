@@ -36,20 +36,21 @@ struct alignas(32) Triangle : public Object {
   [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override;
 
   // Moller Trumbore Algorithm
-  [[nodiscard]] static bool rayTriangleIntersect(const Ray& ray, const glm::vec3& v0,
-                                                                          const glm::vec3& v1, const glm::vec3& v2,
-                                                                          float& tNear, float& u, float& v);
+  [[nodiscard]] static bool
+  rayTriangleIntersect(const Ray &ray, const glm::vec3 &v0, const glm::vec3 &v1,
+                       const glm::vec3 &v2, float &tNear, float &u, float &v);
 
   // Moller Trumbore Algorithm
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
-  [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex, 
-                                                                            const glm::vec3& Point, 
-                                                                            const glm::vec3& viewDir, 
-                                                                            const glm::vec2& uv) override;
+  [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex,
+                                                const glm::vec3 &Point,
+                                                const glm::vec3 &viewDir,
+                                                const glm::vec2 &uv) override;
 
-  [[nodiscard]] const glm::vec3& getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
+  [[nodiscard]] const glm::vec3 &
+  getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
   [[nodiscard]] std::shared_ptr<Material> getMaterial() override;
-  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override;
+  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);
 
@@ -74,8 +75,8 @@ struct alignas(32) Triangle : public Object {
   BoundingBox box;
 
 private:
-          glm::vec3 geometryNormal;
-          glm::vec3 interpolatedNormal;
+  glm::vec3 geometryNormal;
+  glm::vec3 interpolatedNormal;
 };
 } // namespace SoftRasterizer
 
