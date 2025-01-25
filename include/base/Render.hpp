@@ -118,7 +118,7 @@ protected:
     }
   }
 
-inline void SoftRasterizer::RenderingPipeline::writePixel(
+inline void writePixel(
           const long long x, const long long y, const glm::vec3& color) {
           if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
                     auto pos = x + y * m_width;
@@ -129,7 +129,7 @@ inline void SoftRasterizer::RenderingPipeline::writePixel(
           }
 }
 
-inline void SoftRasterizer::RenderingPipeline::writePixel(
+inline void writePixel(
           const long long x, const long long y, const glm::uvec3& color) {
           writePixel(x, y, glm::vec3(color.x, color.y, color.z));
 }
