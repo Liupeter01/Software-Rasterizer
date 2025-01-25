@@ -33,6 +33,8 @@ public:
   Scene(const std::string &sceneName, const glm::vec3 &eye,
         const glm::vec3 &center, const glm::vec3 &up, glm::vec3 m_backgroundColor = glm::vec3(0.f), const std::size_t maxdepth = 5);
 
+  virtual ~Scene();
+
 public:
   const glm::vec3 &loadEyeVec() const;
 
@@ -77,7 +79,12 @@ public:
   /*Generating BVH Structure*/
   void buildBVHAccel();
 
+  /*Remove BVH Structure*/
+  void clearBVHAccel();
+
 protected:
+          void updateTrianglePosition();
+
   /*For Rasterizer, Not Ray Tracing*/
   tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> loadTriangleStream();
   std::vector<SoftRasterizer::light_struct> loadLights();
@@ -97,6 +104,7 @@ private:
   std::string m_sceneName;
   const std::size_t m_maxDepth;
   glm::vec3 m_backgroundColor;
+  Bounds3 m_boundingBox;
 
   /*display resolution*/
   std::size_t m_width, m_height;
