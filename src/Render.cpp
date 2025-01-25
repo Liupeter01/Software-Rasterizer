@@ -93,22 +93,6 @@ bool SoftRasterizer::RenderingPipeline::addScene(
   return true;
 }
 
-inline void SoftRasterizer::RenderingPipeline::writePixel(
-    const long long x, const long long y, const glm::vec3 &color) {
-  if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
-    auto pos = x + y * m_width;
-
-    *(m_channels[0].ptr<float>(0) + pos) = color.x; // R
-    *(m_channels[1].ptr<float>(0) + pos) = color.y; // G
-    *(m_channels[2].ptr<float>(0) + pos) = color.z; // B
-  }
-}
-
-inline void SoftRasterizer::RenderingPipeline::writePixel(
-    const long long x, const long long y, const glm::uvec3 &color) {
-  writePixel(x, y, glm::vec3(color.x, color.y, color.z));
-}
-
 inline void
 SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
                                                 const float depth) {
