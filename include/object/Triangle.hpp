@@ -18,6 +18,7 @@ enum class FaceNormalType {
 
 struct alignas(32) Triangle : public Object {
   Triangle();
+  Triangle(std::shared_ptr<Material> _material);
 
   constexpr static float zero_point_3 = 0.3333333f;
 
@@ -46,7 +47,7 @@ struct alignas(32) Triangle : public Object {
                                                                             const glm::vec3& viewDir, 
                                                                             const glm::vec2& uv) override;
 
-  [[nodiscard]] glm::vec3 getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
+  [[nodiscard]] const glm::vec3& getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
   [[nodiscard]] std::shared_ptr<Material> getMaterial() override;
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override;
 
@@ -71,6 +72,10 @@ struct alignas(32) Triangle : public Object {
     long long endY;
   };
   BoundingBox box;
+
+private:
+          glm::vec3 geometryNormal;
+          glm::vec3 interpolatedNormal;
 };
 } // namespace SoftRasterizer
 
