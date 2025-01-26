@@ -179,9 +179,9 @@ SoftRasterizer::Triangle::getFaceNormal(FaceNormalType type) const {
   }
 }
 
-std::shared_ptr<SoftRasterizer::Material>
+std::shared_ptr<SoftRasterizer::Material>&
 SoftRasterizer::Triangle::getMaterial() {
-  return std::shared_ptr<Material>(m_material.get(), [](Material *) {});
+          return m_material;
 }
 
 SoftRasterizer::Object::Properties

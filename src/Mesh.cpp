@@ -98,8 +98,9 @@ SoftRasterizer::Object::Properties SoftRasterizer::Mesh::getSurfaceProperties(
   return ret;
 }
 
-std::shared_ptr<SoftRasterizer::Material> SoftRasterizer::Mesh::getMaterial() {
-  return std::shared_ptr<Material>(MeshMaterial.get(), [](Material *) {});
+std::shared_ptr<SoftRasterizer::Material> &
+SoftRasterizer::Mesh::getMaterial() {
+          return MeshMaterial;
 }
 
 glm::vec3 SoftRasterizer::Mesh::getDiffuseColor(const glm::vec2 &uv) {

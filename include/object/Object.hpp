@@ -29,7 +29,7 @@ struct Object {
                                           const glm::vec3 &viewDir,
                                           const glm::vec2 &uv) = 0;
 
-  virtual std::shared_ptr<Material> getMaterial() = 0;
+  virtual std::shared_ptr<Material> &getMaterial() = 0;
 };
 } // namespace SoftRasterizer
 

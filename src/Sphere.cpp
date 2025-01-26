@@ -8,6 +8,10 @@ SoftRasterizer::Sphere::Sphere(const glm::vec3 &_center, const float _radius)
 
 SoftRasterizer::Sphere::~Sphere() {}
 
+std::shared_ptr<SoftRasterizer::Material>& SoftRasterizer::Sphere::getMaterial() {
+          return material;
+}
+
 SoftRasterizer::Bounds3 SoftRasterizer::Sphere::getBounds() {
   Bounds3 ret;
   ret.min = glm::vec3(center.x - radius, center.y - radius, center.z - radius);

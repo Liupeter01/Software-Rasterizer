@@ -49,7 +49,7 @@ struct alignas(32) Triangle : public Object {
 
   [[nodiscard]] const glm::vec3 &
   getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
-  [[nodiscard]] std::shared_ptr<Material> getMaterial() override;
+  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override;
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);

@@ -55,7 +55,7 @@ public:
                                                 const glm::vec3 &Point,
                                                 const glm::vec3 &viewDir,
                                                 const glm::vec2 &uv) override;
-  [[nodiscard]] std::shared_ptr<Material> getMaterial() override;
+  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override;
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
 
   /*Rebuild BVH Structure, When Points position moved!*/
