@@ -173,7 +173,8 @@ private:
     std::unique_ptr<ObjLoader> loader;
     std::unique_ptr<Mesh> mesh;
   };
-  std::unordered_map<std::string, ObjInfo> m_loadedObjs;
+  std::unordered_map<std::string, ObjInfo> m_loadedMeshes;
+  std::unordered_map<std::string, std::unique_ptr<Object>> m_loadedObjs;
 };
 } // namespace SoftRasterizer
 
