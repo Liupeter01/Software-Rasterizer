@@ -29,10 +29,19 @@ public:
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
   [[nodiscard]] std::shared_ptr<Material>& getMaterial()override;
 
+  /*Compatible Consideration!*/
+  [[nodiscard]] const std::vector<Vertex>& getVertices() const override;
+  [[nodiscard]] const std::vector<glm::uvec3>& getFaces() const override;
+
+  void updatePosition(const glm::mat4x4& NDC_MVP,
+            const glm::mat4x4& Normal_M) override;
+
 private:
   float radius;
   float square;
   glm::vec3 center;
+  std::vector<SoftRasterizer::Vertex> vert;
+  std::vector<glm::uvec3> faces;
   std::shared_ptr<Material> material;
 };
 } // namespace SoftRasterizer

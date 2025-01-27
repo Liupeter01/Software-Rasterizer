@@ -12,6 +12,19 @@ std::shared_ptr<SoftRasterizer::Material>& SoftRasterizer::Sphere::getMaterial()
           return material;
 }
 
+const std::vector<SoftRasterizer::Vertex>& SoftRasterizer::Sphere::getVertices() const {
+          return vert;
+}
+
+const std::vector<glm::uvec3>& SoftRasterizer::Sphere::getFaces() const {
+          return faces;
+}
+
+void SoftRasterizer::Sphere::updatePosition(const glm::mat4x4& NDC_MVP,
+          const glm::mat4x4& Normal_M) {
+
+}
+
 SoftRasterizer::Bounds3 SoftRasterizer::Sphere::getBounds() {
   Bounds3 ret;
   ret.min = glm::vec3(center.x - radius, center.y - radius, center.z - radius);
