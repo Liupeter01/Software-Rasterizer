@@ -508,7 +508,7 @@ void SoftRasterizer::Scene::buildBVHAccel() {
 /*Remove BVH Structure*/
 void SoftRasterizer::Scene::clearBVHAccel() { m_bvh->clearBVHAccel(); }
 
-void SoftRasterizer::Scene::updateTrianglePosition() {
+void SoftRasterizer::Scene::updatePosition() {
 
   for (const auto &[meshName, objData] : m_loadedObjs) {
     const auto &modelMatrix = objData.mesh->getModelMatrix();
