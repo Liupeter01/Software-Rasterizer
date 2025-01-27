@@ -55,15 +55,10 @@ public:
                      const glm::vec3 &axis, const float angle,
                      const glm::vec3 &translation, const glm::vec3 &scale);
 
-  bool
-  startLoadingMesh(const std::string &meshName,
-                   MaterialType _type = MaterialType::REFLECTION_AND_REFRACTION,
-                   const glm::vec3 &_color = glm::vec3(1.0f),
-                   const glm::vec3 &_Ka = glm::vec3(0.0f),
-                   const glm::vec3 &_Kd = glm::vec3(0.0f),
-                   const glm::vec3 &_Ks = glm::vec3(0.0f),
-                   const float _specularExponent = 0.0f,
-                   const float _ior = 0.f);
+  bool addGraphicObj(std::unique_ptr<Object> object, const std::string& objectName);
+
+  bool startLoadingMesh(const std::string &meshName);
+  std::optional<std::shared_ptr<Object> > getMeshObj(const std::string& meshName);
 
   bool addShader(const std::string &shaderName, const std::string &texturePath,
                  SHADERS_TYPE type);
@@ -170,11 +165,12 @@ private:
   std::unordered_map<std::string, std::shared_ptr<light_struct>> m_lights;
 
   struct ObjInfo {
-    std::unique_ptr<ObjLoader> loader;
-    std::unique_ptr<Mesh> mesh;
+    std::optional<std::unique_ptr<ObjLoader>> loader;
+    std::unique_ptr<Object> mesh;
   };
-  std::unordered_map<std::string, ObjInfo> m_loadedMeshes;
-  std::unordered_map<std::string, std::unique_ptr<Object>> m_loadedObjs;
+
+  /*All Loaded Objects, including Triangle, Sphere, Mesh, Cube*/
+  std::unordered_map<std::string, ObjInfo> m_loadedObjs;
 };
 } // namespace SoftRasterizer
 

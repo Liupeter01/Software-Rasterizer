@@ -27,14 +27,14 @@ bool SoftRasterizer::Scene::addGraphicObj(
     const std::string &path, const std::string &meshName, const glm::vec3 &axis,
     const float angle, const glm::vec3 &translation, const glm::vec3 &scale) {
   /*This Object has already been identified!*/
-  if (m_loadedMeshes.find(meshName) != m_loadedMeshes.end()) {
+  if (m_loadedObjs.find(meshName) != m_loadedObjs.end()) {
     spdlog::error(
         "Add Graphic Obj Error! This Object has already been identified");
     return false;
   }
 
   try {
-            m_loadedMeshes[meshName].loader = std::make_unique<ObjLoader>(
+            m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(
         path, meshName, axis, angle, translation, scale);
   } catch (const std::exception &e) {
     spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
@@ -47,13 +47,13 @@ bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
                                           const std::string &meshName) {
 
   /*This Object has already been identified!*/
-  if (m_loadedMeshes.find(meshName) != m_loadedMeshes.end()) {
+  if (m_loadedObjs.find(meshName) != m_loadedObjs.end()) {
     spdlog::error("This Object has already been identified");
     return false;
   }
 
   try {
-            m_loadedMeshes[meshName].loader = std::make_unique<ObjLoader>(path, meshName);
+            m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(path, meshName);
   } catch (const std::exception &e) {
     spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
     return false;
@@ -61,46 +61,77 @@ bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
   return true;
 }
 
-bool SoftRasterizer::Scene::startLoadingMesh(
-    const std::string &meshName, MaterialType _type, const glm::vec3 &_color,
-    const glm::vec3 &_Ka, const glm::vec3 &_Kd, const glm::vec3 &_Ks,
-    const float _specularExponent, const float _ior) {
+bool SoftRasterizer::Scene::addGraphicObj(std::unique_ptr<Object> object, const std::string& objectName) {
+          /*This Object has already been identified!*/
+          if (m_loadedObjs.find(objectName) != m_loadedObjs.end()) {
+                    spdlog::error("This Object has already been identified");
+                    return false;
+          }
+
+          try {
+                    m_loadedObjs[objectName].loader = std::nullopt;
+                    m_loadedObjs[objectName].mesh = std::move(object);
+          }
+          catch (const std::exception& e) {
+                    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
+                    return false;
+          }
+          return true;
+
+
+}
+
+bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
 
   /*This Object has already been identified!*/
-  if (m_loadedMeshes.find(meshName) == m_loadedMeshes.end()) {
+  if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
     spdlog::error("Start Loading Mesh Failed! Because There is nothing found "
-                  "in m_loadedMeshes");
+                  "in m_loadedObjs");
     return false;
   }
 
-  if (m_loadedMeshes[meshName].mesh != nullptr) {
+  if (m_loadedObjs[meshName].mesh != nullptr) {
     spdlog::error("Start Loading Mesh Failed! Because {} Has Already Loaded "
-                  "into m_loadedMeshes",
+                  "into m_loadedObjs",
                   meshName);
     return false;
   }
 
-  std::optional<std::unique_ptr<Mesh>> mesh_op =
-            m_loadedMeshes[meshName].loader->startLoadingFromFile(
-          /*Model Matrix*/ m_loadedMeshes[meshName].loader->getModelMatrix(),
-          /*View Matrix*/ m_view,
-          /*Projection Matrix*/ m_projection,
-          /*NDC Matrix*/ m_ndcToScreenMatrix, meshName, _type, _color, _Ka, _Kd,
-          _Ks, _specularExponent, _ior);
-
-  if (!mesh_op.has_value()) {
-    spdlog::error("Start Loading Mesh Failed! Because Loading Internel Error!");
-    return false;
-  }
-
   try {
-            m_loadedMeshes[meshName].mesh = std::move(mesh_op.value());
-            m_loadedMeshes[meshName].mesh->meshname = meshName;
+
+            std::optional<std::unique_ptr<Mesh>> mesh_op =
+                      m_loadedObjs[meshName].loader.value()->startLoadingFromFile(meshName);
+
+            if (!mesh_op.has_value()) {
+                      spdlog::error("Start Loading Mesh Failed! Because Loading Internel Error!");
+                      return false;
+            }
+
+            m_loadedObjs[meshName].mesh = std::move(mesh_op.value());
+
   } catch (const std::exception &e) {
     spdlog::error("Start Loading Mesh Failed! Reason: {}", e.what());
     return false;
   }
   return true;
+}
+
+std::optional<std::shared_ptr<SoftRasterizer::Object> >
+SoftRasterizer::Scene::getMeshObj(const std::string& meshName){
+          /*This Object has already been identified!*/
+          if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
+                    spdlog::error("Get Mesh Failed! Because There is nothing found "
+                              "in m_loadedObjs");
+                    return std::nullopt;
+          }
+
+          if (m_loadedObjs[meshName].mesh == nullptr) {
+                    spdlog::error("You Have to get Mesh Object After Deploy startLoadingMesh",
+                              meshName);
+                    return std::nullopt;
+          }
+
+          return std::shared_ptr< SoftRasterizer::Object>(m_loadedObjs[meshName].mesh.get(), [](Object*) {});
 }
 
 bool SoftRasterizer::Scene::addShader(const std::string &shaderName,
@@ -142,7 +173,7 @@ bool SoftRasterizer::Scene::addShader(const std::string &shaderName,
 bool SoftRasterizer::Scene::bindShader2Mesh(const std::string &meshName,
                                             const std::string &shaderName) {
 
-  if (m_loadedMeshes.find(meshName) == m_loadedMeshes.end()) {
+  if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
     spdlog::error(
         "Bind Shader To Mesh Failed! Because Loaded Mesh {} Not found!",
         meshName);
@@ -156,7 +187,8 @@ bool SoftRasterizer::Scene::bindShader2Mesh(const std::string &meshName,
   }
 
   try {
-            m_loadedMeshes[meshName].mesh->bindShader2Mesh(m_shaders[shaderName]);
+            m_loadedObjs[meshName].mesh->bindShader2Mesh(m_shaders[shaderName]);
+
   } catch (const std::exception &e) {
     spdlog::error("Bind Shader To Mesh Failed! Reason: {}", e.what());
     return false;
@@ -194,13 +226,13 @@ bool SoftRasterizer::Scene::setModelMatrix(const std::string &meshName,
                                            const float angle,
                                            const glm::vec3 &translation,
                                            const glm::vec3 &scale) {
-  if (m_loadedMeshes.find(meshName) == m_loadedMeshes.end()) {
+  if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
     spdlog::error("Editing Model Matrix Failed! Because {} Not Found",
                   meshName);
     return false;
   }
 
-  m_loadedMeshes[meshName].loader->updateModelMatrix(axis, angle, translation,
+  m_loadedObjs[meshName].mesh->updateModelMatrix(axis, angle, translation,
                                                    scale);
   return true;
 }
@@ -272,8 +304,8 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
 }
 
 std::vector<SoftRasterizer::Object *> SoftRasterizer::Scene::getLoadedObjs() {
-  std::vector<SoftRasterizer::Object *> ret(m_loadedMeshes.size());
-  std::transform(m_loadedMeshes.begin(), m_loadedMeshes.end(), ret.begin(),
+  std::vector<SoftRasterizer::Object *> ret(m_loadedObjs.size());
+  std::transform(m_loadedObjs.begin(), m_loadedObjs.end(), ret.begin(),
                  [](const auto &obj) { return obj.second.mesh.get(); });
   return ret;
 }
@@ -477,58 +509,14 @@ void SoftRasterizer::Scene::updateTrianglePosition() {
   /*Delete Existing BVH structure*/
   clearBVHAccel();
 
-  for (const auto &[meshName, objData] : m_loadedMeshes) {
-
-    objData.mesh->m_converted.clear();
-    objData.mesh->m_converted.resize(objData.mesh->faces.size());
-
-    const auto &modelMatrix = objData.loader->getModelMatrix();
+  for (const auto &[meshName, objData] : m_loadedObjs) {
+    const auto &modelMatrix = objData.mesh->getModelMatrix();
 
     auto NDC_MVP =
         /*m_ndcToScreenMatrix **/ m_projection * m_view * modelMatrix;
     auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
 
-    tbb::parallel_for(
-        tbb::blocked_range<long long>(0, objData.mesh->m_triangles.size()),
-        [&](const tbb::blocked_range<long long> &r) {
-          for (long long index = r.begin(); index < r.end(); ++index) {
-
-            objData.mesh->m_converted[index] =
-                *objData.mesh->m_triangles[index];
-
-            objData.mesh->m_converted[index].m_vertex[0] = Tools::to_vec3(
-                NDC_MVP *
-                glm::vec4(objData.mesh->m_converted[index].m_vertex[0], 1.0f));
-            // objData.mesh->m_converted[index].m_vertex[0].z =
-            // objData.mesh->m_converted[index].m_vertex[0].z * scale + offset;
-            // // Z-Depth
-            objData.mesh->m_converted[index].m_normal[0] = Tools::to_vec3(
-                Normal_M *
-                glm::vec4(objData.mesh->m_converted[index].m_normal[0], 1.0f));
-
-            objData.mesh->m_converted[index].m_vertex[1] = Tools::to_vec3(
-                NDC_MVP *
-                glm::vec4(objData.mesh->m_converted[index].m_vertex[1], 1.0f));
-            // objData.mesh->m_converted[index].m_vertex[1].z =
-            // objData.mesh->m_converted[index].m_vertex[1].z * scale + offset;
-            // // Z-Depth
-            objData.mesh->m_converted[index].m_normal[1] = Tools::to_vec3(
-                Normal_M *
-                glm::vec4(objData.mesh->m_converted[index].m_normal[1], 1.0f));
-
-            objData.mesh->m_converted[index].m_vertex[2] = Tools::to_vec3(
-                NDC_MVP *
-                glm::vec4(objData.mesh->m_converted[index].m_vertex[2], 1.0f));
-            // objData.mesh->m_converted[index].m_vertex[2].z =
-            // objData.mesh->m_converted[index].m_vertex[2].z * scale + offset;
-            // // Z-Depth
-            objData.mesh->m_converted[index].m_normal[2] = Tools::to_vec3(
-                Normal_M *
-                glm::vec4(objData.mesh->m_converted[index].m_normal[2], 1.0f));
-          }
-        });
-
-    objData.mesh->rebuildBVHAccel();
+    objData.mesh->updatePosition(NDC_MVP, Normal_M);
   }
 
   buildBVHAccel();
@@ -543,15 +531,15 @@ SoftRasterizer::Scene::loadTriangleStream() {
   // Estimate and reserve the total size for triangle_stream to avoid
   // reallocations
   stream.reserve(std::accumulate(
-            m_loadedMeshes.begin(), m_loadedMeshes.end(), static_cast<std::size_t>(0),
+            m_loadedObjs.begin(), m_loadedObjs.end(), static_cast<std::size_t>(0),
       [](std::size_t sum, const auto &objPair) {
-        return sum + objPair.second.mesh->faces.size();
+        return sum + objPair.second.mesh->getFaces().size();
       }));
 
-  for (const auto &[meshName, objData] : m_loadedMeshes) {
+  for (const auto &[meshName, objData] : m_loadedObjs) {
     const auto &mesh = objData.mesh;
     const auto &shader = mesh->m_shader;
-    const auto &modelMatrix = objData.loader->getModelMatrix();
+    const auto &modelMatrix = objData.mesh->getModelMatrix();
 
     auto NDC_MVP = m_ndcToScreenMatrix * m_projection * m_view * modelMatrix;
     auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
@@ -559,14 +547,14 @@ SoftRasterizer::Scene::loadTriangleStream() {
     tbb::concurrent_vector<SoftRasterizer::Triangle> ret;
 
     tbb::parallel_for(
-        tbb::blocked_range<long long>(0, mesh->faces.size()),
+        tbb::blocked_range<long long>(0, mesh->getFaces().size()),
         [&](const tbb::blocked_range<long long> &r) {
           for (long long face_index = r.begin(); face_index < r.end();
                ++face_index) {
-            const auto &face = mesh->faces[face_index];
-            SoftRasterizer::Vertex A = mesh->vertices[face.x];
-            SoftRasterizer::Vertex B = mesh->vertices[face.y];
-            SoftRasterizer::Vertex C = mesh->vertices[face.z];
+            const auto &face = mesh->getFaces()[face_index];
+            SoftRasterizer::Vertex A = mesh->getVertices()[face.x];
+            SoftRasterizer::Vertex B = mesh->getVertices()[face.y];
+            SoftRasterizer::Vertex C = mesh->getVertices()[face.z];
 
             A.position = Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
             A.position.z = A.position.z * scale + offset; // Z-Depth
