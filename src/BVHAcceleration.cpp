@@ -2,30 +2,27 @@
 #include <bvh/BVHAcceleration.hpp>
 #include <chrono>
 #include <spdlog/spdlog.h>
+#include <tbb/parallel_for.h>
 
 SoftRasterizer::BVHAcceleration::BVHAcceleration() : root(nullptr), objs(0) {}
 
-SoftRasterizer::BVHAcceleration::BVHAcceleration(
-    const std::vector<SoftRasterizer::Object *> &stream)
-    : root(nullptr), objs(stream) {
-
-  buildBVH();
-}
-
-SoftRasterizer::BVHAcceleration::BVHAcceleration(
-    std::vector<SoftRasterizer::Object *> &&stream)
-    : root(nullptr), objs(std::move(stream)) {
-
-  buildBVH();
+SoftRasterizer::BVHAcceleration::BVHAcceleration(const tbb::concurrent_vector<std::shared_ptr<Object>>& stream) {
+          loadNewObjects(stream);
 }
 
 SoftRasterizer::BVHAcceleration::~BVHAcceleration() { clearBVHAccel(root); }
 
-void SoftRasterizer::BVHAcceleration::loadNewObjects(
-    const std::vector<Object *> &stream) {
-  objs.erase(objs.begin(), objs.end());
+void SoftRasterizer::BVHAcceleration::loadNewObjects(const tbb::concurrent_vector<std::shared_ptr<Object>>& stream) {
+  objs.clear();
   objs.resize(stream.size());
-  std::copy(stream.begin(), stream.end(), objs.begin());
+  
+  tbb::parallel_for(
+            tbb::blocked_range<long long>(0, stream.size()),
+            [&](const tbb::blocked_range<long long>& r) {
+                      for (long long index = r.begin(); index < r.end(); ++index) {
+                                objs[index] = stream[index].get();
+                      }
+            });
 }
 
 void SoftRasterizer::BVHAcceleration::clearBVHAccel() { clearBVHAccel(root); }
@@ -124,7 +121,7 @@ SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
 
 std::unique_ptr<SoftRasterizer::BVHBuildNode>
 SoftRasterizer::BVHAcceleration::recursive(
-    std::vector<SoftRasterizer::Object *> objs) {
+          tbb::concurrent_vector<SoftRasterizer::Object *> objs) {
   auto node = std::make_unique<SoftRasterizer::BVHBuildNode>();
 
   Bounds3 box;
@@ -142,8 +139,8 @@ SoftRasterizer::BVHAcceleration::recursive(
   }
   /*I am The Root Node*/
   else if (objs.size() == 2) {
-    node->left = recursive(std::vector{objs[0]});
-    node->right = recursive(std::vector{objs[1]});
+    node->left = recursive(tbb::concurrent_vector{objs[0]});
+    node->right = recursive(tbb::concurrent_vector{objs[1]});
     node->box = BoundsUnion(node->left->box, node->right->box);
     return node;
   }
@@ -175,9 +172,9 @@ SoftRasterizer::BVHAcceleration::recursive(
 
     /*Seperate The vector in half, by using the longest axis*/
     auto middle = objs.size() / 2;
-    node->left = recursive(std::vector<SoftRasterizer::Object *>(
+    node->left = recursive(tbb::concurrent_vector<Object *>(
         objs.begin(), objs.begin() + middle));
-    node->right = recursive(std::vector<SoftRasterizer::Object *>(
+    node->right = recursive(tbb::concurrent_vector<Object *>(
         objs.begin() + middle, objs.end()));
     node->box = BoundsUnion(node->left->box, node->right->box);
   }

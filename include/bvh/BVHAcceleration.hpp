@@ -6,7 +6,7 @@
 #include <object/Object.hpp>
 #include <object/Triangle.hpp>
 #include <optional>
-#include <vector>
+#include <tbb/concurrent_vector.h>
 
 namespace SoftRasterizer {
 class Scene;
@@ -25,12 +25,11 @@ class BVHAcceleration {
 
 public:
   BVHAcceleration();
-  BVHAcceleration(const std::vector<Object *> &stream);
-  BVHAcceleration(std::vector<Object *> &&stream);
+  BVHAcceleration(const tbb::concurrent_vector<std::shared_ptr<Object>>& stream);
   virtual ~BVHAcceleration();
 
 public:
-  void loadNewObjects(const std::vector<Object *> &stream);
+  void loadNewObjects(const tbb::concurrent_vector<std::shared_ptr<Object>>& stream);
   void startBuilding();
   void rebuildBVHAccel();
   Intersection getIntersection(Ray &ray) const;
@@ -41,13 +40,13 @@ protected:
   void clearBVHAccel(std::unique_ptr<BVHBuildNode> &node);
   void buildBVH();
   [[nodiscard]] std::unique_ptr<BVHBuildNode>
-  recursive(std::vector<Object *> objs);
+  recursive(tbb::concurrent_vector<Object *> objs);
   [[nodiscard]] Intersection intersection(BVHBuildNode *node, Ray &ray) const;
 
 private:
   /*BVH Head Node*/
   std::unique_ptr<BVHBuildNode> root;
-  std::vector<Object *> objs;
+  tbb::concurrent_vector<Object *> objs;
 };
 } // namespace SoftRasterizer
 
