@@ -18,7 +18,10 @@ enum class FaceNormalType {
 
 struct alignas(32) Triangle : public Object {
   Triangle();
-  Triangle(std::shared_ptr<Material> _material);
+  Triangle(const glm::vec3 &VertexA, const glm::vec3& VertexB, const glm::vec3& VertexC,
+                const glm::vec3& NormalA, const glm::vec3& NormalB, const glm::vec3& NormalC,
+            const glm::vec2& texCoordA, const glm::vec2& texCoordB, const glm::vec2& texCoordC,
+            const glm::vec3& colorA= glm::vec3(1.0f), const glm::vec3& colorB = glm::vec3(1.0f), const glm::vec3& colorC = glm::vec3(1.0f));
 
   constexpr static float zero_point_3 = 0.3333333f;
 
@@ -32,8 +35,8 @@ struct alignas(32) Triangle : public Object {
   void setTexCoord(std::initializer_list<glm::vec2> _texCoords);
 
   Bounds3 getBounds() override;
-  [[nodiscard]] bool intersect(const Ray &ray) override;
-  [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override;
+  [[nodiscard]] bool intersect(const Ray &ray) override { return true; }
+  [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override { return true; }
 
   // Moller Trumbore Algorithm
   [[nodiscard]] static bool
@@ -47,20 +50,33 @@ struct alignas(32) Triangle : public Object {
                                                 const glm::vec3 &viewDir,
                                                 const glm::vec2 &uv) override;
 
-  [[nodiscard]] const glm::vec3 &
+  [[nodiscard]] glm::vec3 
   getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
-  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override;
+  [[nodiscard]] std::shared_ptr<Material>& getMaterial() override { return m_material; }
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
+
+  /*Compatible Consideration!*/
+  [[nodiscard]] const std::vector<Vertex>& getVertices() const override { return vert; }
+  [[nodiscard]] const std::vector<glm::uvec3>& getFaces() const override { return faces; }
+
+  void updatePosition(const glm::mat4x4& NDC_MVP,
+            const glm::mat4x4& Normal_M) override;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);
 
-  /*the original coordinates of the triangle, v0, v1, v2 in counter clockwise
-   * order*/
+  /*
+  * original coord of the triangle, v0, v1, v2 in counter clockwise order
+  * Those are original arguments, they should not be changed!!!!!!
+   */
   std::array<glm::vec3, 3> m_vertex;
   std::array<glm::vec3, 3> m_color; // Color for each vertex
-  std::array<glm::vec2, 3>
-      m_texCoords;                   // texture u,v coordinates for each vertex
+  // texture u,v coordinates for each vertex
+  std::array<glm::vec2, 3> m_texCoords;
   std::array<glm::vec3, 3> m_normal; // normal vector for each vertex
+
+  /*All the calculations should be done using vert!!!*/
+  std::vector<SoftRasterizer::Vertex> vert;
+  std::vector<glm::uvec3> faces;
 
   std::shared_ptr<Material> m_material;
 
@@ -73,10 +89,6 @@ struct alignas(32) Triangle : public Object {
     long long endY;
   };
   BoundingBox box;
-
-private:
-  glm::vec3 geometryNormal;
-  glm::vec3 interpolatedNormal;
 };
 } // namespace SoftRasterizer
 
