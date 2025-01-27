@@ -2,12 +2,7 @@
 #include <object/Triangle.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
-
-SoftRasterizer::Mesh::Mesh() : Mesh("") {}
-
-SoftRasterizer::Mesh::Mesh(const std::string &name)
-    : meshname(name), m_shader(nullptr),
-      MeshMaterial(std::make_shared<Material>()) {}
+#include <Tools.hpp>
 
 SoftRasterizer::Mesh::Mesh(const std::string &name,
                            const SoftRasterizer::Material &_material,
@@ -15,11 +10,13 @@ SoftRasterizer::Mesh::Mesh(const std::string &name,
                            const std::vector<glm::uvec3> &_faces,
                            const Bounds3 &box)
     : meshname(name), MeshMaterial(std::make_shared<Material>(_material)),
-      vertices(_vertices), faces(_faces), bounding_box(box), m_shader(nullptr),
-      m_bvh(std::make_unique<BVHAcceleration>()) {
+      vertices(_vertices), faces(_faces), bounding_box(box) {
 
   /*Generating Triangles*/
   generateTriangles();
+
+  /*Allocate BVH Structure*/
+  preGenerateBVH();
 
   /*Generating BVH Structure*/
   buildBVHAccel();
@@ -31,26 +28,19 @@ SoftRasterizer::Mesh::Mesh(const std::string &name,
                            std::vector<glm::uvec3> &&_faces, Bounds3 &&box)
     : meshname(name), MeshMaterial(std::make_shared<Material>(_material)),
       vertices(std::move(_vertices)), faces(std::move(_faces)),
-      bounding_box(std::move(box)), m_shader(nullptr),
-      m_bvh(std::make_unique<BVHAcceleration>()) {
+      bounding_box(std::move(box)) {
 
   /*Generating Triangles*/
   generateTriangles();
+
+  /*Allocate BVH Structure*/
+  preGenerateBVH();
 
   /*Generating BVH Structure*/
   buildBVHAccel();
 }
 
 SoftRasterizer::Mesh::~Mesh() { m_bvh->clearBVHAccel(); }
-
-void SoftRasterizer::Mesh::bindShader2Mesh(std::shared_ptr<Shader> shader) {
-  /*bind shader2 mesh without dtor,  the life od this pointer is maintained by
-   * render class*/
-  m_shader.reset();
-  m_shader = shader;
-}
-
-bool SoftRasterizer::Mesh::intersect(const Ray &ray) { return true; }
 
 bool SoftRasterizer::Mesh::intersect(const Ray &ray, float &tNear) {
   bool status = false;
@@ -107,40 +97,59 @@ glm::vec3 SoftRasterizer::Mesh::getDiffuseColor(const glm::vec2 &uv) {
   return MeshMaterial->color;
 }
 
+const std::vector<SoftRasterizer::Vertex>& SoftRasterizer::Mesh::getVertices() const{
+          return vertices;
+}
+
+const std::vector<glm::uvec3>& SoftRasterizer::Mesh::getFaces() const {
+          return faces;
+}
+
+void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4& NDC_MVP,
+          const glm::mat4x4& Normal_M) {
+
+          tbb::parallel_for(
+                    tbb::blocked_range<long long>(0, m_triangles.size()),
+                    [&](const tbb::blocked_range<long long>& r) {
+                              for (long long index = r.begin(); index < r.end(); ++index) {
+
+                                        /*Update Triangle and Generate New Bounds3 Struct*/
+                                        m_triangles[index]->updatePosition(NDC_MVP, Normal_M);
+                              }
+                    });
+
+          rebuildBVHAccel();
+
+}
+
 /*Generating Triangles*/
 void SoftRasterizer::Mesh::generateTriangles() {
   m_triangles.resize(faces.size());
-  m_converted.resize(faces.size());
 
   tbb::parallel_for(std::size_t(0), faces.size(), [&](std::size_t i) {
-    const glm::vec3 &v0 = vertices[faces[i].x].position;
-    const glm::vec3 &v1 = vertices[faces[i].y].position;
-    const glm::vec3 &v2 = vertices[faces[i].z].position;
 
-    std::shared_ptr<Triangle> tri(std::make_shared<Triangle>(MeshMaterial));
+            //Polymorphism
+            std::shared_ptr<Object> tri = std::make_shared<Triangle>(
+                      vertices[faces[i].x].position, vertices[faces[i].y].position, vertices[faces[i].z].position,
+                      vertices[faces[i].x].normal, vertices[faces[i].y].normal, vertices[faces[i].z].normal,
+                      vertices[faces[i].x].texCoord, vertices[faces[i].y].texCoord, vertices[faces[i].z].texCoord,
+                      vertices[faces[i].x].color, vertices[faces[i].y].color, vertices[faces[i].z].color);
+
+            /*Set triangle's index*/
     tri->index = i;
-    tri->setVertex({v0, v1, v2});
-    tri->setNormal({vertices[faces[i].x].normal, vertices[faces[i].y].normal,
-                    vertices[faces[i].z].normal});
-    tri->setColor({vertices[faces[i].x].color, vertices[faces[i].y].color,
-                   vertices[faces[i].z].color});
-    tri->setTexCoord({vertices[faces[i].x].texCoord,
-                      vertices[faces[i].y].texCoord,
-                      vertices[faces[i].z].texCoord});
-
     m_triangles[i] = tri;
-    m_converted[i] = (*tri);
   });
+}
+
+void SoftRasterizer::Mesh::preGenerateBVH() {
+          m_bvh.reset();
+          m_bvh = std::make_unique<BVHAcceleration>(m_triangles);
 }
 
 /*Generating BVH Structure*/
 void SoftRasterizer::Mesh::buildBVHAccel() {
 
   try {
-    std::vector<Object *> objs(m_triangles.size());
-    std::transform(m_converted.begin(), m_converted.end(), objs.begin(),
-                   [](Triangle &tri) { return &tri; });
-    m_bvh->loadNewObjects(objs);
     m_bvh->clearBVHAccel();
     m_bvh->startBuilding();
     bounding_box = m_bvh->getBoundingBox().value();
