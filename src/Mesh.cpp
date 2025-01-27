@@ -130,10 +130,11 @@ void SoftRasterizer::Mesh::generateTriangles() {
 
             //Polymorphism
             std::shared_ptr<Object> tri = std::make_shared<Triangle>(
+                      MeshMaterial,
                       vertices[faces[i].x].position, vertices[faces[i].y].position, vertices[faces[i].z].position,
                       vertices[faces[i].x].normal, vertices[faces[i].y].normal, vertices[faces[i].z].normal,
-                      vertices[faces[i].x].texCoord, vertices[faces[i].y].texCoord, vertices[faces[i].z].texCoord,
-                      vertices[faces[i].x].color, vertices[faces[i].y].color, vertices[faces[i].z].color);
+                      vertices[faces[i].x].texCoord, vertices[faces[i].y].texCoord, vertices[faces[i].z].texCoord
+                      /*, vertices[faces[i].x].color, vertices[faces[i].y].color, vertices[faces[i].z].color*/);
 
             /*Set triangle's index*/
     tri->index = i;
