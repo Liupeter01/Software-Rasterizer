@@ -90,7 +90,9 @@ protected:
 private:
   /*NDC Matrix Function is prepare for renderpipeline class!*/
   void setNDCMatrix(const std::size_t width, const std::size_t height);
-  std::vector<Object *> getLoadedObjs();
+
+  /* Generate Pointers to Triangles and load it to BVH Structure*/
+  void preGenerateBVH();
 
   // emit ray from eye to pixel and trace the scene to find the nearest object
   // intersected by the ray
@@ -171,6 +173,9 @@ private:
 
   /*All Loaded Objects, including Triangle, Sphere, Mesh, Cube*/
   std::unordered_map<std::string, ObjInfo> m_loadedObjs;
+
+  /*Pointers of All Loaded Objects, Used for Creating BVH*/
+  tbb::concurrent_vector<std::shared_ptr<Object>> m_exportedObjs;
 };
 } // namespace SoftRasterizer
 

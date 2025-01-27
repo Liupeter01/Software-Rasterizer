@@ -303,11 +303,15 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
   m_ndcToScreenMatrix = matrix;
 }
 
-std::vector<SoftRasterizer::Object *> SoftRasterizer::Scene::getLoadedObjs() {
-  std::vector<SoftRasterizer::Object *> ret(m_loadedObjs.size());
-  std::transform(m_loadedObjs.begin(), m_loadedObjs.end(), ret.begin(),
-                 [](const auto &obj) { return obj.second.mesh.get(); });
-  return ret;
+/* Generate Pointers to Triangles and load it to BVH Structure*/
+void  SoftRasterizer::Scene::preGenerateBVH() {
+          m_exportedObjs.clear();
+          m_exportedObjs.resize(m_loadedObjs.size());
+
+          std::transform(m_loadedObjs.begin(), m_loadedObjs.end(), m_exportedObjs.begin(),
+                    [](const auto& obj) { 
+                              return std::shared_ptr< Object>(obj.second.mesh.get(), [](Object*) {}); 
+                    });
 }
 
 // emit ray from eye to pixel and trace the scene to find the nearest object
@@ -492,7 +496,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
 
 void SoftRasterizer::Scene::buildBVHAccel() {
   try {
-    m_bvh->loadNewObjects(getLoadedObjs());
+    m_bvh->loadNewObjects(m_exportedObjs);
     m_bvh->startBuilding();
     m_boundingBox = m_bvh->getBoundingBox().value();
   } catch (const std::exception &e) {
@@ -506,9 +510,6 @@ void SoftRasterizer::Scene::clearBVHAccel() { m_bvh->clearBVHAccel(); }
 
 void SoftRasterizer::Scene::updateTrianglePosition() {
 
-  /*Delete Existing BVH structure*/
-  clearBVHAccel();
-
   for (const auto &[meshName, objData] : m_loadedObjs) {
     const auto &modelMatrix = objData.mesh->getModelMatrix();
 
@@ -519,6 +520,13 @@ void SoftRasterizer::Scene::updateTrianglePosition() {
     objData.mesh->updatePosition(NDC_MVP, Normal_M);
   }
 
+  ///*Start to generate pointers to triangles*/
+  //preGenerateBVH();
+
+  /*Delete Existing BVH structure*/
+  clearBVHAccel();
+
+  /*Rebuild BVH*/
   buildBVHAccel();
 }
 
