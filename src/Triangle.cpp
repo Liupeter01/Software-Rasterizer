@@ -13,11 +13,12 @@ SoftRasterizer::Triangle::Triangle()
 }
 
 SoftRasterizer::Triangle::Triangle(
+          std::shared_ptr<Material> _material,
           const glm::vec3& VertexA, const glm::vec3& VertexB, const glm::vec3& VertexC,
           const glm::vec3& NormalA, const glm::vec3& NormalB, const glm::vec3& NormalC,
           const glm::vec2& texCoordA, const glm::vec2& texCoordB, const glm::vec2& texCoordC,
           const glm::vec3& colorA , const glm::vec3& colorB , const glm::vec3& colorC )
-          :  box(), vert(3), m_material(std::make_shared<Material>())
+          :  box(), vert(3), m_material(_material)
 {
           vert[0].position = m_vertex[0] = VertexA;
           vert[1].position = m_vertex[1] = VertexB;

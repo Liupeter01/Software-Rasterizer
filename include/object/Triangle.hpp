@@ -18,7 +18,8 @@ enum class FaceNormalType {
 
 struct alignas(32) Triangle : public Object {
   Triangle();
-  Triangle(const glm::vec3 &VertexA, const glm::vec3& VertexB, const glm::vec3& VertexC,
+  Triangle(std::shared_ptr<Material> _material, 
+            const glm::vec3 &VertexA, const glm::vec3& VertexB, const glm::vec3& VertexC,
                 const glm::vec3& NormalA, const glm::vec3& NormalB, const glm::vec3& NormalC,
             const glm::vec2& texCoordA, const glm::vec2& texCoordB, const glm::vec2& texCoordC,
             const glm::vec3& colorA= glm::vec3(1.0f), const glm::vec3& colorB = glm::vec3(1.0f), const glm::vec3& colorC = glm::vec3(1.0f));
