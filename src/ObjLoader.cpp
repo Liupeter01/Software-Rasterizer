@@ -195,12 +195,7 @@ processingVertexData(const std::string &objName,
 }
 
 std::optional<std::unique_ptr<SoftRasterizer::Mesh>>
-SoftRasterizer::ObjLoader::startLoadingFromFile(
-    const glm::mat4x4 &model, const glm::mat4x4 &view,
-    const glm::mat4x4 &projection, const glm::mat4x4 &ndc,
-    const std::string &objName, MaterialType _type, const glm::vec3 &_color,
-    const glm::vec3 &_Ka, const glm::vec3 &_Kd, const glm::vec3 &_Ks,
-    const float _specularExponent, const float _ior) {
+SoftRasterizer::ObjLoader::startLoadingFromFile(const std::string &objName) {
 
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -234,16 +229,6 @@ SoftRasterizer::ObjLoader::startLoadingFromFile(
                "\t| Size of Faces: {}",
                mesh->meshname, mesh->vertices.size(), mesh->faces.size());
 
-  /*No Material Found*/
-  if (!materials.size()) {
-    mesh->MeshMaterial->type = _type;
-    mesh->MeshMaterial->color = _color;
-    mesh->MeshMaterial->Ka = _Ka;
-    mesh->MeshMaterial->Kd = _Kd;
-    mesh->MeshMaterial->Ks = _Ks;
-    mesh->MeshMaterial->specularExponent = _specularExponent;
-    mesh->MeshMaterial->ior = _ior;
-  }
   return mesh;
 }
 
