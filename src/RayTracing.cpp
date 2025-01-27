@@ -17,7 +17,7 @@ void SoftRasterizer::RayTracing::draw(Primitive type) {
      * Update Triangle Position Because Of NDC_MVP Change
      * We only need to update each triangle by using shared_ptr pointers
      */
-    SceneObj->updateTrianglePosition();
+    SceneObj->updatePosition();
 
     std::vector<SoftRasterizer::light_struct> lights = SceneObj->loadLights();
     const glm::vec3 eye = SceneObj->loadEyeVec();

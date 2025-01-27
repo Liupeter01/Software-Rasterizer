@@ -81,7 +81,7 @@ public:
   void clearBVHAccel();
 
 protected:
-  void updateTrianglePosition();
+  void updatePosition();
 
   /*For Rasterizer, Not Ray Tracing*/
   tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> loadTriangleStream();
