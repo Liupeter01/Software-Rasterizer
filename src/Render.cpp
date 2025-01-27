@@ -70,6 +70,9 @@ bool SoftRasterizer::RenderingPipeline::addScene(
       return false;
     }
 
+    /*Pre Generate Object* concurrent vector*/
+    scene->preGenerateBVH();
+
     /*Start Building BVH*/
     scene->buildBVHAccel();
 
