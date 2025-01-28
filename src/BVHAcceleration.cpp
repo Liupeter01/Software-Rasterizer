@@ -97,11 +97,17 @@ SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
   if (!node)
     return {};
 
+  /*BoundingBox Test, Optimize Calculation*/
+  if (!node->box.intersect(ray)) {
+            return {};
+  }
+
   /*Every Obj is on leaf node!*/
   if (node->left == nullptr && node->right == nullptr) {
     if (node->obj) {
-      return node->obj->getIntersect(
-          ray); // Return intersection if object exists
+
+      // Return intersection if object exists
+      return node->obj->getIntersect(ray); 
     }
     return {}; // Return empty intersection if no object in leaf node
   }
@@ -114,9 +120,15 @@ SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
   if (left.intersected && right.intersected) {
     return left.intersect_time < right.intersect_time ? left : right;
   }
-
   // If one of them is not intersected, return the one that is
-  return left.intersected ? left : right;
+  else if (left.intersected && !right.intersected) {
+            return left;
+  }
+  else if (!left.intersected && right.intersected) {
+            return  right;
+  }
+  //No Intersect At ALL
+  return{};
 }
 
 std::unique_ptr<SoftRasterizer::BVHBuildNode>
@@ -131,52 +143,43 @@ SoftRasterizer::BVHAcceleration::recursive(
 
   /*I'm the Leaf Node*/
   if (objs.size() == 1) {
-    node->left = nullptr;
-    node->right = nullptr;
-    node->box = (*objs.begin())->getBounds();
-    node->obj = std::shared_ptr<Object>(*objs.begin(), [](auto T) {});
-    return node;
+            node->left = nullptr;
+            node->right = nullptr;
+            node->box = (*objs.begin())->getBounds();
+            node->obj = std::shared_ptr<Object>(*objs.begin(), [](auto T) {});
+            return node;
   }
   /*I am The Root Node*/
   else if (objs.size() == 2) {
-    node->left = recursive(tbb::concurrent_vector{objs[0]});
-    node->right = recursive(tbb::concurrent_vector{objs[1]});
-    node->box = BoundsUnion(node->left->box, node->right->box);
-    return node;
+            node->left = std::make_unique<BVHBuildNode>();
+            node->right = std::make_unique<BVHBuildNode>();
+            node->left->obj = std::shared_ptr<Object>(objs[0], [](auto) {});
+            node->right->obj = std::shared_ptr<Object>(objs[1], [](auto) {});
+            node->left->box = objs[0]->getBounds();
+            node->right->box = objs[1]->getBounds();
   }
   /*Other Condition*/
   else {
-    Bounds3 centric;
-    for (const auto &obj : objs) {
-      centric = BoundsUnion(centric, obj->getBounds().centroid());
-    }
 
-    std::sort(objs.begin(), objs.end(),
-              [dim = centric.maxExtent()](auto f1, auto f2) {
-                switch (dim) {
-                case 0:
-                  return f1->getBounds().centroid().x <
-                         f2->getBounds().centroid().x; // X
-                  break;
-                case 1:
-                  return f1->getBounds().centroid().y <
-                         f2->getBounds().centroid().y; // Y
-                  break;
-                case 2:
-                  return f1->getBounds().centroid().z <
-                         f2->getBounds().centroid().z; // Z
-                  break;
-                }
-                return true;
-              });
+            // Calculate centroids and partition objects along the longest axis
+            Bounds3 centric;
+            for (const auto& obj : objs) {
+                      centric = BoundsUnion(centric, obj->getBounds().centroid());
+            }
 
-    /*Seperate The vector in half, by using the longest axis*/
-    auto middle = objs.size() / 2;
-    node->left = recursive(tbb::concurrent_vector<Object *>(
-        objs.begin(), objs.begin() + middle));
-    node->right = recursive(tbb::concurrent_vector<Object *>(
-        objs.begin() + middle, objs.end()));
-    node->box = BoundsUnion(node->left->box, node->right->box);
+            std::sort(objs.begin(), objs.end(),
+                      [dim = centric.maxExtent()](auto f1, auto f2) {
+                                return f1->getBounds().centroid()[dim] < f2->getBounds().centroid()[dim];
+                      });
+
+            /*Seperate The vector in half, by using the longest axis*/
+            auto middle = objs.size() / 2;
+            node->left = recursive(tbb::concurrent_vector<Object*>(
+                      objs.begin(), objs.begin() + middle));
+            node->right = recursive(tbb::concurrent_vector<Object*>(
+                      objs.begin() + middle, objs.end()));
+
   }
+  node->box = BoundsUnion(node->left->box, node->right->box);
   return node;
 }
