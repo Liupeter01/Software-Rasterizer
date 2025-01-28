@@ -1,11 +1,11 @@
 #pragma once
 #ifndef _BOUNDS3_HPP_
 #define _BOUNDS3_HPP_
+#include <Tools.hpp>
 #include <cmath>
+#include <glm/glm.hpp>
 #include <limits>
 #include <ray/Ray.hpp>
-#include <glm/glm.hpp>
-#include <Tools.hpp>
 
 namespace SoftRasterizer {
 struct Bounds3 {
@@ -32,43 +32,52 @@ struct Bounds3 {
   }
 
   /*Calculate is there any intersects between BoundingBox and Ray*/
-  bool intersect(const Ray& ray) {
+  bool intersect(const Ray &ray) {
 
-            const glm::vec3 origin = ray.origin;
-            const glm::vec3 dir = ray.direction;
+    const glm::vec3 origin = ray.origin;
+    const glm::vec3 dir = ray.direction;
 
-            /*
-            * Multiply is faster that Division
-            * Use a large value to handle division by zero for rays parallel to an axis
-            */
-            const glm::vec3 inv_dir = glm::vec3(
-                      ray.direction.x != 0 ? 1.0f / ray.direction.x : std::numeric_limits<float>::max(),
-                      ray.direction.y != 0 ? 1.0f / ray.direction.y : std::numeric_limits<float>::max(),
-                      ray.direction.z != 0 ? 1.0f / ray.direction.z : std::numeric_limits<float>::max()
-            );
+    /*
+     * Multiply is faster that Division
+     * Use a large value to handle division by zero for rays parallel to an axis
+     */
+    const glm::vec3 inv_dir =
+        glm::vec3(ray.direction.x != 0 ? 1.0f / ray.direction.x
+                                       : std::numeric_limits<float>::max(),
+                  ray.direction.y != 0 ? 1.0f / ray.direction.y
+                                       : std::numeric_limits<float>::max(),
+                  ray.direction.z != 0 ? 1.0f / ray.direction.z
+                                       : std::numeric_limits<float>::max());
 
-            auto x_min = min.x, x_max = max.x;
-            auto y_min = min.y, y_max = max.y;
-            auto z_min = min.z, z_max = max.z;
+    auto x_min = min.x, x_max = max.x;
+    auto y_min = min.y, y_max = max.y;
+    auto z_min = min.z, z_max = max.z;
 
-            /*
-            * Origin + t * direction = Dst
-            * t = (Dst - Origin) / direction =  (Dst - Origin) * inv_direction
-            */
-            auto x_min_t = (x_min - origin.x) * inv_dir.x, x_max_t = (x_max - origin.x) * inv_dir.x;
-            auto y_min_t = (y_min - origin.y) * inv_dir.y, y_max_t = (y_max - origin.y) * inv_dir.y;
-            auto z_min_t = (z_min - origin.z) * inv_dir.z, z_max_t = (z_max - origin.z) * inv_dir.z;
+    /*
+     * Origin + t * direction = Dst
+     * t = (Dst - Origin) / direction =  (Dst - Origin) * inv_direction
+     */
+    auto x_min_t = (x_min - origin.x) * inv_dir.x,
+         x_max_t = (x_max - origin.x) * inv_dir.x;
+    auto y_min_t = (y_min - origin.y) * inv_dir.y,
+         y_max_t = (y_max - origin.y) * inv_dir.y;
+    auto z_min_t = (z_min - origin.z) * inv_dir.z,
+         z_max_t = (z_max - origin.z) * inv_dir.z;
 
-            // Swap the t_min and t_max values if necessary to ensure correct ordering
-            if (x_min_t > x_max_t) std::swap(x_min_t, x_max_t);
-            if (y_min_t > y_max_t) std::swap(y_min_t, y_max_t);
-            if (z_min_t > z_max_t) std::swap(z_min_t, z_max_t);
+    // Swap the t_min and t_max values if necessary to ensure correct ordering
+    if (x_min_t > x_max_t)
+      std::swap(x_min_t, x_max_t);
+    if (y_min_t > y_max_t)
+      std::swap(y_min_t, y_max_t);
+    if (z_min_t > z_max_t)
+      std::swap(z_min_t, z_max_t);
 
-            auto entering = Tools::max(x_min_t, y_min_t, z_min_t);
-            auto leaving = Tools::min(x_max_t, y_max_t, z_max_t);
+    auto entering = Tools::max(x_min_t, y_min_t, z_min_t);
+    auto leaving = Tools::min(x_max_t, y_max_t, z_max_t);
 
-            //Use a small epsilon to account for floating - point precision errors
-            return (entering < leaving + std::numeric_limits<float>::epsilon()  && leaving >= std::numeric_limits<float>::epsilon());
+    // Use a small epsilon to account for floating - point precision errors
+    return (entering < leaving + std::numeric_limits<float>::epsilon() &&
+            leaving >= std::numeric_limits<float>::epsilon());
   }
 
   bool overlaps(const Bounds3 &box1, const Bounds3 &box2) {

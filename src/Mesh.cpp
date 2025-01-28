@@ -1,8 +1,8 @@
+#include <Tools.hpp>
 #include <object/Mesh.hpp>
 #include <object/Triangle.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
-#include <Tools.hpp>
 
 SoftRasterizer::Mesh::Mesh(const std::string &name,
                            const SoftRasterizer::Material &_material,
@@ -88,38 +88,37 @@ SoftRasterizer::Object::Properties SoftRasterizer::Mesh::getSurfaceProperties(
   return ret;
 }
 
-std::shared_ptr<SoftRasterizer::Material> &
-SoftRasterizer::Mesh::getMaterial() {
-          return MeshMaterial;
+std::shared_ptr<SoftRasterizer::Material> &SoftRasterizer::Mesh::getMaterial() {
+  return MeshMaterial;
 }
 
 glm::vec3 SoftRasterizer::Mesh::getDiffuseColor(const glm::vec2 &uv) {
   return MeshMaterial->color;
 }
 
-const std::vector<SoftRasterizer::Vertex>& SoftRasterizer::Mesh::getVertices() const{
-          return vertices;
+const std::vector<SoftRasterizer::Vertex> &
+SoftRasterizer::Mesh::getVertices() const {
+  return vertices;
 }
 
-const std::vector<glm::uvec3>& SoftRasterizer::Mesh::getFaces() const {
-          return faces;
+const std::vector<glm::uvec3> &SoftRasterizer::Mesh::getFaces() const {
+  return faces;
 }
 
-void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4& NDC_MVP,
-          const glm::mat4x4& Normal_M) {
+void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4 &NDC_MVP,
+                                          const glm::mat4x4 &Normal_M) {
 
-          tbb::parallel_for(
-                    tbb::blocked_range<long long>(0, m_triangles.size()),
-                    [&](const tbb::blocked_range<long long>& r) {
-                              for (long long index = r.begin(); index < r.end(); ++index) {
+  tbb::parallel_for(tbb::blocked_range<long long>(0, m_triangles.size()),
+                    [&](const tbb::blocked_range<long long> &r) {
+                      for (long long index = r.begin(); index < r.end();
+                           ++index) {
 
-                                        /*Update Triangle and Generate New Bounds3 Struct*/
-                                        m_triangles[index]->updatePosition(NDC_MVP, Normal_M);
-                              }
+                        /*Update Triangle and Generate New Bounds3 Struct*/
+                        m_triangles[index]->updatePosition(NDC_MVP, Normal_M);
+                      }
                     });
 
-          rebuildBVHAccel();
-
+  rebuildBVHAccel();
 }
 
 /*Generating Triangles*/
@@ -127,24 +126,23 @@ void SoftRasterizer::Mesh::generateTriangles() {
   m_triangles.resize(faces.size());
 
   tbb::parallel_for(std::size_t(0), faces.size(), [&](std::size_t i) {
-
-            //Polymorphism
-            std::shared_ptr<Object> tri = std::make_shared<Triangle>(
+    // Polymorphism
+    std::shared_ptr<Object> tri = std::make_shared<Triangle>(
                       MeshMaterial,
                       vertices[faces[i].x].position, vertices[faces[i].y].position, vertices[faces[i].z].position,
                       vertices[faces[i].x].normal, vertices[faces[i].y].normal, vertices[faces[i].z].normal,
                       vertices[faces[i].x].texCoord, vertices[faces[i].y].texCoord, vertices[faces[i].z].texCoord
                       /*, vertices[faces[i].x].color, vertices[faces[i].y].color, vertices[faces[i].z].color*/);
 
-            /*Set triangle's index*/
+    /*Set triangle's index*/
     tri->index = i;
     m_triangles[i] = tri;
   });
 }
 
 void SoftRasterizer::Mesh::preGenerateBVH() {
-          m_bvh.reset();
-          m_bvh = std::make_unique<BVHAcceleration>(m_triangles);
+  m_bvh.reset();
+  m_bvh = std::make_unique<BVHAcceleration>(m_triangles);
 }
 
 /*Generating BVH Structure*/

@@ -27,14 +27,14 @@ public:
                                                 const glm::vec2 &uv);
 
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
-  [[nodiscard]] std::shared_ptr<Material>& getMaterial()override;
+  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override;
 
   /*Compatible Consideration!*/
-  [[nodiscard]] const std::vector<Vertex>& getVertices() const override;
-  [[nodiscard]] const std::vector<glm::uvec3>& getFaces() const override;
+  [[nodiscard]] const std::vector<Vertex> &getVertices() const override;
+  [[nodiscard]] const std::vector<glm::uvec3> &getFaces() const override;
 
-  void updatePosition(const glm::mat4x4& NDC_MVP,
-            const glm::mat4x4& Normal_M) override;
+  void updatePosition(const glm::mat4x4 &NDC_MVP,
+                      const glm::mat4x4 &Normal_M) override;
 
 private:
   float radius;

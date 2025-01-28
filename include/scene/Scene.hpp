@@ -55,10 +55,12 @@ public:
                      const glm::vec3 &axis, const float angle,
                      const glm::vec3 &translation, const glm::vec3 &scale);
 
-  bool addGraphicObj(std::unique_ptr<Object> object, const std::string& objectName);
+  bool addGraphicObj(std::unique_ptr<Object> object,
+                     const std::string &objectName);
 
   bool startLoadingMesh(const std::string &meshName);
-  std::optional<std::shared_ptr<Object> > getMeshObj(const std::string& meshName);
+  std::optional<std::shared_ptr<Object>>
+  getMeshObj(const std::string &meshName);
 
   bool addShader(const std::string &shaderName, const std::string &texturePath,
                  SHADERS_TYPE type);

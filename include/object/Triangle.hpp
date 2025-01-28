@@ -18,11 +18,14 @@ enum class FaceNormalType {
 
 struct alignas(32) Triangle : public Object {
   Triangle();
-  Triangle(std::shared_ptr<Material> _material, 
-            const glm::vec3 &VertexA, const glm::vec3& VertexB, const glm::vec3& VertexC,
-                const glm::vec3& NormalA, const glm::vec3& NormalB, const glm::vec3& NormalC,
-            const glm::vec2& texCoordA, const glm::vec2& texCoordB, const glm::vec2& texCoordC,
-            const glm::vec3& colorA= glm::vec3(1.0f), const glm::vec3& colorB = glm::vec3(1.0f), const glm::vec3& colorC = glm::vec3(1.0f));
+  Triangle(std::shared_ptr<Material> _material, const glm::vec3 &VertexA,
+           const glm::vec3 &VertexB, const glm::vec3 &VertexC,
+           const glm::vec3 &NormalA, const glm::vec3 &NormalB,
+           const glm::vec3 &NormalC, const glm::vec2 &texCoordA,
+           const glm::vec2 &texCoordB, const glm::vec2 &texCoordC,
+           const glm::vec3 &colorA = glm::vec3(1.0f),
+           const glm::vec3 &colorB = glm::vec3(1.0f),
+           const glm::vec3 &colorC = glm::vec3(1.0f));
 
   constexpr static float zero_point_3 = 0.3333333f;
 
@@ -37,7 +40,9 @@ struct alignas(32) Triangle : public Object {
 
   Bounds3 getBounds() override;
   [[nodiscard]] bool intersect(const Ray &ray) override { return true; }
-  [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override { return true; }
+  [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override {
+    return true;
+  }
 
   // Moller Trumbore Algorithm
   [[nodiscard]] static bool
@@ -51,23 +56,29 @@ struct alignas(32) Triangle : public Object {
                                                 const glm::vec3 &viewDir,
                                                 const glm::vec2 &uv) override;
 
-  [[nodiscard]] glm::vec3 
+  [[nodiscard]] glm::vec3
   getFaceNormal(FaceNormalType type = FaceNormalType::PerGeometry) const;
-  [[nodiscard]] std::shared_ptr<Material>& getMaterial() override { return m_material; }
+  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override {
+    return m_material;
+  }
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
 
   /*Compatible Consideration!*/
-  [[nodiscard]] const std::vector<Vertex>& getVertices() const override { return vert; }
-  [[nodiscard]] const std::vector<glm::uvec3>& getFaces() const override { return faces; }
+  [[nodiscard]] const std::vector<Vertex> &getVertices() const override {
+    return vert;
+  }
+  [[nodiscard]] const std::vector<glm::uvec3> &getFaces() const override {
+    return faces;
+  }
 
-  void updatePosition(const glm::mat4x4& NDC_MVP,
-            const glm::mat4x4& Normal_M) override;
+  void updatePosition(const glm::mat4x4 &NDC_MVP,
+                      const glm::mat4x4 &Normal_M) override;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);
 
   /*
-  * original coord of the triangle, v0, v1, v2 in counter clockwise order
-  * Those are original arguments, they should not be changed!!!!!!
+   * original coord of the triangle, v0, v1, v2 in counter clockwise order
+   * Those are original arguments, they should not be changed!!!!!!
    */
   std::array<glm::vec3, 3> m_vertex;
   std::array<glm::vec3, 3> m_color; // Color for each vertex

@@ -13,28 +13,28 @@ SoftRasterizer::Triangle::Triangle()
 }
 
 SoftRasterizer::Triangle::Triangle(
-          std::shared_ptr<Material> _material,
-          const glm::vec3& VertexA, const glm::vec3& VertexB, const glm::vec3& VertexC,
-          const glm::vec3& NormalA, const glm::vec3& NormalB, const glm::vec3& NormalC,
-          const glm::vec2& texCoordA, const glm::vec2& texCoordB, const glm::vec2& texCoordC,
-          const glm::vec3& colorA , const glm::vec3& colorB , const glm::vec3& colorC )
-          :  box(), vert(3), m_material(_material)
-{
-          vert[0].position = m_vertex[0] = VertexA;
-          vert[1].position = m_vertex[1] = VertexB;
-          vert[2].position = m_vertex[2] = VertexC;
+    std::shared_ptr<Material> _material, const glm::vec3 &VertexA,
+    const glm::vec3 &VertexB, const glm::vec3 &VertexC,
+    const glm::vec3 &NormalA, const glm::vec3 &NormalB,
+    const glm::vec3 &NormalC, const glm::vec2 &texCoordA,
+    const glm::vec2 &texCoordB, const glm::vec2 &texCoordC,
+    const glm::vec3 &colorA, const glm::vec3 &colorB, const glm::vec3 &colorC)
+    : box(), vert(3), m_material(_material) {
+  vert[0].position = m_vertex[0] = VertexA;
+  vert[1].position = m_vertex[1] = VertexB;
+  vert[2].position = m_vertex[2] = VertexC;
 
-          vert[0].color = m_color[0] = colorA;
-          vert[1].color = m_color[1] = colorB;
-          vert[2].color = m_color[2] = colorC;
+  vert[0].color = m_color[0] = colorA;
+  vert[1].color = m_color[1] = colorB;
+  vert[2].color = m_color[2] = colorC;
 
-          vert[0].normal = m_normal[0] = NormalA;
-          vert[1].normal = m_normal[1] = NormalB;
-          vert[2].normal = m_normal[2] = NormalC;
-          
-          vert[0].texCoord = m_texCoords[0] = texCoordA;
-          vert[1].texCoord = m_texCoords[1] = texCoordA;
-          vert[2].texCoord = m_texCoords[2] = texCoordA;
+  vert[0].normal = m_normal[0] = NormalA;
+  vert[1].normal = m_normal[1] = NormalB;
+  vert[2].normal = m_normal[2] = NormalC;
+
+  vert[0].texCoord = m_texCoords[0] = texCoordA;
+  vert[1].texCoord = m_texCoords[1] = texCoordA;
+  vert[2].texCoord = m_texCoords[2] = texCoordA;
 }
 
 void SoftRasterizer::Triangle::setVertex(
@@ -91,7 +91,8 @@ void SoftRasterizer::Triangle::setTexCoord(
 }
 
 SoftRasterizer::Bounds3 SoftRasterizer::Triangle::getBounds() {
-  return BoundsUnion(vert[0].position, Bounds3(vert[1].position, vert[2].position));
+  return BoundsUnion(vert[0].position,
+                     Bounds3(vert[1].position, vert[2].position));
 }
 
 bool SoftRasterizer::Triangle::rayTriangleIntersect(
@@ -181,14 +182,14 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
   return ret;
 }
 
-glm::vec3 
-SoftRasterizer::Triangle::getFaceNormal(FaceNormalType type) const {
+glm::vec3 SoftRasterizer::Triangle::getFaceNormal(FaceNormalType type) const {
   if (type == FaceNormalType::PerGeometry) {
-    return glm::normalize(
-              glm::cross(vert[1].position - vert[0].position, vert[2].position - vert[0].position));
+    return glm::normalize(glm::cross(vert[1].position - vert[0].position,
+                                     vert[2].position - vert[0].position));
   } else if (type == FaceNormalType::InterpolatedFace) {
     return Tools::interpolateNormal(zero_point_3, zero_point_3, zero_point_3,
-              vert[0].normal, vert[1].normal, vert[2].normal);
+                                    vert[0].normal, vert[1].normal,
+                                    vert[2].normal);
   } else {
     throw std::runtime_error("Invalid Face Normal Type");
   }
@@ -208,23 +209,23 @@ glm::vec3 SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2 &uv) {
   return glm::vec3(1.0f);
 }
 
-void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4& NDC_MVP,
-          const glm::mat4x4& Normal_M) {
+void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
+                                              const glm::mat4x4 &Normal_M) {
 
-          vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[0], 1.0f));
-          vert[0].normal =Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f));
-          vert[0].texCoord = m_texCoords[0];
-          vert[0].color = m_color[0];
+  vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[0], 1.0f));
+  vert[0].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f));
+  vert[0].texCoord = m_texCoords[0];
+  vert[0].color = m_color[0];
 
-          vert[1].position =Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[1], 1.0f));
-          vert[1].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f));
-          vert[1].texCoord = m_texCoords[1];
-          vert[1].color = m_color[1];
+  vert[1].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[1], 1.0f));
+  vert[1].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f));
+  vert[1].texCoord = m_texCoords[1];
+  vert[1].color = m_color[1];
 
-          vert[2].position =Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[2], 1.0f));
-          vert[2].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f));
-          vert[2].texCoord = m_texCoords[2];
-          vert[2].color = m_color[2];
+  vert[2].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[2], 1.0f));
+  vert[2].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f));
+  vert[2].texCoord = m_texCoords[2];
+  vert[2].color = m_color[2];
 }
 
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,

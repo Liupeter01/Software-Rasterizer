@@ -25,11 +25,13 @@ class BVHAcceleration {
 
 public:
   BVHAcceleration();
-  BVHAcceleration(const tbb::concurrent_vector<std::shared_ptr<Object>>& stream);
+  BVHAcceleration(
+      const tbb::concurrent_vector<std::shared_ptr<Object>> &stream);
   virtual ~BVHAcceleration();
 
 public:
-  void loadNewObjects(const tbb::concurrent_vector<std::shared_ptr<Object>>& stream);
+  void
+  loadNewObjects(const tbb::concurrent_vector<std::shared_ptr<Object>> &stream);
   void startBuilding();
   void rebuildBVHAccel();
   Intersection getIntersection(Ray &ray) const;

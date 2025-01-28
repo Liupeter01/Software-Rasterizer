@@ -8,23 +8,24 @@
 #include <ray/Ray.hpp> //ray def
 
 namespace SoftRasterizer {
-          /*forward declaration*/
-          class Shader;
+/*forward declaration*/
+class Shader;
 
-          struct Vertex {
-                    Vertex();
-                    Vertex(const glm::vec3& _pos, const glm::vec3& _normal, const glm::vec2& _tex, const glm::vec3& _color = glm::vec3(1.0f));
+struct Vertex {
+  Vertex();
+  Vertex(const glm::vec3 &_pos, const glm::vec3 &_normal, const glm::vec2 &_tex,
+         const glm::vec3 &_color = glm::vec3(1.0f));
 
-                    glm::vec3 position;
-                    glm::vec3 normal;
-                    glm::vec2 texCoord;
-                    glm::vec3 color = glm::vec3(1.0f);
+  glm::vec3 position;
+  glm::vec3 normal;
+  glm::vec2 texCoord;
+  glm::vec3 color = glm::vec3(1.0f);
 
-                    bool operator==(const Vertex& other) const {
-                              return this->position == other.position && this->color == other.color &&
-                                        this->normal == other.normal && this->texCoord == other.texCoord;
-                    }
-          };
+  bool operator==(const Vertex &other) const {
+    return this->position == other.position && this->color == other.color &&
+           this->normal == other.normal && this->texCoord == other.texCoord;
+  }
+};
 
 struct Object {
 
@@ -49,21 +50,18 @@ struct Object {
   virtual std::shared_ptr<Material> &getMaterial() = 0;
 
   /*Compatible Consideration!*/
-  virtual const std::vector<Vertex>& getVertices() const =  0;
-  virtual const std::vector<glm::uvec3>& getFaces() const = 0;
+  virtual const std::vector<Vertex> &getVertices() const = 0;
+  virtual const std::vector<glm::uvec3> &getFaces() const = 0;
 
   /*Perform (NDC) MVP Calculation*/
-  virtual void updatePosition(const glm::mat4x4& NDC_MVP,
-                                               const glm::mat4x4& Normal_M) = 0;
+  virtual void updatePosition(const glm::mat4x4 &NDC_MVP,
+                              const glm::mat4x4 &Normal_M) = 0;
 
+  void bindShader2Mesh(std::shared_ptr<Shader> shader);
+  void updateModelMatrix(const glm::vec3 &axis, const float angle,
+                         const glm::vec3 &translation, const glm::vec3 &scale);
 
-  void  bindShader2Mesh(std::shared_ptr<Shader> shader);
-  void updateModelMatrix(const glm::vec3& axis,
-            const float angle,
-            const glm::vec3& translation,
-            const glm::vec3& scale);
-
-  const glm::mat4x4& getModelMatrix() const;
+  const glm::mat4x4 &getModelMatrix() const;
 
 public:
   std::size_t index = 0;

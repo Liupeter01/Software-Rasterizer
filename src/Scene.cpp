@@ -34,7 +34,7 @@ bool SoftRasterizer::Scene::addGraphicObj(
   }
 
   try {
-            m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(
+    m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(
         path, meshName, axis, angle, translation, scale);
   } catch (const std::exception &e) {
     spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
@@ -53,7 +53,7 @@ bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
   }
 
   try {
-            m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(path, meshName);
+    m_loadedObjs[meshName].loader = std::make_unique<ObjLoader>(path, meshName);
   } catch (const std::exception &e) {
     spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
     return false;
@@ -61,24 +61,22 @@ bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
   return true;
 }
 
-bool SoftRasterizer::Scene::addGraphicObj(std::unique_ptr<Object> object, const std::string& objectName) {
-          /*This Object has already been identified!*/
-          if (m_loadedObjs.find(objectName) != m_loadedObjs.end()) {
-                    spdlog::error("This Object has already been identified");
-                    return false;
-          }
+bool SoftRasterizer::Scene::addGraphicObj(std::unique_ptr<Object> object,
+                                          const std::string &objectName) {
+  /*This Object has already been identified!*/
+  if (m_loadedObjs.find(objectName) != m_loadedObjs.end()) {
+    spdlog::error("This Object has already been identified");
+    return false;
+  }
 
-          try {
-                    m_loadedObjs[objectName].loader = std::nullopt;
-                    m_loadedObjs[objectName].mesh = std::move(object);
-          }
-          catch (const std::exception& e) {
-                    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
-                    return false;
-          }
-          return true;
-
-
+  try {
+    m_loadedObjs[objectName].loader = std::nullopt;
+    m_loadedObjs[objectName].mesh = std::move(object);
+  } catch (const std::exception &e) {
+    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
+    return false;
+  }
+  return true;
 }
 
 bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
@@ -99,15 +97,16 @@ bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
 
   try {
 
-            std::optional<std::unique_ptr<Mesh>> mesh_op =
-                      m_loadedObjs[meshName].loader.value()->startLoadingFromFile(meshName);
+    std::optional<std::unique_ptr<Mesh>> mesh_op =
+        m_loadedObjs[meshName].loader.value()->startLoadingFromFile(meshName);
 
-            if (!mesh_op.has_value()) {
-                      spdlog::error("Start Loading Mesh Failed! Because Loading Internel Error!");
-                      return false;
-            }
+    if (!mesh_op.has_value()) {
+      spdlog::error(
+          "Start Loading Mesh Failed! Because Loading Internel Error!");
+      return false;
+    }
 
-            m_loadedObjs[meshName].mesh = std::move(mesh_op.value());
+    m_loadedObjs[meshName].mesh = std::move(mesh_op.value());
 
   } catch (const std::exception &e) {
     spdlog::error("Start Loading Mesh Failed! Reason: {}", e.what());
@@ -116,22 +115,23 @@ bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
   return true;
 }
 
-std::optional<std::shared_ptr<SoftRasterizer::Object> >
-SoftRasterizer::Scene::getMeshObj(const std::string& meshName){
-          /*This Object has already been identified!*/
-          if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
-                    spdlog::error("Get Mesh Failed! Because There is nothing found "
-                              "in m_loadedObjs");
-                    return std::nullopt;
-          }
+std::optional<std::shared_ptr<SoftRasterizer::Object>>
+SoftRasterizer::Scene::getMeshObj(const std::string &meshName) {
+  /*This Object has already been identified!*/
+  if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
+    spdlog::error("Get Mesh Failed! Because There is nothing found "
+                  "in m_loadedObjs");
+    return std::nullopt;
+  }
 
-          if (m_loadedObjs[meshName].mesh == nullptr) {
-                    spdlog::error("You Have to get Mesh Object After Deploy startLoadingMesh",
-                              meshName);
-                    return std::nullopt;
-          }
+  if (m_loadedObjs[meshName].mesh == nullptr) {
+    spdlog::error("You Have to get Mesh Object After Deploy startLoadingMesh",
+                  meshName);
+    return std::nullopt;
+  }
 
-          return std::shared_ptr< SoftRasterizer::Object>(m_loadedObjs[meshName].mesh.get(), [](Object*) {});
+  return std::shared_ptr<SoftRasterizer::Object>(
+      m_loadedObjs[meshName].mesh.get(), [](Object *) {});
 }
 
 bool SoftRasterizer::Scene::addShader(const std::string &shaderName,
@@ -187,7 +187,7 @@ bool SoftRasterizer::Scene::bindShader2Mesh(const std::string &meshName,
   }
 
   try {
-            m_loadedObjs[meshName].mesh->bindShader2Mesh(m_shaders[shaderName]);
+    m_loadedObjs[meshName].mesh->bindShader2Mesh(m_shaders[shaderName]);
 
   } catch (const std::exception &e) {
     spdlog::error("Bind Shader To Mesh Failed! Reason: {}", e.what());
@@ -233,7 +233,7 @@ bool SoftRasterizer::Scene::setModelMatrix(const std::string &meshName,
   }
 
   m_loadedObjs[meshName].mesh->updateModelMatrix(axis, angle, translation,
-                                                   scale);
+                                                 scale);
   return true;
 }
 
@@ -304,14 +304,15 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
 }
 
 /* Generate Pointers to Triangles and load it to BVH Structure*/
-void  SoftRasterizer::Scene::preGenerateBVH() {
-          m_exportedObjs.clear();
-          m_exportedObjs.resize(m_loadedObjs.size());
+void SoftRasterizer::Scene::preGenerateBVH() {
+  m_exportedObjs.clear();
+  m_exportedObjs.resize(m_loadedObjs.size());
 
-          std::transform(m_loadedObjs.begin(), m_loadedObjs.end(), m_exportedObjs.begin(),
-                    [](const auto& obj) { 
-                              return std::shared_ptr< Object>(obj.second.mesh.get(), [](Object*) {}); 
-                    });
+  std::transform(m_loadedObjs.begin(), m_loadedObjs.end(),
+                 m_exportedObjs.begin(), [](const auto &obj) {
+                   return std::shared_ptr<Object>(obj.second.mesh.get(),
+                                                  [](Object *) {});
+                 });
 }
 
 // emit ray from eye to pixel and trace the scene to find the nearest object
@@ -521,7 +522,7 @@ void SoftRasterizer::Scene::updatePosition() {
   }
 
   ///*Start to generate pointers to triangles*/
-  //preGenerateBVH();
+  // preGenerateBVH();
 
   /*Delete Existing BVH structure*/
   clearBVHAccel();
@@ -539,7 +540,7 @@ SoftRasterizer::Scene::loadTriangleStream() {
   // Estimate and reserve the total size for triangle_stream to avoid
   // reallocations
   stream.reserve(std::accumulate(
-            m_loadedObjs.begin(), m_loadedObjs.end(), static_cast<std::size_t>(0),
+      m_loadedObjs.begin(), m_loadedObjs.end(), static_cast<std::size_t>(0),
       [](std::size_t sum, const auto &objPair) {
         return sum + objPair.second.mesh->getFaces().size();
       }));

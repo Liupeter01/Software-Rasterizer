@@ -6,23 +6,25 @@
 
 SoftRasterizer::BVHAcceleration::BVHAcceleration() : root(nullptr), objs(0) {}
 
-SoftRasterizer::BVHAcceleration::BVHAcceleration(const tbb::concurrent_vector<std::shared_ptr<Object>>& stream) {
-          loadNewObjects(stream);
+SoftRasterizer::BVHAcceleration::BVHAcceleration(
+    const tbb::concurrent_vector<std::shared_ptr<Object>> &stream) {
+  loadNewObjects(stream);
 }
 
 SoftRasterizer::BVHAcceleration::~BVHAcceleration() { clearBVHAccel(root); }
 
-void SoftRasterizer::BVHAcceleration::loadNewObjects(const tbb::concurrent_vector<std::shared_ptr<Object>>& stream) {
+void SoftRasterizer::BVHAcceleration::loadNewObjects(
+    const tbb::concurrent_vector<std::shared_ptr<Object>> &stream) {
   objs.clear();
   objs.resize(stream.size());
-  
-  tbb::parallel_for(
-            tbb::blocked_range<long long>(0, stream.size()),
-            [&](const tbb::blocked_range<long long>& r) {
-                      for (long long index = r.begin(); index < r.end(); ++index) {
-                                objs[index] = stream[index].get();
+
+  tbb::parallel_for(tbb::blocked_range<long long>(0, stream.size()),
+                    [&](const tbb::blocked_range<long long> &r) {
+                      for (long long index = r.begin(); index < r.end();
+                           ++index) {
+                        objs[index] = stream[index].get();
                       }
-            });
+                    });
 }
 
 void SoftRasterizer::BVHAcceleration::clearBVHAccel() { clearBVHAccel(root); }
@@ -99,7 +101,7 @@ SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
 
   /*BoundingBox Test, Optimize Calculation*/
   if (!node->box.intersect(ray)) {
-            return {};
+    return {};
   }
 
   /*Every Obj is on leaf node!*/
@@ -107,7 +109,7 @@ SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
     if (node->obj) {
 
       // Return intersection if object exists
-      return node->obj->getIntersect(ray); 
+      return node->obj->getIntersect(ray);
     }
     return {}; // Return empty intersection if no object in leaf node
   }
@@ -122,18 +124,17 @@ SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
   }
   // If one of them is not intersected, return the one that is
   else if (left.intersected && !right.intersected) {
-            return left;
+    return left;
+  } else if (!left.intersected && right.intersected) {
+    return right;
   }
-  else if (!left.intersected && right.intersected) {
-            return  right;
-  }
-  //No Intersect At ALL
-  return{};
+  // No Intersect At ALL
+  return {};
 }
 
 std::unique_ptr<SoftRasterizer::BVHBuildNode>
 SoftRasterizer::BVHAcceleration::recursive(
-          tbb::concurrent_vector<SoftRasterizer::Object *> objs) {
+    tbb::concurrent_vector<SoftRasterizer::Object *> objs) {
   auto node = std::make_unique<SoftRasterizer::BVHBuildNode>();
 
   Bounds3 box;
@@ -143,42 +144,42 @@ SoftRasterizer::BVHAcceleration::recursive(
 
   /*I'm the Leaf Node*/
   if (objs.size() == 1) {
-            node->left = nullptr;
-            node->right = nullptr;
-            node->box = (*objs.begin())->getBounds();
-            node->obj = std::shared_ptr<Object>(*objs.begin(), [](auto T) {});
-            return node;
+    node->left = nullptr;
+    node->right = nullptr;
+    node->box = (*objs.begin())->getBounds();
+    node->obj = std::shared_ptr<Object>(*objs.begin(), [](auto T) {});
+    return node;
   }
   /*I am The Root Node*/
   else if (objs.size() == 2) {
-            node->left = std::make_unique<BVHBuildNode>();
-            node->right = std::make_unique<BVHBuildNode>();
-            node->left->obj = std::shared_ptr<Object>(objs[0], [](auto) {});
-            node->right->obj = std::shared_ptr<Object>(objs[1], [](auto) {});
-            node->left->box = objs[0]->getBounds();
-            node->right->box = objs[1]->getBounds();
+    node->left = std::make_unique<BVHBuildNode>();
+    node->right = std::make_unique<BVHBuildNode>();
+    node->left->obj = std::shared_ptr<Object>(objs[0], [](auto) {});
+    node->right->obj = std::shared_ptr<Object>(objs[1], [](auto) {});
+    node->left->box = objs[0]->getBounds();
+    node->right->box = objs[1]->getBounds();
   }
   /*Other Condition*/
   else {
 
-            // Calculate centroids and partition objects along the longest axis
-            Bounds3 centric;
-            for (const auto& obj : objs) {
-                      centric = BoundsUnion(centric, obj->getBounds().centroid());
-            }
+    // Calculate centroids and partition objects along the longest axis
+    Bounds3 centric;
+    for (const auto &obj : objs) {
+      centric = BoundsUnion(centric, obj->getBounds().centroid());
+    }
 
-            std::sort(objs.begin(), objs.end(),
-                      [dim = centric.maxExtent()](auto f1, auto f2) {
-                                return f1->getBounds().centroid()[dim] < f2->getBounds().centroid()[dim];
-                      });
+    std::sort(objs.begin(), objs.end(),
+              [dim = centric.maxExtent()](auto f1, auto f2) {
+                return f1->getBounds().centroid()[dim] <
+                       f2->getBounds().centroid()[dim];
+              });
 
-            /*Seperate The vector in half, by using the longest axis*/
-            auto middle = objs.size() / 2;
-            node->left = recursive(tbb::concurrent_vector<Object*>(
-                      objs.begin(), objs.begin() + middle));
-            node->right = recursive(tbb::concurrent_vector<Object*>(
-                      objs.begin() + middle, objs.end()));
-
+    /*Seperate The vector in half, by using the longest axis*/
+    auto middle = objs.size() / 2;
+    node->left = recursive(
+        tbb::concurrent_vector<Object *>(objs.begin(), objs.begin() + middle));
+    node->right = recursive(
+        tbb::concurrent_vector<Object *>(objs.begin() + middle, objs.end()));
   }
   node->box = BoundsUnion(node->left->box, node->right->box);
   return node;
