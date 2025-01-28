@@ -348,7 +348,7 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
       });
 
   /*Invalid Intersection*/
-  if (ret.obj == nullptr || tNear < 0) {
+  if (!ret.obj || tNear < 0) {
     return {};
   }
 
