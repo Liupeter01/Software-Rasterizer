@@ -134,7 +134,7 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
   glm::vec3 normal = getFaceNormal();
 
   // back face culling
-  if (glm::dot(normal, ray.direction) > 0) {
+  if (glm::dot(normal, ray.direction) <= 0) {
     return ret;
   }
 
@@ -206,7 +206,7 @@ SoftRasterizer::Triangle::getSurfaceProperties(const std::size_t faceIndex,
 }
 
 glm::vec3 SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2 &uv) {
-  return glm::vec3(1.0f);
+  return glm::vec3(0.5f);
 }
 
 void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
