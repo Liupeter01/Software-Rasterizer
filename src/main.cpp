@@ -72,12 +72,12 @@ int main() {
         "bunny",
         /*axis=*/glm::vec3(0.f, 1.f, 0.f),
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.0f, 0.0f, 0.f),
-        /*scale=*/glm::vec3(1.f));
+        /*transform=*/glm::vec3(0.0f, -0.2f, 0.f),
+        /*scale=*/glm::vec3(2.f));
 
     /*View Matrix*/
     scene->setViewMatrix(
-        /*eye=*/glm::vec3(0.0f, 0.f, -0.5f),
+        /*eye=*/glm::vec3(0.0f, -0.3f, -0.7f),
         /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
         /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
 
