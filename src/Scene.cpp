@@ -414,7 +414,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
       glm::vec3 lightDir = light.position - hitPoint;
 
       /*the direction of intersected coordinate to light position*/
-      //  float distance = glm::dot(lightDir, lightDir);
+       float distance = glm::dot(lightDir, lightDir);
       // glm::vec3 distribution = light.intensity / distance;
 
       lightDir = glm::normalize(lightDir);
@@ -425,6 +425,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
       // Specular reflection(Blinn - Phong)
       glm::vec3 reflectDir = glm::normalize(
           glm::reflect(-lightDir, hitNormal)); // reflection direction
+
       float spec = std::pow(std::max(0.f, -glm::dot(ray.direction, reflectDir)),
                             intersection.material->specularExponent);
 
@@ -435,17 +436,25 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
        * point and the light source
        */
       Ray ray(shadowCoord, lightDir);
-      bool is_shadow = traceScene(ray).intersected;
+      Intersection shadow_result = traceScene(ray);
 
-      ambient += is_shadow ? intersection.material->Ka * light.intensity
-                           : glm::vec3(0.f);
-      diffuse += diff * intersection.material->Kd /** distribution*/;
+      // is the point in shadow, and is the nearest occluding object closer to the object than the light itself?
+      bool is_shadow = shadow_result.intersected && (std::pow(shadow_result.intersect_time, 2.f) < distance);
+
+      ambient += !is_shadow ?  light.intensity : glm::vec3(0.f);
+      diffuse += !is_shadow ? glm::vec3(diff)  : glm::vec3(0.f);
       specular += spec * light.intensity;
     }
 
-    final_color = ambient + diffuse + specular;
-  } else if (intersection.material->getMaterialType() ==
+    final_color = 
+              ambient * intersection.material->Ka
+              + diffuse * intersection.material->Kd * intersection.obj->getDiffuseColor(glm::vec2(0.f))
+              + specular * intersection.material->Ks;
+  } 
+  
+  else if (intersection.material->getMaterialType() ==
              MaterialType::REFLECTION_AND_REFRACTION) {
+
     /*Safety Consideration*/
     auto reflectPath = glm::normalize(glm::reflect(rayDirection, hitNormal));
     auto refractPath = glm::normalize(
