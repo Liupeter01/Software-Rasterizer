@@ -71,7 +71,7 @@ void SoftRasterizer::BVHAcceleration::buildBVH() {
   std::chrono::high_resolution_clock::time_point end =
       std::chrono::high_resolution_clock::now();
 
-  spdlog::info(
+  spdlog::debug(
       "Start BVH Generation complete: {}ms",
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
           .count());
