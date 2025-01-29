@@ -339,8 +339,8 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
   Intersection ret;
   float tNear = std::numeric_limits<float>::infinity();
   std::for_each(
-      m_bvh->objs.begin(), m_bvh->objs.end(), [&ret, &tNear, &ray](auto &obj) {
-        Intersection intersect = obj->getIntersect(ray);
+            m_loadedObjs.begin(), m_loadedObjs.end(), [&ret, &tNear, &ray](auto &obj) {
+        Intersection intersect = obj.second.mesh->getIntersect(ray);
         if (intersect.intersected && intersect.intersect_time < tNear) {
           tNear = intersect.intersect_time;
           ret.obj = intersect.obj;
@@ -408,7 +408,6 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
     glm::vec3 ambient(0.f);
     glm::vec3 diffuse(0.f);
     glm::vec3 specular(0.f);
-    glm::vec3 result(0.f);
 
     for (const auto &light : lights) {
       glm::vec3 lightDir = light.position - hitPoint;
