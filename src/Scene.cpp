@@ -5,6 +5,8 @@
 #include <shader/Shader.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
+#include <tbb/blocked_range.h>
 
 SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const glm::vec3 &center, const glm::vec3 &up,
@@ -218,8 +220,6 @@ void SoftRasterizer::Scene::addLights(
   }
 }
 
-const glm::vec3 &SoftRasterizer::Scene::loadEyeVec() const { return m_eye; }
-
 /*set MVP*/
 bool SoftRasterizer::Scene::setModelMatrix(const std::string &meshName,
                                            const glm::vec3 &axis,
@@ -319,37 +319,85 @@ void SoftRasterizer::Scene::preGenerateBVH() {
 // intersected by the ray
 std::optional<std::shared_ptr<SoftRasterizer::Object>>
 SoftRasterizer::Scene::traceScene(const Ray &ray, float &tNear) {
-  Object *nearestObj = nullptr;
-  std::for_each(m_bvh->objs.begin(), m_bvh->objs.end(),
-                [&nearestObj, &tNear, &ray](Object *obj) {
-                  float temp = std::numeric_limits<float>::infinity();
-                  if (obj->intersect(ray, temp)) {
-                    nearestObj = temp < tNear ? obj : nearestObj;
-                    tNear = temp < tNear ? temp : tNear;
-                  }
-                });
+ 
+  std::atomic<std::size_t> obj_addr = 0;
+  std::atomic<float> near = std::numeric_limits<float>::max();
 
-  if (nearestObj == nullptr || tNear < 0) {
+  tbb::parallel_for(oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+            [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
+                      for (auto i = range.begin(); i != range.end(); ++i) {
+                                float temp = std::numeric_limits<float>::infinity();
+                                if (m_exportedObjs[i]->intersect(ray, temp)) {
+
+                                          // Relaxed order to avoid unnecessary synchronization
+                                          float prev_near = near.load(std::memory_order_relaxed);  
+
+                                          // Only do the atomic compare if the value has changed
+                                          if (temp < prev_near &&
+                                                    near.compare_exchange_strong(prev_near, temp,
+                                                              std::memory_order_acq_rel,   // Memory order for the successful exchange
+                                                              std::memory_order_relaxed)) {
+
+                                                    // Relaxed here since the value isn't directly shared
+                                                    obj_addr.store(reinterpret_cast<std::size_t>(m_exportedObjs[i].get()),
+                                                              std::memory_order_relaxed);  
+                                          }
+                                }
+                      }
+            }, ap);
+
+  /*retrieve arguments from atomic variables*/
+  Object* nearestObj = reinterpret_cast<Object*>(obj_addr.load());
+  if (!nearestObj) {
+            return std::nullopt;
+  }
+
+  tNear = near.load();
+
+  if (tNear < 0) {
     return std::nullopt;
   }
   return std::shared_ptr<SoftRasterizer::Object>(nearestObj, [](Object *) {});
 }
 
 SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
+
+          std::atomic<std::size_t> obj_addr = 0;
+          std::atomic<float> near = std::numeric_limits<float>::max();
+
+          tbb::parallel_for(oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+                    [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
+                              for (auto i = range.begin(); i != range.end(); ++i) {
+                                      
+                                        Intersection intersect = m_exportedObjs[i]->getIntersect(ray);
+                                        float prev_near = near.load(std::memory_order_relaxed);
+                                 
+
+                                        // Only do the atomic compare if the value has changed
+                                        if (intersect.intersect_time < prev_near &&
+                                                  near.compare_exchange_strong(prev_near, intersect.intersect_time,
+                                                            std::memory_order_acq_rel,   // Memory order for the successful exchange
+                                                            std::memory_order_relaxed)) {
+
+                                                  // Relaxed here since the value isn't directly shared
+                                                  obj_addr.store(reinterpret_cast<std::size_t>(intersect.obj),
+                                                            std::memory_order_relaxed);
+                                        }
+                              }
+                    }, ap);
+
+          /*retrieve arguments from atomic variables*/
   Intersection ret;
-  float tNear = std::numeric_limits<float>::infinity();
-  std::for_each(
-            m_loadedObjs.begin(), m_loadedObjs.end(), [&ret, &tNear, &ray](auto &obj) {
-        Intersection intersect = obj.second.mesh->getIntersect(ray);
-        if (intersect.intersected && intersect.intersect_time < tNear) {
-          tNear = intersect.intersect_time;
-          ret.obj = intersect.obj;
-          ret.intersect_time = intersect.intersect_time;
-        }
-      });
+  ret.obj = reinterpret_cast<Object*>(obj_addr.load());
 
   /*Invalid Intersection*/
-  if (!ret.obj || tNear < 0) {
+  if (!ret.obj) {
+            return {};
+  }
+
+  ret.intersect_time = near.load();
+  /*Invalid Intersection*/
+  if (ret.intersect_time < 0) {
     return {};
   }
 
@@ -405,50 +453,42 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
             ? hitPoint - hitNormal * std::numeric_limits<float>::epsilon()
             : hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
 
-    glm::vec3 ambient(0.f);
-    glm::vec3 diffuse(0.f);
-    glm::vec3 specular(0.f);
+    final_color = tbb::parallel_reduce(
+              tbb::blocked_range<std::size_t>(0, lights.size()),
+              glm::vec3(0.0f),  // Initial value
+              [&](const tbb::blocked_range<std::size_t>& range, glm::vec3 local_sum) -> glm::vec3 {
+                        for (std::size_t i = range.begin(); i < range.end(); ++i) {
+                                  glm::vec3 lightDir = lights[i].position - hitPoint;
+                                  float distance = glm::dot(lightDir, lightDir);
+                                  lightDir = glm::normalize(lightDir);
 
-    for (const auto &light : lights) {
-      glm::vec3 lightDir = light.position - hitPoint;
+                                  // Diffuse reflection (Lambertian)
+                                  float diff = std::max(0.f, glm::dot(hitNormal, lightDir));
 
-      /*the direction of intersected coordinate to light position*/
-       float distance = glm::dot(lightDir, lightDir);
-      // glm::vec3 distribution = light.intensity / distance;
+                                  // Specular reflection (Blinn-Phong)
+                                  glm::vec3 reflectDir = glm::normalize(glm::reflect(-lightDir, hitNormal));
+                                  float spec = std::pow(std::max(0.f, -glm::dot(ray.direction, reflectDir)),
+                                            intersection.material->specularExponent);
 
-      lightDir = glm::normalize(lightDir);
+                                  // Shadow test
+                                  Ray shadow_ray(shadowCoord, lightDir);
+                                  Intersection shadow_result = traceScene(shadow_ray);
+                                  bool is_shadow = shadow_result.intersected && (std::pow(shadow_result.intersect_time, 2.f) < distance);
 
-      // Diffuse reflection (Lambertian reflectance)
-      float diff = std::max(0.f, glm::dot(hitNormal, lightDir));
+                                  // Compute light contribution
+                                  glm::vec3 ambient = !is_shadow ? lights[i].intensity : glm::vec3(0.f);
+                                  glm::vec3 diffuse = !is_shadow ? glm::vec3(diff) : glm::vec3(0.f);
+                                  glm::vec3 specular = spec * lights[i].intensity;
 
-      // Specular reflection(Blinn - Phong)
-      glm::vec3 reflectDir = glm::normalize(
-          glm::reflect(-lightDir, hitNormal)); // reflection direction
-
-      float spec = std::pow(std::max(0.f, -glm::dot(ray.direction, reflectDir)),
-                            intersection.material->specularExponent);
-
-      /*
-       * Ambient lighting
-       * Emit A ray to from point to light, to see is there any obstacles
-       * When intersected = true, it means there is an obstacle between the
-       * point and the light source
-       */
-      Ray ray(shadowCoord, lightDir);
-      Intersection shadow_result = traceScene(ray);
-
-      // is the point in shadow, and is the nearest occluding object closer to the object than the light itself?
-      bool is_shadow = shadow_result.intersected && (std::pow(shadow_result.intersect_time, 2.f) < distance);
-
-      ambient += !is_shadow ?  light.intensity : glm::vec3(0.f);
-      diffuse += !is_shadow ? glm::vec3(diff)  : glm::vec3(0.f);
-      specular += spec * light.intensity;
-    }
-
-    final_color = 
-              ambient * intersection.material->Ka
-              + diffuse * intersection.material->Kd * intersection.obj->getDiffuseColor(glm::vec2(0.f))
-              + specular * intersection.material->Ks;
+                                  // Accumulate to local sum
+                                  local_sum += (ambient * intersection.material->Ka) +
+                                            (diffuse * intersection.material->Kd) +
+                                            (specular * intersection.material->Ks);
+                        }
+                        return local_sum;
+              },
+              [](const glm::vec3& a, const glm::vec3& b) { return a + b; }  // Combine partial results
+    );
   } 
   
   else if (intersection.material->getMaterialType() ==
@@ -519,15 +559,19 @@ void SoftRasterizer::Scene::clearBVHAccel() { m_bvh->clearBVHAccel(); }
 
 void SoftRasterizer::Scene::updatePosition() {
 
-  for (const auto &[meshName, objData] : m_loadedObjs) {
-    const auto &modelMatrix = objData.mesh->getModelMatrix();
+          tbb::parallel_for(oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+                    [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
+                              for (auto i = range.begin(); i != range.end(); ++i) {
+                                        const auto& modelMatrix = m_exportedObjs[i]->getModelMatrix();
 
-    auto NDC_MVP =
-        /*m_ndcToScreenMatrix **/ m_projection * m_view * modelMatrix;
-    auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
+                                        auto NDC_MVP =
+                                                  /*m_ndcToScreenMatrix **/ m_projection * m_view * modelMatrix;
+                                        auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
 
-    objData.mesh->updatePosition(NDC_MVP, Normal_M);
-  }
+                                        m_exportedObjs[i]->updatePosition(NDC_MVP, Normal_M);
+                              }
+                    }
+          , ap);
 
   ///*Start to generate pointers to triangles*/
   // preGenerateBVH();

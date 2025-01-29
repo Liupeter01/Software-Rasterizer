@@ -37,7 +37,7 @@ public:
   virtual ~Scene();
 
 public:
-  const glm::vec3 &loadEyeVec() const;
+  const glm::vec3 &loadEyeVec() const { return m_eye; }
 
   /*set MVP*/
   bool setModelMatrix(const std::string &meshName, const glm::vec3 &axis,
@@ -178,6 +178,8 @@ private:
 
   /*Pointers of All Loaded Objects, Used for Creating BVH*/
   tbb::concurrent_vector<std::shared_ptr<Object>> m_exportedObjs;
+
+  oneapi::tbb::affinity_partitioner ap;
 };
 } // namespace SoftRasterizer
 
