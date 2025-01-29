@@ -26,12 +26,20 @@ public:
                                                 const glm::vec3 &viewDir,
                                                 const glm::vec2 &uv);
 
-  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override { return material->color;}
-  [[nodiscard]] std::shared_ptr<Material>& getMaterial() override { return material; }
+  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override {
+    return material->color;
+  }
+  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override {
+    return material;
+  }
 
   /*Compatible Consideration!*/
-  [[nodiscard]] const std::vector<Vertex>& getVertices() const override { return vert; }
-  [[nodiscard]] const std::vector<glm::uvec3>& getFaces() const override { return faces; }
+  [[nodiscard]] const std::vector<Vertex> &getVertices() const override {
+    return vert;
+  }
+  [[nodiscard]] const std::vector<glm::uvec3> &getFaces() const override {
+    return faces;
+  }
 
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;

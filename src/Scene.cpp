@@ -4,9 +4,9 @@
 #include <scene/Scene.hpp>
 #include <shader/Shader.hpp>
 #include <spdlog/spdlog.h>
+#include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
-#include <tbb/blocked_range.h>
 
 SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const glm::vec3 &center, const glm::vec3 &up,
@@ -319,37 +319,42 @@ void SoftRasterizer::Scene::preGenerateBVH() {
 // intersected by the ray
 std::optional<std::shared_ptr<SoftRasterizer::Object>>
 SoftRasterizer::Scene::traceScene(const Ray &ray, float &tNear) {
- 
+
   std::atomic<std::size_t> obj_addr = 0;
   std::atomic<float> near = std::numeric_limits<float>::max();
 
-  tbb::parallel_for(oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
-            [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
-                      for (auto i = range.begin(); i != range.end(); ++i) {
-                                float temp = std::numeric_limits<float>::infinity();
-                                if (m_exportedObjs[i]->intersect(ray, temp)) {
+  tbb::parallel_for(
+      oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+      [&](const oneapi::tbb::blocked_range<std::size_t> &range) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
+          float temp = std::numeric_limits<float>::infinity();
+          if (m_exportedObjs[i]->intersect(ray, temp)) {
 
-                                          // Relaxed order to avoid unnecessary synchronization
-                                          float prev_near = near.load(std::memory_order_relaxed);  
+            // Relaxed order to avoid unnecessary synchronization
+            float prev_near = near.load(std::memory_order_relaxed);
 
-                                          // Only do the atomic compare if the value has changed
-                                          if (temp < prev_near &&
-                                                    near.compare_exchange_strong(prev_near, temp,
-                                                              std::memory_order_acq_rel,   // Memory order for the successful exchange
-                                                              std::memory_order_relaxed)) {
+            // Only do the atomic compare if the value has changed
+            if (temp < prev_near &&
+                near.compare_exchange_strong(
+                    prev_near, temp,
+                    std::memory_order_acq_rel, // Memory order for the
+                                               // successful exchange
+                    std::memory_order_relaxed)) {
 
-                                                    // Relaxed here since the value isn't directly shared
-                                                    obj_addr.store(reinterpret_cast<std::size_t>(m_exportedObjs[i].get()),
-                                                              std::memory_order_relaxed);  
-                                          }
-                                }
-                      }
-            }, ap);
+              // Relaxed here since the value isn't directly shared
+              obj_addr.store(
+                  reinterpret_cast<std::size_t>(m_exportedObjs[i].get()),
+                  std::memory_order_relaxed);
+            }
+          }
+        }
+      },
+      ap);
 
   /*retrieve arguments from atomic variables*/
-  Object* nearestObj = reinterpret_cast<Object*>(obj_addr.load());
+  Object *nearestObj = reinterpret_cast<Object *>(obj_addr.load());
   if (!nearestObj) {
-            return std::nullopt;
+    return std::nullopt;
   }
 
   tNear = near.load();
@@ -362,37 +367,40 @@ SoftRasterizer::Scene::traceScene(const Ray &ray, float &tNear) {
 
 SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
 
-          std::atomic<std::size_t> obj_addr = 0;
-          std::atomic<float> near = std::numeric_limits<float>::max();
+  std::atomic<std::size_t> obj_addr = 0;
+  std::atomic<float> near = std::numeric_limits<float>::max();
 
-          tbb::parallel_for(oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
-                    [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
-                              for (auto i = range.begin(); i != range.end(); ++i) {
-                                      
-                                        Intersection intersect = m_exportedObjs[i]->getIntersect(ray);
-                                        float prev_near = near.load(std::memory_order_relaxed);
-                                 
+  tbb::parallel_for(
+      oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+      [&](const oneapi::tbb::blocked_range<std::size_t> &range) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
 
-                                        // Only do the atomic compare if the value has changed
-                                        if (intersect.intersect_time < prev_near &&
-                                                  near.compare_exchange_strong(prev_near, intersect.intersect_time,
-                                                            std::memory_order_acq_rel,   // Memory order for the successful exchange
-                                                            std::memory_order_relaxed)) {
+          Intersection intersect = m_exportedObjs[i]->getIntersect(ray);
+          float prev_near = near.load(std::memory_order_relaxed);
 
-                                                  // Relaxed here since the value isn't directly shared
-                                                  obj_addr.store(reinterpret_cast<std::size_t>(intersect.obj),
-                                                            std::memory_order_relaxed);
-                                        }
-                              }
-                    }, ap);
+          // Only do the atomic compare if the value has changed
+          if (intersect.intersect_time < prev_near &&
+              near.compare_exchange_strong(
+                  prev_near, intersect.intersect_time,
+                  std::memory_order_acq_rel, // Memory order for the successful
+                                             // exchange
+                  std::memory_order_relaxed)) {
 
-          /*retrieve arguments from atomic variables*/
+            // Relaxed here since the value isn't directly shared
+            obj_addr.store(reinterpret_cast<std::size_t>(intersect.obj),
+                           std::memory_order_relaxed);
+          }
+        }
+      },
+      ap);
+
+  /*retrieve arguments from atomic variables*/
   Intersection ret;
-  ret.obj = reinterpret_cast<Object*>(obj_addr.load());
+  ret.obj = reinterpret_cast<Object *>(obj_addr.load());
 
   /*Invalid Intersection*/
   if (!ret.obj) {
-            return {};
+    return {};
   }
 
   ret.intersect_time = near.load();
@@ -454,45 +462,53 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
             : hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
 
     final_color = tbb::parallel_reduce(
-              tbb::blocked_range<std::size_t>(0, lights.size()),
-              glm::vec3(0.0f),  // Initial value
-              [&](const tbb::blocked_range<std::size_t>& range, glm::vec3 local_sum) -> glm::vec3 {
-                        for (std::size_t i = range.begin(); i < range.end(); ++i) {
-                                  glm::vec3 lightDir = lights[i].position - hitPoint;
-                                  float distance = glm::dot(lightDir, lightDir);
-                                  lightDir = glm::normalize(lightDir);
+        tbb::blocked_range<std::size_t>(0, lights.size()),
+        glm::vec3(0.0f), // Initial value
+        [&](const tbb::blocked_range<std::size_t> &range,
+            glm::vec3 local_sum) -> glm::vec3 {
+          for (std::size_t i = range.begin(); i < range.end(); ++i) {
+            glm::vec3 lightDir = lights[i].position - hitPoint;
+            float distance = glm::dot(lightDir, lightDir);
+            lightDir = glm::normalize(lightDir);
 
-                                  // Diffuse reflection (Lambertian)
-                                  float diff = std::max(0.f, glm::dot(hitNormal, lightDir));
+            // Diffuse reflection (Lambertian)
+            float diff = std::max(0.f, glm::dot(hitNormal, lightDir));
 
-                                  // Specular reflection (Blinn-Phong)
-                                  glm::vec3 reflectDir = glm::normalize(glm::reflect(-lightDir, hitNormal));
-                                  float spec = std::pow(std::max(0.f, -glm::dot(ray.direction, reflectDir)),
-                                            intersection.material->specularExponent);
+            // Specular reflection (Blinn-Phong)
+            glm::vec3 reflectDir =
+                glm::normalize(glm::reflect(-lightDir, hitNormal));
+            float spec =
+                std::pow(std::max(0.f, -glm::dot(ray.direction, reflectDir)),
+                         intersection.material->specularExponent);
 
-                                  // Shadow test
-                                  Ray shadow_ray(shadowCoord, lightDir);
-                                  Intersection shadow_result = traceScene(shadow_ray);
-                                  bool is_shadow = shadow_result.intersected && (std::pow(shadow_result.intersect_time, 2.f) < distance);
+            // Shadow test
+            Ray shadow_ray(shadowCoord, lightDir);
+            Intersection shadow_result = traceScene(shadow_ray);
+            bool is_shadow =
+                shadow_result.intersected &&
+                (std::pow(shadow_result.intersect_time, 2.f) < distance);
 
-                                  // Compute light contribution
-                                  glm::vec3 ambient = !is_shadow ? lights[i].intensity : glm::vec3(0.f);
-                                  glm::vec3 diffuse = !is_shadow ? glm::vec3(diff) : glm::vec3(0.f);
-                                  glm::vec3 specular = spec * lights[i].intensity;
+            // Compute light contribution
+            glm::vec3 ambient =
+                !is_shadow ? lights[i].intensity : glm::vec3(0.f);
+            glm::vec3 diffuse = !is_shadow ? glm::vec3(diff) : glm::vec3(0.f);
+            glm::vec3 specular = spec * lights[i].intensity;
 
-                                  // Accumulate to local sum
-                                  local_sum += (ambient * intersection.material->Ka) +
-                                            (diffuse * intersection.material->Kd) +
-                                            (specular * intersection.material->Ks);
-                        }
-                        return local_sum;
-              },
-              [](const glm::vec3& a, const glm::vec3& b) { return a + b; }  // Combine partial results
+            // Accumulate to local sum
+            local_sum += (ambient * intersection.material->Ka) +
+                         (diffuse * intersection.material->Kd) +
+                         (specular * intersection.material->Ks);
+          }
+          return local_sum;
+        },
+        [](const glm::vec3 &a, const glm::vec3 &b) {
+          return a + b;
+        } // Combine partial results
     );
-  } 
-  
+  }
+
   else if (intersection.material->getMaterialType() ==
-             MaterialType::REFLECTION_AND_REFRACTION) {
+           MaterialType::REFLECTION_AND_REFRACTION) {
 
     /*Safety Consideration*/
     auto reflectPath = glm::normalize(glm::reflect(rayDirection, hitNormal));
@@ -559,19 +575,20 @@ void SoftRasterizer::Scene::clearBVHAccel() { m_bvh->clearBVHAccel(); }
 
 void SoftRasterizer::Scene::updatePosition() {
 
-          tbb::parallel_for(oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
-                    [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
-                              for (auto i = range.begin(); i != range.end(); ++i) {
-                                        const auto& modelMatrix = m_exportedObjs[i]->getModelMatrix();
+  tbb::parallel_for(
+      oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+      [&](const oneapi::tbb::blocked_range<std::size_t> &range) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
+          const auto &modelMatrix = m_exportedObjs[i]->getModelMatrix();
 
-                                        auto NDC_MVP =
-                                                  /*m_ndcToScreenMatrix **/ m_projection * m_view * modelMatrix;
-                                        auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
+          auto NDC_MVP =
+              /*m_ndcToScreenMatrix **/ m_projection * m_view * modelMatrix;
+          auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
 
-                                        m_exportedObjs[i]->updatePosition(NDC_MVP, Normal_M);
-                              }
-                    }
-          , ap);
+          m_exportedObjs[i]->updatePosition(NDC_MVP, Normal_M);
+        }
+      },
+      ap);
 
   ///*Start to generate pointers to triangles*/
   // preGenerateBVH();
