@@ -431,10 +431,13 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
 glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
     Ray &ray, int depth,
     const std::vector<SoftRasterizer::light_struct> &lights) {
+
   glm::vec3 final_color = this->m_backgroundColor;
+
   if (depth > m_maxDepth) {
     // Return black if the ray has reached the maximum depth
     return glm::vec3(0.f);
+    //return this->m_backgroundColor;
   }
 
   Intersection intersection = traceScene(ray);
@@ -510,37 +513,47 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
   else if (intersection.material->getMaterialType() ==
            MaterialType::REFLECTION_AND_REFRACTION) {
 
+            float ior = intersection.material->ior;
+            glm::vec3 I = rayDirection;
+            glm::vec3 N = hitNormal;                //We consider it as the surface normal by default
+
+            /*If Light Coming From The Inner side of the object*/
+            const bool isInnerObj = glm::dot(I, N) > 0 && intersection.obj->getBounds().inside(ray.origin);
+
+            if (isInnerObj) {
+                      N = -N;                      //reverse normal
+                      ior = 1.0f / ior;            //adjust refract rate
+            }
+
     /*Safety Consideration*/
-    auto reflectPath = glm::normalize(glm::reflect(rayDirection, hitNormal));
-    auto refractPath = glm::normalize(
-        glm::refract(rayDirection, hitNormal, intersection.material->ior));
+    auto reflectPath = glm::normalize(glm::reflect(I, N));
+    auto refractPath = glm::normalize(glm::refract(I, N, ior));
 
     // prevent relfection and refraction from happening at the same time
-    auto reflectCoord =
-        glm::dot(reflectPath, hitNormal) < 0
-            ? hitPoint - hitNormal * std::numeric_limits<float>::epsilon()
-            : hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
+    auto reflectCoord = glm::dot(I, N) < 0 ?
+              hitPoint - N * std::numeric_limits<float>::epsilon() :
+              hitPoint + N * std::numeric_limits<float>::epsilon();
 
-    auto refractCoord =
-        glm::dot(refractPath, hitNormal) < 0
-            ? hitPoint - hitNormal * std::numeric_limits<float>::epsilon()
-            : hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
+    auto refractCoord = glm::dot(I, N) < 0 ?
+              hitPoint - N * std::numeric_limits<float>::epsilon() :
+              hitPoint + N * std::numeric_limits<float>::epsilon();
 
     Ray reflectedRay(reflectCoord, reflectPath);
     Ray refractedRay(refractCoord, refractPath);
 
-    glm::vec3 reflectedColor =
-        whittedRayTracing(reflectedRay, depth + 1, lights);
-    glm::vec3 refractedColor =
-        whittedRayTracing(refractedRay, depth + 1, lights);
+    float kr = Tools::fresnel(I, N, ior);
+    glm::vec3 reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+    glm::vec3 refractedColor = whittedRayTracing(refractedRay, depth + 1, lights);
+    final_color = reflectedColor * kr + refractedColor * (1.f - kr);
 
-    float kr =
-        Tools::fresnel(rayDirection, hitNormal, intersection.material->ior);
-    final_color = (reflectedColor * kr + refractedColor * (1 - kr));
-  } else if (intersection.material->getMaterialType() ==
+  }
+  else if (intersection.material->getMaterialType() ==
              MaterialType::REFLECTION) {
-    /*Safety Consideration*/
-    auto reflectPath = glm::normalize(glm::reflect(rayDirection, hitNormal));
+    
+            const glm::vec3 I = rayDirection;
+
+            /*Safety Consideration*/
+    auto reflectPath = glm::normalize(glm::reflect(I, hitNormal));
 
     // prevent relfection and refraction from happening at the same time
     auto reflectCoord =
@@ -551,8 +564,9 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
     Ray reflectedRay(reflectCoord, reflectPath);
     glm::vec3 reflectedColor =
         whittedRayTracing(reflectedRay, depth + 1, lights);
-    float kr =
-        Tools::fresnel(rayDirection, hitNormal, intersection.material->ior);
+
+    float kr = Tools::fresnel(I, hitNormal, intersection.material->ior);
+
     final_color += reflectedColor * kr;
   }
 
