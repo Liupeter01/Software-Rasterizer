@@ -454,6 +454,12 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
   auto rayDirection = glm::normalize(ray.direction);
   auto hitNormal = glm::normalize(intersection.normal);
 
+  const float ior = intersection.material->ior;
+  const glm::vec3 I = rayDirection;
+  const glm::vec3 N = hitNormal;                //We consider it as the surface normal by default
+
+  float kr = std::clamp(Tools::fresnel(I, N, ior), 0.f, 1.f);
+
   /*Phong illumation model*/
   if (intersection.material->getMaterialType() ==
       MaterialType::DIFFUSE_AND_GLOSSY) {
@@ -461,8 +467,8 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
     /*Self-Intersection Problem Avoidance*/
     glm::vec3 shadowCoord =
         glm::dot(rayDirection, hitNormal) < 0
-            ? hitPoint - hitNormal * std::numeric_limits<float>::epsilon()
-            : hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
+            ? hitPoint - hitNormal * m_epsilon
+            : hitPoint + hitNormal * m_epsilon;
 
     final_color = tbb::parallel_reduce(
         tbb::blocked_range<std::size_t>(0, lights.size()),
@@ -513,61 +519,72 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
   else if (intersection.material->getMaterialType() ==
            MaterialType::REFLECTION_AND_REFRACTION) {
 
-            float ior = intersection.material->ior;
-            glm::vec3 I = rayDirection;
-            glm::vec3 N = hitNormal;                //We consider it as the surface normal by default
+            glm::vec3 reflectPath = glm::vec3(0.0f), refractPath = glm::vec3(0.0f);
+            glm::vec3 reflectedColor = glm::vec3(0.0f), refractedColor = glm::vec3(0.0f);
 
-            /*If Light Coming From The Inner side of the object*/
-            const bool isInnerObj = glm::dot(I, N) > 0 && intersection.obj->getBounds().inside(ray.origin);
+            // Calculate the dot product of I and N (to determine the angle between them)
+            const float dot = std::clamp(glm::dot(I, N), -1.f, 1.f);
 
-            if (isInnerObj) {
-                      N = -N;                      //reverse normal
-                      ior = 1.0f / ior;            //adjust refract rate
+            // Check if the ray origin is inside the object
+            const bool isInside = intersection.obj->getBounds().inside(ray.origin);
+
+            // Determine if the light is coming from inside to outside or outside to inside
+            const bool insideToOutside = isInside && dot >= 0;  // Inside to outside, normal direction
+            const bool outsideToInside = !isInside && dot < 0;  // Outside to inside, normal direction
+
+            // Light is coming from outside to inside
+            if (outsideToInside) {
+                      reflectPath = glm::normalize(glm::reflect(I, N));
+                      refractPath = glm::refract(I, N, 1.0f / ior);
+            }
+            else if (insideToOutside) {
+                      reflectPath = glm::normalize(glm::reflect(I, -N));  // Reflecting against the opposite normal
+                      refractPath = glm::refract(I, -N, ior);    // Adjust refraction for material to air
             }
 
-    /*Safety Consideration*/
-    auto reflectPath = glm::normalize(glm::reflect(I, N));
-    auto refractPath = glm::normalize(glm::refract(I, N, ior));
+            // calculate offset
+            auto offset = glm::dot(I, N) < 0 ? -N * m_epsilon : N * m_epsilon;
 
-    // prevent relfection and refraction from happening at the same time
-    auto reflectCoord = glm::dot(I, N) < 0 ?
-              hitPoint - N * std::numeric_limits<float>::epsilon() :
-              hitPoint + N * std::numeric_limits<float>::epsilon();
+            //prevent relfection and refraction from happening at the same time
+            auto reflectCoord = hitPoint + offset;
+            auto refractCoord = hitPoint + offset;
 
-    auto refractCoord = glm::dot(I, N) < 0 ?
-              hitPoint - N * std::numeric_limits<float>::epsilon() :
-              hitPoint + N * std::numeric_limits<float>::epsilon();
+    /* Total Internal Reflection, TIR */
+            if (glm::length(refractPath) < 1e-6f || std::abs(kr - 1.0f) < 1e-6f) {
+                      // prevent relfection and refraction from happening at the same time
+                      Ray reflectedRay(reflectCoord, reflectPath);
+                      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+                      kr = 1.0f;
+            }
+            else {
+                      Ray reflectedRay(reflectCoord, reflectPath);
+                      Ray refractedRay(refractCoord, refractPath);
 
-    Ray reflectedRay(reflectCoord, reflectPath);
-    Ray refractedRay(refractCoord, refractPath);
+                      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+                      refractedColor = whittedRayTracing(refractedRay, depth + 1, lights);
+            }
 
-    float kr = Tools::fresnel(I, N, ior);
-    glm::vec3 reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
-    glm::vec3 refractedColor = whittedRayTracing(refractedRay, depth + 1, lights);
-    final_color = reflectedColor * kr + refractedColor * (1.f - kr);
+            final_color = glm::clamp(reflectedColor * kr + refractedColor * (1.f - kr), glm::vec3(0.0f), glm::vec3(1.0f));
 
   }
   else if (intersection.material->getMaterialType() ==
              MaterialType::REFLECTION) {
     
-            const glm::vec3 I = rayDirection;
+                       glm::vec3 reflectPath = glm::vec3(0.0f);
+                       glm::vec3 reflectedColor = glm::vec3(0.0f);
 
-            /*Safety Consideration*/
-    auto reflectPath = glm::normalize(glm::reflect(I, hitNormal));
+                       reflectPath = glm::normalize(glm::reflect(I, N));
 
-    // prevent relfection and refraction from happening at the same time
-    auto reflectCoord =
-        glm::dot(reflectPath, hitNormal) < 0
-            ? hitPoint - hitNormal * std::numeric_limits<float>::epsilon()
-            : hitPoint + hitNormal * std::numeric_limits<float>::epsilon();
+                       // calculate offset
+                       auto offset = glm::dot(I, N) < 0 ? -N * m_epsilon : N * m_epsilon;
 
-    Ray reflectedRay(reflectCoord, reflectPath);
-    glm::vec3 reflectedColor =
-        whittedRayTracing(reflectedRay, depth + 1, lights);
+                       auto reflectCoord = hitPoint + offset;
 
-    float kr = Tools::fresnel(I, hitNormal, intersection.material->ior);
+                       Ray reflectedRay(reflectCoord, reflectPath);
 
-    final_color += reflectedColor * kr;
+                       reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+
+                       final_color = glm::clamp(reflectedColor * kr, glm::vec3(0.0f), glm::vec3(1.0f));
   }
 
   return final_color;

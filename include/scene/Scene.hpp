@@ -112,6 +112,15 @@ private:
   glm::vec3 m_backgroundColor;
   Bounds3 m_boundingBox;
 
+  /*
+  * Instead of using numberic_limits, we increase it appropriately
+  * To avoid floating-point precision errors
+  * Small offset to prevent self-intersection artifacts
+  * Ensures that reflection and refraction rays start slightly away from the surface
+  * to avoid numerical precision issues when tracing subsequent rays.
+  */
+  const float m_epsilon = 1e-5f;
+
   /*display resolution*/
   std::size_t m_width, m_height;
   float m_aspectRatio;
