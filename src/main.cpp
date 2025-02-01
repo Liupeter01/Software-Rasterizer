@@ -19,16 +19,31 @@ int main() {
       /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
       /*background color*/ glm::vec3(0.235294, 0.67451, 0.843137));
 
+  /*Set Diffuse Color*/
+ auto diffuse_sphere = std::make_unique<SoftRasterizer::Sphere>(
+          /*center=*/glm::vec3(-0.07f, 0.0f, 0.f),
+          /*radius=*/0.1f);
+
+ diffuse_sphere->getMaterial()->type =
+           SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
+ diffuse_sphere->getMaterial()->color = glm::vec3(0.6f, 0.7f, 0.8f);
+ diffuse_sphere->getMaterial()->Kd = glm::vec3(0.6f, 0.7f, 0.8f);
+ diffuse_sphere->getMaterial()->Ka = glm::vec3(0.105f);
+ diffuse_sphere->getMaterial()->Ks = glm::vec3(0.7937f);
+ diffuse_sphere->getMaterial()->specularExponent = 150.f;
+
    /*Set Reflect Sphere Object*/
    auto reflect_sphere = std::make_unique<SoftRasterizer::Sphere>(
              /*center=*/glm::vec3(-0.05f, 0.01f, 0.f),
              /*radius=*/0.1f);
 
    /*Set REFLECTION_AND_REFRACTION Material*/
-   reflect_sphere->getMaterial()->type = SoftRasterizer::MaterialType::REFLECTION_AND_REFRACTION;
-   reflect_sphere->getMaterial()->ior = 1.55f; /*Air to Glass*/
+   reflect_sphere->getMaterial()->type = 
+             SoftRasterizer::MaterialType::REFLECTION_AND_REFRACTION;
+   reflect_sphere->getMaterial()->ior = 1.49f; /*Air to Glass*/
 
-  scene->addGraphicObj(std::move(reflect_sphere), "reflect");
+   scene->addGraphicObj(std::move(reflect_sphere), "reflect");
+  scene->addGraphicObj(std::move(diffuse_sphere), "diffuse");
 
   scene->addGraphicObj(CONFIG_HOME "examples/models/bunny/bunny.obj", "bunny",
                        glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(1.f));
@@ -98,7 +113,8 @@ int main() {
     key = cv::waitKey(0);
     if (key == 'a' || key == 'A') {
       degree += 10.0f;
-    } else if (key == 'd' || key == 'D') {
+    } 
+    else if (key == 'd' || key == 'D') {
       degree -= 10.0f;
     }
 
