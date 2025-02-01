@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <loader/ObjLoader.hpp>
+#include <object/Material.hpp>
 #include <spdlog/spdlog.h>
 #include <tiny_obj_loader.h>
 #include <unordered_map>
@@ -218,6 +219,7 @@ SoftRasterizer::ObjLoader::startLoadingFromFile(const std::string &objName) {
     return std::nullopt;
   }
 
+  /*convert tiny obj loader format to customalized format*/
   std::unique_ptr<SoftRasterizer::Mesh> mesh =
       processingVertexData(objName, attrib, shapes, materials);
 
@@ -227,7 +229,6 @@ SoftRasterizer::ObjLoader::startLoadingFromFile(const std::string &objName) {
                "\t| Size of Faces: {}",
                mesh->meshname, mesh->vertices.size(), mesh->faces.size());
 
-  /*convert tiny obj loader format to customalized format*/
   return mesh;
 }
 

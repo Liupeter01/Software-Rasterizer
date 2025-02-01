@@ -2,7 +2,8 @@
 #include <algorithm>
 #include <object/Triangle.hpp>
 
-SoftRasterizer::Triangle::Triangle() : box() {
+SoftRasterizer::Triangle::Triangle()
+    : box(), vert(3), m_material(std::make_shared<Material>()) {
   for (std::size_t index = 0; index < 3; ++index) {
     m_vertex[index] = glm::vec3(0.f);
     m_color[index] = glm::vec3(0.f);
@@ -11,12 +12,40 @@ SoftRasterizer::Triangle::Triangle() : box() {
   }
 }
 
+SoftRasterizer::Triangle::Triangle(
+    std::shared_ptr<Material> _material, const glm::vec3 &VertexA,
+    const glm::vec3 &VertexB, const glm::vec3 &VertexC,
+    const glm::vec3 &NormalA, const glm::vec3 &NormalB,
+    const glm::vec3 &NormalC, const glm::vec2 &texCoordA,
+    const glm::vec2 &texCoordB, const glm::vec2 &texCoordC,
+    const glm::vec3 &colorA, const glm::vec3 &colorB, const glm::vec3 &colorC)
+    : box(), vert(3), m_material(_material) {
+  vert[0].position = m_vertex[0] = VertexA;
+  vert[1].position = m_vertex[1] = VertexB;
+  vert[2].position = m_vertex[2] = VertexC;
+
+  vert[0].color = m_color[0] = colorA;
+  vert[1].color = m_color[1] = colorB;
+  vert[2].color = m_color[2] = colorC;
+
+  vert[0].normal = m_normal[0] = NormalA;
+  vert[1].normal = m_normal[1] = NormalB;
+  vert[2].normal = m_normal[2] = NormalC;
+
+  vert[0].texCoord = m_texCoords[0] = texCoordA;
+  vert[1].texCoord = m_texCoords[1] = texCoordA;
+  vert[2].texCoord = m_texCoords[2] = texCoordA;
+}
+
 void SoftRasterizer::Triangle::setVertex(
     std::initializer_list<glm::vec3> _vertex) {
   if (_vertex.size() != 3) {
     throw std::runtime_error("Invalid number of vertices");
   }
   std::copy(_vertex.begin(), _vertex.end(), m_vertex.begin());
+  vert[0].position = m_vertex[0];
+  vert[1].position = m_vertex[1];
+  vert[2].position = m_vertex[2];
 }
 
 void SoftRasterizer::Triangle::setNormal(
@@ -25,6 +54,9 @@ void SoftRasterizer::Triangle::setNormal(
     throw std::runtime_error("Invalid number of normals");
   }
   std::copy(_normal.begin(), _normal.end(), m_normal.begin());
+  vert[0].normal = m_normal[0];
+  vert[1].normal = m_normal[1];
+  vert[2].normal = m_normal[2];
 }
 
 void SoftRasterizer::Triangle::setColor(
@@ -41,6 +73,10 @@ void SoftRasterizer::Triangle::setColor(
     (*it) = c;
     std::advance(it, 1);
   });
+
+  vert[0].color = m_color[0];
+  vert[1].color = m_color[1];
+  vert[2].color = m_color[2];
 }
 
 void SoftRasterizer::Triangle::setTexCoord(
@@ -49,79 +85,147 @@ void SoftRasterizer::Triangle::setTexCoord(
     throw std::runtime_error("Invalid number of texture coordinates");
   }
   std::copy(_texCoords.begin(), _texCoords.end(), m_texCoords.begin());
+  vert[0].texCoord = m_texCoords[0];
+  vert[1].texCoord = m_texCoords[1];
+  vert[2].texCoord = m_texCoords[2];
 }
 
 SoftRasterizer::Bounds3 SoftRasterizer::Triangle::getBounds() {
-  return BoundsUnion(m_vertex[0], Bounds3(m_vertex[1], m_vertex[2]));
+  return BoundsUnion(vert[0].position,
+                     Bounds3(vert[1].position, vert[2].position));
 }
 
-bool SoftRasterizer::Triangle::intersect(const Ray& ray) { return true; }
+bool SoftRasterizer::Triangle::rayTriangleIntersect(
+    const Ray &ray, const glm::vec3 &v0, const glm::vec3 &v1,
+    const glm::vec3 &v2, float &tNear, float &u, float &v) {
 
-bool  SoftRasterizer::Triangle::intersect(const Ray& ray, float& tNear) { return false; }
+  glm::vec3 e1 = v1 - v0;
+  glm::vec3 e2 = v2 - v0;
 
-//Moller Trumbore Algorithm
-SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray& ray){
-          Intersection ret;
-          glm::vec3 normal = getFaceNormal();
+  glm::vec3 pvec = glm::cross(ray.direction, e2);
+  float det = glm::dot(e1, pvec);
+  if (std::abs(det) < std::numeric_limits<float>::epsilon()) {
+    return false;
+  }
 
-          //back face culling
-          if (glm::dot(normal, ray.direction) > 0) {       
-                    return ret;
-          }
+  float inv_det = 1.f / det;
+  glm::vec3 tvec = ray.origin - v0;
+  u = glm::dot(tvec, pvec) * inv_det;
+  if (u < 0 || u > det) {
+    return false;
+  }
 
-          //Caculate Edge Vectors
-          glm::vec3 e1 = m_vertex[1] - m_vertex[0];
-          glm::vec3 e2 = m_vertex[2] - m_vertex[0];
+  glm::vec3 qvec = glm::cross(tvec, e1);
+  v = glm::dot(ray.direction, qvec) * inv_det;
+  if (v < 0 || u + v > det) {
+    return false;
+  }
 
-          //light and surface is parallel or not?
-          glm::vec3 pvec = glm::cross(ray.direction, e2);
-          float det = glm::dot(e1, pvec);
-          if (std::abs(det) < std::numeric_limits<float>::epsilon()) {
-                    return ret;
-          }
+  tNear = glm::dot(e2, qvec) * inv_det;
+  u *= inv_det;
+  v *= inv_det;
 
-          //barycentric coordinates
-          double det_inv = 1.f / det;
-          glm::vec3 tvec = ray.origin - m_vertex[0];
-          float u = glm::dot(tvec, pvec) * det_inv;
-          if (u < 0 || u > 1) {
-                    return ret;
-          }
+  return tNear > 0;
+}
 
-          glm::vec3 qvec = glm::cross(tvec, e1);
-          float v = glm::dot(ray.direction, qvec) * det_inv;
-          if (v < 0 || u + v > 1) {
-                    return ret;
-          }
+// Moller Trumbore Algorithm
+SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
+  Intersection ret;
+  glm::vec3 normal = getFaceNormal();
 
-          // calculate the intersect time
-          float t0 = glm::dot(e2, qvec) * det_inv;
-          if (t0 < 0) {
-                    return ret;
-          }
+  // back face culling
+  if (glm::dot(normal, ray.direction) <= 0) {
+    return ret;
+  }
 
-          ret.obj = this;
-          ret.intersect_time = t0;
-          ret.coords = ray.direction * t0 + ray.origin;
+  // Caculate Edge Vectors
+  glm::vec3 e1 = vert[1].position - vert[0].position;
+  glm::vec3 e2 = vert[2].position - vert[0].position;
 
-          /*Normal of a sphere!*/
-          ret.normal = normal;
+  // light and surface is parallel or not?
+  glm::vec3 pvec = glm::cross(ray.direction, e2);
+  float det = glm::dot(e1, pvec);
+  if (std::abs(det) < std::numeric_limits<float>::epsilon()) {
+    return ret;
+  }
 
-          //we could find a intersect time point
-          ret.intersected = true;
-          return ret;
+  // barycentric coordinates
+  double det_inv = 1.f / det;
+  glm::vec3 tvec = ray.origin - vert[0].position;
+  float u = glm::dot(tvec, pvec) * det_inv;
+  if (u < 0 || u > 1) {
+    return ret;
+  }
+
+  glm::vec3 qvec = glm::cross(tvec, e1);
+  float v = glm::dot(ray.direction, qvec) * det_inv;
+  if (v < 0 || u + v > 1) {
+    return ret;
+  }
+
+  // calculate the intersect time
+  float t0 = glm::dot(e2, qvec) * det_inv;
+  if (t0 < 0) {
+    return ret;
+  }
+
+  ret.obj = this;
+  ret.intersect_time = t0;
+  ret.coords = ray.direction * t0 + ray.origin;
+
+  /*Normal of a sphere!*/
+  ret.normal = normal;
+  ret.material = getMaterial();
+
+  // we could find a intersect time point
+  ret.intersected = true;
+  return ret;
 }
 
 glm::vec3 SoftRasterizer::Triangle::getFaceNormal(FaceNormalType type) const {
-          if (type == FaceNormalType::PerGeometry) {
-                    return glm::normalize(glm::cross(m_vertex[1] - m_vertex[0], m_vertex[2] - m_vertex[0]));
-          }
-          else if (type == FaceNormalType::InterpolatedFace) {
-                    return Tools::interpolateNormal(zero_point_3, zero_point_3, zero_point_3, m_normal[0], m_normal[1], m_normal[2]);
-          }
-          else {
-                    throw std::runtime_error("Invalid Face Normal Type");
-          }
+  if (type == FaceNormalType::PerGeometry) {
+    return glm::normalize(glm::cross(vert[1].position - vert[0].position,
+                                     vert[2].position - vert[0].position));
+  } else if (type == FaceNormalType::InterpolatedFace) {
+    return Tools::interpolateNormal(zero_point_3, zero_point_3, zero_point_3,
+                                    vert[0].normal, vert[1].normal,
+                                    vert[2].normal);
+  } else {
+    throw std::runtime_error("Invalid Face Normal Type");
+  }
+}
+
+SoftRasterizer::Object::Properties
+SoftRasterizer::Triangle::getSurfaceProperties(const std::size_t faceIndex,
+                                               const glm::vec3 &Point,
+                                               const glm::vec3 &viewDir,
+                                               const glm::vec2 &uv) {
+  Properties ret;
+  ret.normal = getFaceNormal();
+  return ret;
+}
+
+glm::vec3 SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2 &uv) {
+  return glm::vec3(0.5f);
+}
+
+void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
+                                              const glm::mat4x4 &Normal_M) {
+
+  vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[0], 1.0f));
+  vert[0].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f));
+  vert[0].texCoord = m_texCoords[0];
+  vert[0].color = m_color[0];
+
+  vert[1].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[1], 1.0f));
+  vert[1].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f));
+  vert[1].texCoord = m_texCoords[1];
+  vert[1].color = m_color[1];
+
+  vert[2].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[2], 1.0f));
+  vert[2].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f));
+  vert[2].texCoord = m_texCoords[2];
+  vert[2].color = m_color[2];
 }
 
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,

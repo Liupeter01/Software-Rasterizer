@@ -14,6 +14,7 @@ namespace SoftRasterizer {
 /*forward declartion*/
 class Render;
 class Shader;
+class RayTracing;
 
 struct PointSIMD;
 struct NormalSIMD;
@@ -54,6 +55,8 @@ struct fragment_shader_payload {
 
 struct Shader {
 
+  friend class RayTracing;
+
   using simd_shader = std::function<void(
       const glm::vec3 &, const std::vector<light_struct> &, const PointSIMD &,
       NormalSIMD &, TexCoordSIMD &, ColorSIMD &)>;
@@ -88,6 +91,13 @@ public:
   glm::vec3 applyFragmentShader(const glm::vec3 &camera,
                                 const std::vector<light_struct> &lights,
                                 const fragment_shader_payload &payload);
+
+  // Static function to compute the Blinn-Phong reflection model
+  static glm::vec3 BlinnPhong(const glm::vec3 &camera,
+                              const fragment_shader_payload &shading_point,
+                              const light_struct &light, const glm::vec3 &ka,
+                              const glm::vec3 &kd, const glm::vec3 &ks,
+                              const float p);
 
 private:
   /*register multiple shader models*/
@@ -307,13 +317,6 @@ private:
                                       NormalSIMD &normal,
                                       TexCoordSIMD &texcoord,
                                       ColorSIMD &colour);
-
-  // Static function to compute the Blinn-Phong reflection model
-  static glm::vec3 BlinnPhong(const glm::vec3 &camera,
-                              const fragment_shader_payload &shading_point,
-                              const light_struct &light, const glm::vec3 &ka,
-                              const glm::vec3 &kd, const glm::vec3 &ks,
-                              const float p);
 
   /*Compute Bump Mapping*/
   glm::vec3 calcBumpMapping(const fragment_shader_payload &payload,

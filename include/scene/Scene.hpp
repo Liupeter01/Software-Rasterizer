@@ -1,15 +1,16 @@
 #pragma once
 #ifndef _SCENE_HPP_
 #define _SCENE_HPP_
-#include <tuple>
 #include <atomic>
+#include <bvh/BVHAcceleration.hpp>
 #include <future>
 #include <hpc/Simd.hpp>
-#include <unordered_map>
-#include <shader/Shader.hpp>
 #include <loader/ObjLoader.hpp>
+#include <optional>
+#include <shader/Shader.hpp>
 #include <tbb/concurrent_vector.h>
-#include  <bvh/BVHAcceleration.hpp>
+#include <tuple>
+#include <unordered_map>
 
 namespace SoftRasterizer {
 class Triangle;
@@ -18,9 +19,9 @@ class TraditionalRasterizer;
 class RayTracing;
 
 class Scene {
-          friend class TraditionalRasterizer;
-          friend class RayTracing;
-          friend class RenderingPipeline;
+  friend class TraditionalRasterizer;
+  friend class RayTracing;
+  friend class RenderingPipeline;
 
 public:
   using ObjTuple = std::tuple<std::shared_ptr<Shader>,
@@ -29,10 +30,14 @@ public:
 
 public:
   Scene(const std::string &sceneName, const glm::vec3 &eye,
-        const glm::vec3 &center, const glm::vec3 &up);
+        const glm::vec3 &center, const glm::vec3 &up,
+        glm::vec3 m_backgroundColor = glm::vec3(0.f),
+        const std::size_t maxdepth = 5);
+
+  virtual ~Scene();
 
 public:
-  const glm::vec3 &loadEyeVec() const;
+  const glm::vec3 &loadEyeVec() const { return m_eye; }
 
   /*set MVP*/
   bool setModelMatrix(const std::string &meshName, const glm::vec3 &axis,
@@ -50,7 +55,12 @@ public:
                      const glm::vec3 &axis, const float angle,
                      const glm::vec3 &translation, const glm::vec3 &scale);
 
+  bool addGraphicObj(std::unique_ptr<Object> object,
+                     const std::string &objectName);
+
   bool startLoadingMesh(const std::string &meshName);
+  std::optional<std::shared_ptr<Object>>
+  getMeshObj(const std::string &meshName);
 
   bool addShader(const std::string &shaderName, const std::string &texturePath,
                  SHADERS_TYPE type);
@@ -69,18 +79,47 @@ public:
   /*Generating BVH Structure*/
   void buildBVHAccel();
 
+  /*Remove BVH Structure*/
+  void clearBVHAccel();
+
 protected:
-          /*For Rasterizer, Not Ray Tracing*/
+  void updatePosition();
+
+  /*For Rasterizer, Not Ray Tracing*/
   tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> loadTriangleStream();
   std::vector<SoftRasterizer::light_struct> loadLights();
 
 private:
   /*NDC Matrix Function is prepare for renderpipeline class!*/
   void setNDCMatrix(const std::size_t width, const std::size_t height);
-  std::vector<Object*> getLoadedObjs();
+
+  /* Generate Pointers to Triangles and load it to BVH Structure*/
+  void preGenerateBVH();
+
+  // emit ray from eye to pixel and trace the scene to find the nearest object
+  // intersected by the ray
+  std::optional<std::shared_ptr<Object>> traceScene(const Ray &ray,
+                                                    float &tNear);
+  Intersection traceScene(Ray &ray);
+  glm::vec3
+  whittedRayTracing(Ray &ray, int depth,
+                    const std::vector<SoftRasterizer::light_struct> &lights);
 
 private:
+  /*Scene Configuration*/
   std::string m_sceneName;
+  const std::size_t m_maxDepth;
+  glm::vec3 m_backgroundColor;
+  Bounds3 m_boundingBox;
+
+  /*
+   * Instead of using numberic_limits, we increase it appropriately
+   * To avoid floating-point precision errors
+   * Small offset to prevent self-intersection artifacts
+   * Ensures that reflection and refraction rays start slightly away from the
+   * surface to avoid numerical precision issues when tracing subsequent rays.
+   */
+  const float m_epsilon = 1e-5f;
 
   /*display resolution*/
   std::size_t m_width, m_height;
@@ -139,10 +178,17 @@ private:
   std::unordered_map<std::string, std::shared_ptr<light_struct>> m_lights;
 
   struct ObjInfo {
-            std::unique_ptr<ObjLoader> loader;
-            std::unique_ptr<Mesh> mesh;
+    std::optional<std::unique_ptr<ObjLoader>> loader;
+    std::unique_ptr<Object> mesh;
   };
+
+  /*All Loaded Objects, including Triangle, Sphere, Mesh, Cube*/
   std::unordered_map<std::string, ObjInfo> m_loadedObjs;
+
+  /*Pointers of All Loaded Objects, Used for Creating BVH*/
+  tbb::concurrent_vector<std::shared_ptr<Object>> m_exportedObjs;
+
+  oneapi::tbb::affinity_partitioner ap;
 };
 } // namespace SoftRasterizer
 

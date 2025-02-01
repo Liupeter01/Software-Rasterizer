@@ -5,25 +5,24 @@
 
 namespace SoftRasterizer {
 
-          /*declaration*/
-          struct Object;
+/*declaration*/
+struct Object;
+struct Material;
 
-          struct Intersection {
-                    Intersection()
-                              : intersected(false)
-                              , coords(glm::vec3(0.f))
-                              , normal(glm::vec3(0.f))
-                              , intersect_time(std::numeric_limits<float>::max())
-                              , obj(nullptr)
-                    {
-                    }
+struct Intersection {
+  Intersection()
+      : intersected(false), coords(glm::vec3(0.f)), normal(glm::vec3(0.f)),
+        index(0), intersect_time(std::numeric_limits<float>::max()),
+        obj(nullptr), material(nullptr) {}
 
-                    bool intersected;
-                    float intersect_time;
-                    glm::vec3 coords;
-                    glm::vec3 normal;
-                    Object* obj;
-          };
-}
+  std::size_t index;
+  bool intersected;
+  float intersect_time;
+  glm::vec3 coords;
+  glm::vec3 normal;
+  Object *obj;
+  std::shared_ptr<Material> material;
+};
+} // namespace SoftRasterizer
 
 #endif //_INTERSECTION_HPP_

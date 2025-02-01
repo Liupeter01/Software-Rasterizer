@@ -150,6 +150,9 @@ struct Tools {
                                              const glm::vec3 &pb,
                                              const glm::vec3 &pc);
 
+  static float fresnel(const glm::vec3 &rayDirection, const glm::vec3 &normal,
+                       const float &refractiveIndex);
+
   template <size_t Begin, size_t End, typename F> static void static_for(F f) {
     if constexpr (Begin < End) {
       std::integral_constant<size_t, Begin> compile_rt_int;

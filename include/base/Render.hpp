@@ -12,7 +12,6 @@
 #include <tbb/parallel_for.h>
 #include <tuple>
 #include <unordered_map>
-#include <tbb/parallel_for.h>
 
 /*Use for unrolling calculation*/
 #define ROUND_UP_TO_MULTIPLE_OF_4(x) (((x) + 3) & ~3)
@@ -82,7 +81,7 @@ public:
 
 protected:
   /*draw graphics*/
-          virtual void draw(Primitive type) = 0;
+  virtual void draw(Primitive type) = 0;
   void clearFrameBuffer();
   void clearZDepth();
 
@@ -95,120 +94,120 @@ public:
                 std::optional<std::string> name = std::nullopt);
 
 protected:
-          template <typename _simd>
-          inline void writePixel(
-                    const long long start_pos, const _simd& r, const _simd& g, const _simd& b) {
+  template <typename _simd>
+  inline void writePixel(const long long start_pos, const _simd &r,
+                         const _simd &g, const _simd &b) {
 #if defined(__x86_64__) || defined(_WIN64)
-                    if constexpr (std::is_same_v<_simd, __m256>) {
-                              _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-                              _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-                              _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+    if constexpr (std::is_same_v<_simd, __m256>) {
+      _mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+      _mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+      _mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
 
 #elif defined(__arm__) || defined(__aarch64__)
-                    if constexpr (std::is_same_v<_simd, simde__m256>) {
-                              simde_mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-                              simde_mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-                              simde_mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+    if constexpr (std::is_same_v<_simd, simde__m256>) {
+      simde_mm256_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+      simde_mm256_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+      simde_mm256_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
 
 #else
 #endif
-                    }
- else if constexpr (std::is_same_v<_simd, __m128>) {
-                              _mm_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
-                              _mm_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
-                              _mm_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
-                              }
-                    }
-
-
+    } else if constexpr (std::is_same_v<_simd, __m128>) {
+      _mm_storeu_ps(m_channels[0].ptr<float>(0) + start_pos, r); // R
+      _mm_storeu_ps(m_channels[1].ptr<float>(0) + start_pos, g); // G
+      _mm_storeu_ps(m_channels[2].ptr<float>(0) + start_pos, b); // B
+    }
+  }
 
   inline void writePixel(const long long x, const long long y,
-                         const glm::vec3 &color);
+                         const glm::vec3 &color) {
+    if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
+      auto pos = x + y * m_width;
+
+      *(m_channels[0].ptr<float>(0) + pos) = color.x; // R
+      *(m_channels[1].ptr<float>(0) + pos) = color.y; // G
+      *(m_channels[2].ptr<float>(0) + pos) = color.z; // B
+    }
+  }
+
   inline void writePixel(const long long x, const long long y,
-                         const glm::uvec3 &color);
-  inline void
-            writePixel(const long long start_pos,
-                      const ColorSIMD& color) {
-            writePixel(start_pos, color.r, color.g, color.b);
+                         const glm::uvec3 &color) {
+    writePixel(x, y, glm::vec3(color.x, color.y, color.z));
+  }
+
+  inline void writePixel(const long long start_pos, const ColorSIMD &color) {
+    writePixel(start_pos, color.r, color.g, color.b);
   }
 
   template <typename _simd>
-  inline void
-            writeZBuffer(const long long start_pos,
-                      const _simd& depth) {
+  inline void writeZBuffer(const long long start_pos, const _simd &depth) {
 #if defined(__x86_64__) || defined(_WIN64)
-            if constexpr (std::is_same_v<_simd, __m256>) {
-                      _mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+    if constexpr (std::is_same_v<_simd, __m256>) {
+      _mm256_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]), depth);
 
 #elif defined(__arm__) || defined(__aarch64__)
-            if constexpr (std::is_same_v<_simd, simde__m256>) {
-                      simde_mm256_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]),
-                                depth);
+    if constexpr (std::is_same_v<_simd, simde__m256>) {
+      simde_mm256_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]),
+                            depth);
 #else
 #endif
-            }
- else if constexpr (std::is_same_v<_simd, __m128>) {
-           _mm_storeu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]), depth);
+    } else if constexpr (std::is_same_v<_simd, __m128>) {
+      _mm_storeu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]), depth);
+    }
   }
-            }
 
   inline bool writeZBuffer(const long long x, const long long y,
                            const float depth);
   inline void writeZBuffer(const long long start_pos, const float depth);
 
   template <typename _simd>
-  inline _simd
-            readZBuffer(const long long start_pos) {
+  inline _simd readZBuffer(const long long start_pos) {
 #if defined(__x86_64__) || defined(_WIN64)
-            if constexpr (std::is_same_v<_simd, __m256>) {
-                      return _mm256_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+    if constexpr (std::is_same_v<_simd, __m256>) {
+      return _mm256_loadu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]));
 
 #elif defined(__arm__) || defined(__aarch64__)
-            if constexpr (std::is_same_v<_simd, simde__m256>) {
-                      return simde_mm256_loadu_ps(
-                                reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+    if constexpr (std::is_same_v<_simd, simde__m256>) {
+      return simde_mm256_loadu_ps(
+          reinterpret_cast<float *>(&m_zBuffer[start_pos]));
 #else
 #endif
-            }
- else if constexpr (std::is_same_v<_simd, __m128>) {
-           return _mm_loadu_ps(reinterpret_cast<float*>(&m_zBuffer[start_pos]));
+    } else if constexpr (std::is_same_v<_simd, __m128>) {
+      return _mm_loadu_ps(reinterpret_cast<float *>(&m_zBuffer[start_pos]));
+    }
+    return {};
   }
-  return {};
-            }
 
   inline const float readZBuffer(const long long x, const long long y);
 
   template <typename _simd>
-  inline std::tuple<_simd, _simd, _simd>
-            readPixel(const long long start_pos) {
+  inline std::tuple<_simd, _simd, _simd> readPixel(const long long start_pos) {
 
 #if defined(__x86_64__) || defined(_WIN64)
-            if constexpr (std::is_same_v<_simd, __m256>) {
-                      return {
-                          _mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
-                          _mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
-                          _mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
-                      };
+    if constexpr (std::is_same_v<_simd, __m256>) {
+      return {
+          _mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
+          _mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
+          _mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
+      };
 
 #elif defined(__arm__) || defined(__aarch64__)
-            if constexpr (std::is_same_v<_simd, simde__m256>) {
-                      return {
-                          simde_mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
-                          simde_mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
-                          simde_mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
-                      };
+    if constexpr (std::is_same_v<_simd, simde__m256>) {
+      return {
+          simde_mm256_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
+          simde_mm256_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
+          simde_mm256_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
+      };
 #else
 #endif
-            }
- else if constexpr (std::is_same_v<_simd, __m128>) {
-           return {
-               _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
-               _mm_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
-               _mm_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
-           };
+    } else if constexpr (std::is_same_v<_simd, __m128>) {
+      return {
+          _mm_loadu_ps(m_channels[0].ptr<float>(0) + start_pos), // R
+          _mm_loadu_ps(m_channels[1].ptr<float>(0) + start_pos), // G
+          _mm_loadu_ps(m_channels[2].ptr<float>(0) + start_pos)  // B
+      };
+    }
+    return {};
   }
-  return {};
-            }
 
   /*Bresenham algorithm*/
   void drawLine(const glm::vec3 &p0, const glm::vec3 &p1,

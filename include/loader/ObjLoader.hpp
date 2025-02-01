@@ -28,7 +28,7 @@ public:
   const glm::mat4x4 &getModelMatrix();
 
   std::optional<std::unique_ptr<Mesh>>
-  startLoadingFromFile(const std::string &objName = "");
+  startLoadingFromFile(const std::string &objName);
 
 private:
   std::string m_path;

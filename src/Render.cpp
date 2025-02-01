@@ -1,8 +1,8 @@
 ﻿#include "oneapi/tbb/blocked_range.h"
 #include "oneapi/tbb/parallel_for.h"
 #include <Tools.hpp>
-#include <opencv2/opencv.hpp>
 #include <base/Render.hpp>
+#include <opencv2/opencv.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
 #include <type_traits>
@@ -69,6 +69,13 @@ bool SoftRasterizer::RenderingPipeline::addScene(
     if (scene == nullptr) {
       return false;
     }
+
+    /*Pre Generate Object* concurrent vector*/
+    scene->preGenerateBVH();
+
+    /*Start Building BVH*/
+    scene->buildBVHAccel();
+
     if (name.has_value()) {
       scene->m_sceneName = name.value();
     }
@@ -87,22 +94,6 @@ bool SoftRasterizer::RenderingPipeline::addScene(
     return false;
   }
   return true;
-}
-
-inline void SoftRasterizer::RenderingPipeline::writePixel(
-    const long long x, const long long y, const glm::vec3 &color) {
-  if (x >= 0 && x < m_width && y >= 0 && y < m_height) {
-    auto pos = x + y * m_width;
-
-    *(m_channels[0].ptr<float>(0) + pos) = color.x; // R
-    *(m_channels[1].ptr<float>(0) + pos) = color.y; // G
-    *(m_channels[2].ptr<float>(0) + pos) = color.z; // B
-  }
-}
-
-inline void SoftRasterizer::RenderingPipeline::writePixel(
-    const long long x, const long long y, const glm::uvec3 &color) {
-  writePixel(x, y, glm::vec3(color.x, color.y, color.z));
 }
 
 inline void

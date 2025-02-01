@@ -1,20 +1,29 @@
 #include <Tools.hpp>
-#include <numeric> // For std::accumulate
 #include <base/Render.hpp>
+#include <numeric> // For std::accumulate
 #include <scene/Scene.hpp>
+#include <shader/Shader.hpp>
 #include <spdlog/spdlog.h>
+#include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
 
 SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
-                             const glm::vec3 &center, const glm::vec3 &up)
-    : m_width(0), m_height(0), m_sceneName(sceneName), m_bvh(std::make_unique<BVHAcceleration>()) {
+                             const glm::vec3 &center, const glm::vec3 &up,
+                             glm::vec3 backgroundColor,
+                             const std::size_t maxdepth)
+    : m_width(0), m_height(0), m_sceneName(sceneName), m_maxDepth(maxdepth),
+      m_backgroundColor(backgroundColor), m_eye(eye), m_center(center),
+      m_up(up), m_fovy(45.0f), m_aspectRatio(0.0f), scale(0.0f), offset(0.0f),
+      m_bvh(std::make_unique<BVHAcceleration>()) {
   try {
     setViewMatrix(eye, center, up);
-  }
-  catch (const std::exception& e) {
-            spdlog::error("Scene Constructor Error! Reason: {}", e.what());
+  } catch (const std::exception &e) {
+    spdlog::error("Scene Constructor Error! Reason: {}", e.what());
   }
 }
+
+SoftRasterizer::Scene::~Scene() { clearBVHAccel(); }
 
 bool SoftRasterizer::Scene::addGraphicObj(
     const std::string &path, const std::string &meshName, const glm::vec3 &axis,
@@ -54,12 +63,30 @@ bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
   return true;
 }
 
+bool SoftRasterizer::Scene::addGraphicObj(std::unique_ptr<Object> object,
+                                          const std::string &objectName) {
+  /*This Object has already been identified!*/
+  if (m_loadedObjs.find(objectName) != m_loadedObjs.end()) {
+    spdlog::error("This Object has already been identified");
+    return false;
+  }
+
+  try {
+    m_loadedObjs[objectName].loader = std::nullopt;
+    m_loadedObjs[objectName].mesh = std::move(object);
+  } catch (const std::exception &e) {
+    spdlog::error("Add Graphic Obj Error! Reason: {}", e.what());
+    return false;
+  }
+  return true;
+}
+
 bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
 
   /*This Object has already been identified!*/
   if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
     spdlog::error("Start Loading Mesh Failed! Because There is nothing found "
-                  "in m_suspendObjs");
+                  "in m_loadedObjs");
     return false;
   }
 
@@ -70,21 +97,43 @@ bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
     return false;
   }
 
-  std::optional<std::unique_ptr<Mesh>> mesh_op =
-      m_loadedObjs[meshName].loader->startLoadingFromFile(meshName);
-  if (!mesh_op.has_value()) {
-    spdlog::error("Start Loading Mesh Failed! Because Loading Internel Error!");
-    return false;
-  }
-
   try {
+
+    std::optional<std::unique_ptr<Mesh>> mesh_op =
+        m_loadedObjs[meshName].loader.value()->startLoadingFromFile(meshName);
+
+    if (!mesh_op.has_value()) {
+      spdlog::error(
+          "Start Loading Mesh Failed! Because Loading Internel Error!");
+      return false;
+    }
+
     m_loadedObjs[meshName].mesh = std::move(mesh_op.value());
-    m_loadedObjs[meshName].mesh->meshname = meshName;
+
   } catch (const std::exception &e) {
     spdlog::error("Start Loading Mesh Failed! Reason: {}", e.what());
     return false;
   }
   return true;
+}
+
+std::optional<std::shared_ptr<SoftRasterizer::Object>>
+SoftRasterizer::Scene::getMeshObj(const std::string &meshName) {
+  /*This Object has already been identified!*/
+  if (m_loadedObjs.find(meshName) == m_loadedObjs.end()) {
+    spdlog::error("Get Mesh Failed! Because There is nothing found "
+                  "in m_loadedObjs");
+    return std::nullopt;
+  }
+
+  if (m_loadedObjs[meshName].mesh == nullptr) {
+    spdlog::error("You Have to get Mesh Object After Deploy startLoadingMesh",
+                  meshName);
+    return std::nullopt;
+  }
+
+  return std::shared_ptr<SoftRasterizer::Object>(
+      m_loadedObjs[meshName].mesh.get(), [](Object *) {});
 }
 
 bool SoftRasterizer::Scene::addShader(const std::string &shaderName,
@@ -141,6 +190,7 @@ bool SoftRasterizer::Scene::bindShader2Mesh(const std::string &meshName,
 
   try {
     m_loadedObjs[meshName].mesh->bindShader2Mesh(m_shaders[shaderName]);
+
   } catch (const std::exception &e) {
     spdlog::error("Bind Shader To Mesh Failed! Reason: {}", e.what());
     return false;
@@ -170,8 +220,6 @@ void SoftRasterizer::Scene::addLights(
   }
 }
 
-const glm::vec3 &SoftRasterizer::Scene::loadEyeVec() const { return m_eye; }
-
 /*set MVP*/
 bool SoftRasterizer::Scene::setModelMatrix(const std::string &meshName,
                                            const glm::vec3 &axis,
@@ -184,8 +232,8 @@ bool SoftRasterizer::Scene::setModelMatrix(const std::string &meshName,
     return false;
   }
 
-  m_loadedObjs[meshName].loader->updateModelMatrix(axis, angle, translation,
-                                                   scale);
+  m_loadedObjs[meshName].mesh->updateModelMatrix(axis, angle, translation,
+                                                 scale);
   return true;
 }
 
@@ -255,17 +303,338 @@ void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
   m_ndcToScreenMatrix = matrix;
 }
 
-std::vector<SoftRasterizer::Object*> SoftRasterizer::Scene::getLoadedObjs(){
-          std::vector<SoftRasterizer::Object*> ret(m_loadedObjs.size());
-          std::transform(m_loadedObjs.begin(), m_loadedObjs.end(), ret.begin(), [](const auto& obj) {
-                    return obj.second.mesh.get();
-                    });
-          return ret;
+/* Generate Pointers to Triangles and load it to BVH Structure*/
+void SoftRasterizer::Scene::preGenerateBVH() {
+  m_exportedObjs.clear();
+  m_exportedObjs.resize(m_loadedObjs.size());
+
+  std::transform(m_loadedObjs.begin(), m_loadedObjs.end(),
+                 m_exportedObjs.begin(), [](const auto &obj) {
+                   return std::shared_ptr<Object>(obj.second.mesh.get(),
+                                                  [](Object *) {});
+                 });
 }
 
-void SoftRasterizer::Scene::buildBVHAccel(){ 
-          m_bvh->loadNewObjects(getLoadedObjs());
-          m_bvh->startBuilding();
+// emit ray from eye to pixel and trace the scene to find the nearest object
+// intersected by the ray
+std::optional<std::shared_ptr<SoftRasterizer::Object>>
+SoftRasterizer::Scene::traceScene(const Ray &ray, float &tNear) {
+
+  std::atomic<std::size_t> obj_addr = 0;
+  std::atomic<float> near = std::numeric_limits<float>::max();
+
+  tbb::parallel_for(
+      oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+      [&](const oneapi::tbb::blocked_range<std::size_t> &range) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
+          float temp = std::numeric_limits<float>::infinity();
+          if (m_exportedObjs[i]->intersect(ray, temp)) {
+
+            // Relaxed order to avoid unnecessary synchronization
+            float prev_near = near.load(std::memory_order_relaxed);
+
+            // Only do the atomic compare if the value has changed
+            if (temp < prev_near &&
+                near.compare_exchange_strong(
+                    prev_near, temp,
+                    std::memory_order_acq_rel, // Memory order for the
+                                               // successful exchange
+                    std::memory_order_relaxed)) {
+
+              // Relaxed here since the value isn't directly shared
+              obj_addr.store(
+                  reinterpret_cast<std::size_t>(m_exportedObjs[i].get()),
+                  std::memory_order_relaxed);
+            }
+          }
+        }
+      },
+      ap);
+
+  /*retrieve arguments from atomic variables*/
+  Object *nearestObj = reinterpret_cast<Object *>(obj_addr.load());
+  if (!nearestObj) {
+    return std::nullopt;
+  }
+
+  tNear = near.load();
+
+  if (tNear < 0) {
+    return std::nullopt;
+  }
+  return std::shared_ptr<SoftRasterizer::Object>(nearestObj, [](Object *) {});
+}
+
+SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
+
+  std::atomic<std::size_t> obj_addr = 0;
+  std::atomic<float> near = std::numeric_limits<float>::max();
+
+  tbb::parallel_for(
+      oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+      [&](const oneapi::tbb::blocked_range<std::size_t> &range) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
+
+          Intersection intersect = m_exportedObjs[i]->getIntersect(ray);
+          float prev_near = near.load(std::memory_order_relaxed);
+
+          // Only do the atomic compare if the value has changed
+          if (intersect.intersect_time < prev_near &&
+              near.compare_exchange_strong(
+                  prev_near, intersect.intersect_time,
+                  std::memory_order_acq_rel, // Memory order for the successful
+                                             // exchange
+                  std::memory_order_relaxed)) {
+
+            // Relaxed here since the value isn't directly shared
+            obj_addr.store(reinterpret_cast<std::size_t>(intersect.obj),
+                           std::memory_order_relaxed);
+          }
+        }
+      },
+      ap);
+
+  /*retrieve arguments from atomic variables*/
+  Intersection ret;
+  ret.obj = reinterpret_cast<Object *>(obj_addr.load());
+
+  /*Invalid Intersection*/
+  if (!ret.obj) {
+    return {};
+  }
+
+  ret.intersect_time = near.load();
+  /*Invalid Intersection*/
+  if (ret.intersect_time < 0) {
+    return {};
+  }
+
+  /*
+   * Valid Intersection is here! We Are going to get properties by using
+   * obj->getSurfaceProperties getSurfaceProperties method could belong to
+   * Sphere, Mesh(Triangle), Cube Classes Every object inhertied classes should
+   * implement getSurfaceProperties method!!!
+   */
+  ret.index = ret.obj->index;
+  ret.coords = ray.origin + ray.direction * ret.intersect_time;
+  ret.material = ret.obj->getMaterial();
+
+  /*If it is a mesh, then the object is triangle*/
+  ret.normal = ret.obj
+                   ->getSurfaceProperties(ret.index, ret.coords, ray.direction,
+                                          glm::vec2(0.f))
+                   .normal;
+  ret.intersected = true;
+  return ret;
+}
+
+glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
+    Ray &ray, int depth,
+    const std::vector<SoftRasterizer::light_struct> &lights) {
+
+  glm::vec3 final_color = this->m_backgroundColor;
+
+  if (depth > m_maxDepth) {
+    // Return black if the ray has reached the maximum depth
+    return glm::vec3(0.f);
+    // return this->m_backgroundColor;
+  }
+
+  Intersection intersection = traceScene(ray);
+  if (!intersection.intersected || !intersection.obj) {
+    // Return black if the ray does not intersect with any object
+    spdlog::debug("Ray Intersection Not Found On Depth {}", depth);
+    return this->m_backgroundColor;
+  }
+
+  // Get the hit point
+  auto hitPoint = intersection.coords;
+
+  /*DON NOT FORGET TO NORMALIZE THE NORMAL*/
+  auto rayDirection = glm::normalize(ray.direction);
+  auto hitNormal = glm::normalize(intersection.normal);
+
+  const float ior = intersection.material->ior;
+  const glm::vec3 I = rayDirection;
+  const glm::vec3 N =
+      hitNormal; // We consider it as the surface normal by default
+
+  float kr = std::clamp(Tools::fresnel(I, N, ior), 0.f, 1.f);
+
+  /*Phong illumation model*/
+  if (intersection.material->getMaterialType() ==
+      MaterialType::DIFFUSE_AND_GLOSSY) {
+
+    /*Self-Intersection Problem Avoidance*/
+    glm::vec3 shadowCoord = glm::dot(rayDirection, hitNormal) < 0
+                                ? hitPoint - hitNormal * m_epsilon
+                                : hitPoint + hitNormal * m_epsilon;
+
+    final_color = tbb::parallel_reduce(
+        tbb::blocked_range<std::size_t>(0, lights.size()),
+        glm::vec3(0.0f), // Initial value
+        [&](const tbb::blocked_range<std::size_t> &range,
+            glm::vec3 local_sum) -> glm::vec3 {
+          for (std::size_t i = range.begin(); i < range.end(); ++i) {
+            glm::vec3 lightDir = lights[i].position - hitPoint;
+            float distance = glm::dot(lightDir, lightDir);
+            lightDir = glm::normalize(lightDir);
+
+            // Diffuse reflection (Lambertian)
+            float diff = std::max(0.f, glm::dot(hitNormal, lightDir));
+
+            // Specular reflection (Blinn-Phong)
+            glm::vec3 reflectDir =
+                glm::normalize(glm::reflect(-lightDir, hitNormal));
+            float spec =
+                std::pow(std::max(0.f, -glm::dot(ray.direction, reflectDir)),
+                         intersection.material->specularExponent);
+
+            // Shadow test
+            Ray shadow_ray(shadowCoord, lightDir);
+            Intersection shadow_result = traceScene(shadow_ray);
+            bool is_shadow =
+                shadow_result.intersected &&
+                (std::pow(shadow_result.intersect_time, 2.f) < distance);
+
+            // Compute light contribution
+            glm::vec3 ambient =
+                !is_shadow ? lights[i].intensity : glm::vec3(0.f);
+            glm::vec3 diffuse = !is_shadow ? glm::vec3(diff) : glm::vec3(0.f);
+            glm::vec3 specular = spec * lights[i].intensity;
+
+            // Accumulate to local sum
+            local_sum += (ambient * intersection.material->Ka) +
+                         (diffuse * intersection.material->Kd) +
+                         (specular * intersection.material->Ks);
+          }
+          return local_sum;
+        },
+        [](const glm::vec3 &a, const glm::vec3 &b) {
+          return a + b;
+        } // Combine partial results
+    );
+  }
+
+  else if (intersection.material->getMaterialType() ==
+           MaterialType::REFLECTION_AND_REFRACTION) {
+
+    glm::vec3 reflectPath = glm::vec3(0.0f), refractPath = glm::vec3(0.0f);
+    glm::vec3 reflectedColor = glm::vec3(0.0f),
+              refractedColor = glm::vec3(0.0f);
+
+    // Calculate the dot product of I and N (to determine the angle between
+    // them)
+    const float dot = std::clamp(glm::dot(I, N), -1.f, 1.f);
+
+    // Check if the ray origin is inside the object
+    const bool isInside = intersection.obj->getBounds().inside(ray.origin);
+
+    // Determine if the light is coming from inside to outside or outside to
+    // inside
+    const bool insideToOutside =
+        isInside && dot >= 0; // Inside to outside, normal direction
+    const bool outsideToInside =
+        !isInside && dot < 0; // Outside to inside, normal direction
+
+    // Light is coming from outside to inside
+    if (outsideToInside) {
+      reflectPath = glm::normalize(glm::reflect(I, N));
+      refractPath = glm::refract(I, N, 1.0f / ior);
+    } else if (insideToOutside) {
+      reflectPath = glm::normalize(
+          glm::reflect(I, -N)); // Reflecting against the opposite normal
+      refractPath =
+          glm::refract(I, -N, ior); // Adjust refraction for material to air
+    }
+
+    // calculate offset
+    auto offset = glm::dot(I, N) < 0 ? -N * m_epsilon : N * m_epsilon;
+
+    // prevent relfection and refraction from happening at the same time
+    auto reflectCoord = hitPoint + offset;
+    auto refractCoord = hitPoint + offset;
+
+    /* Total Internal Reflection, TIR */
+    if (glm::length(refractPath) < 1e-6f || std::abs(kr - 1.0f) < 1e-6f) {
+      // prevent relfection and refraction from happening at the same time
+      Ray reflectedRay(reflectCoord, reflectPath);
+      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+      kr = 1.0f;
+    } else {
+      Ray reflectedRay(reflectCoord, reflectPath);
+      Ray refractedRay(refractCoord, refractPath);
+
+      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+      refractedColor = whittedRayTracing(refractedRay, depth + 1, lights);
+    }
+
+    final_color = glm::clamp(reflectedColor * kr + refractedColor * (1.f - kr),
+                             glm::vec3(0.0f), glm::vec3(1.0f));
+
+  } else if (intersection.material->getMaterialType() ==
+             MaterialType::REFLECTION) {
+
+    glm::vec3 reflectPath = glm::vec3(0.0f);
+    glm::vec3 reflectedColor = glm::vec3(0.0f);
+
+    reflectPath = glm::normalize(glm::reflect(I, N));
+
+    // calculate offset
+    auto offset = glm::dot(I, N) < 0 ? -N * m_epsilon : N * m_epsilon;
+
+    auto reflectCoord = hitPoint + offset;
+
+    Ray reflectedRay(reflectCoord, reflectPath);
+
+    reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+
+    final_color =
+        glm::clamp(reflectedColor * kr, glm::vec3(0.0f), glm::vec3(1.0f));
+  }
+
+  return final_color;
+}
+
+void SoftRasterizer::Scene::buildBVHAccel() {
+  try {
+    m_bvh->loadNewObjects(m_exportedObjs);
+    m_bvh->startBuilding();
+    m_boundingBox = m_bvh->getBoundingBox().value();
+  } catch (const std::exception &e) {
+    spdlog::error("BoundingBox Processing Error in Scene {}! Error is: {}",
+                  m_sceneName, e.what());
+  }
+}
+
+/*Remove BVH Structure*/
+void SoftRasterizer::Scene::clearBVHAccel() { m_bvh->clearBVHAccel(); }
+
+void SoftRasterizer::Scene::updatePosition() {
+
+  tbb::parallel_for(
+      oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
+      [&](const oneapi::tbb::blocked_range<std::size_t> &range) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
+          const auto &modelMatrix = m_exportedObjs[i]->getModelMatrix();
+
+          auto NDC_MVP =
+              /*m_ndcToScreenMatrix **/ m_projection * m_view * modelMatrix;
+          auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
+
+          m_exportedObjs[i]->updatePosition(NDC_MVP, Normal_M);
+        }
+      },
+      ap);
+
+  ///*Start to generate pointers to triangles*/
+  // preGenerateBVH();
+
+  /*Delete Existing BVH structure*/
+  clearBVHAccel();
+
+  /*Rebuild BVH*/
+  buildBVHAccel();
 }
 
 tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple>
@@ -279,13 +648,13 @@ SoftRasterizer::Scene::loadTriangleStream() {
   stream.reserve(std::accumulate(
       m_loadedObjs.begin(), m_loadedObjs.end(), static_cast<std::size_t>(0),
       [](std::size_t sum, const auto &objPair) {
-        return sum + objPair.second.mesh->faces.size();
+        return sum + objPair.second.mesh->getFaces().size();
       }));
 
   for (const auto &[meshName, objData] : m_loadedObjs) {
     const auto &mesh = objData.mesh;
     const auto &shader = mesh->m_shader;
-    const auto &modelMatrix = objData.loader->getModelMatrix();
+    const auto &modelMatrix = objData.mesh->getModelMatrix();
 
     auto NDC_MVP = m_ndcToScreenMatrix * m_projection * m_view * modelMatrix;
     auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
@@ -293,14 +662,14 @@ SoftRasterizer::Scene::loadTriangleStream() {
     tbb::concurrent_vector<SoftRasterizer::Triangle> ret;
 
     tbb::parallel_for(
-        tbb::blocked_range<long long>(0, mesh->faces.size()),
+        tbb::blocked_range<long long>(0, mesh->getFaces().size()),
         [&](const tbb::blocked_range<long long> &r) {
           for (long long face_index = r.begin(); face_index < r.end();
                ++face_index) {
-            const auto &face = mesh->faces[face_index];
-            SoftRasterizer::Vertex A = mesh->vertices[face.x];
-            SoftRasterizer::Vertex B = mesh->vertices[face.y];
-            SoftRasterizer::Vertex C = mesh->vertices[face.z];
+            const auto &face = mesh->getFaces()[face_index];
+            SoftRasterizer::Vertex A = mesh->getVertices()[face.x];
+            SoftRasterizer::Vertex B = mesh->getVertices()[face.y];
+            SoftRasterizer::Vertex C = mesh->getVertices()[face.z];
 
             A.position = Tools::to_vec3(NDC_MVP * glm::vec4(A.position, 1.0f));
             A.position.z = A.position.z * scale + offset; // Z-Depth
