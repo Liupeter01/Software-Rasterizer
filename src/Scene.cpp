@@ -365,10 +365,12 @@ SoftRasterizer::Scene::traceScene(const Ray &ray, float &tNear) {
   return std::shared_ptr<SoftRasterizer::Object>(nearestObj, [](Object *) {});
 }
 
-SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
+SoftRasterizer::Intersection 
+SoftRasterizer::Scene::traceScene(Ray &ray) {
 
   std::atomic<std::size_t> obj_addr = 0;
   std::atomic<float> near = std::numeric_limits<float>::max();
+  std::atomic<float> u = 0, v = 0;
 
   tbb::parallel_for(
       oneapi::tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()),
@@ -376,19 +378,25 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
         for (auto i = range.begin(); i != range.end(); ++i) {
 
           Intersection intersect = m_exportedObjs[i]->getIntersect(ray);
+          if (!intersect.intersected) {
+                    continue;
+          }
           float prev_near = near.load(std::memory_order_relaxed);
 
           // Only do the atomic compare if the value has changed
           if (intersect.intersect_time < prev_near &&
               near.compare_exchange_strong(
                   prev_near, intersect.intersect_time,
-                  std::memory_order_acq_rel, // Memory order for the successful
-                                             // exchange
+                  std::memory_order_acq_rel, 
                   std::memory_order_relaxed)) {
 
             // Relaxed here since the value isn't directly shared
             obj_addr.store(reinterpret_cast<std::size_t>(intersect.obj),
                            std::memory_order_relaxed);
+
+            /*UV texCoord*/
+            u.store(intersect.uv.x, std::memory_order_relaxed);
+            v.store(intersect.uv.y, std::memory_order_relaxed);
           }
         }
       },
@@ -418,12 +426,15 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
   ret.index = ret.obj->index;
   ret.coords = ray.origin + ray.direction * ret.intersect_time;
   ret.material = ret.obj->getMaterial();
+  ret.uv = glm::vec2(u.load(), v.load());
 
   /*If it is a mesh, then the object is triangle*/
-  ret.normal = ret.obj
-                   ->getSurfaceProperties(ret.index, ret.coords, ray.direction,
-                                          glm::vec2(0.f))
-                   .normal;
+  auto properites = ret.obj->getSurfaceProperties(ret.index, ret.coords, ray.direction, ret.uv);
+
+  /*interpolated Normal!*/
+  ret.normal = properites.normal;
+  ret.uv = properites.uv;
+  ret.color = properites.color;
   ret.intersected = true;
   return ret;
 }
@@ -466,9 +477,9 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
       MaterialType::DIFFUSE_AND_GLOSSY) {
 
     /*Self-Intersection Problem Avoidance*/
-    glm::vec3 shadowCoord = glm::dot(rayDirection, hitNormal) < 0
-                                ? hitPoint - hitNormal * m_epsilon
-                                : hitPoint + hitNormal * m_epsilon;
+    glm::vec3 shadowCoord = glm::dot(I,N) < 0
+                                ? hitPoint - N * m_epsilon
+                                : hitPoint + N * m_epsilon;
 
     final_color = tbb::parallel_reduce(
         tbb::blocked_range<std::size_t>(0, lights.size()),
@@ -481,7 +492,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
             lightDir = glm::normalize(lightDir);
 
             // Diffuse reflection (Lambertian)
-            float diff = std::max(0.f, glm::dot(hitNormal, lightDir));
+            float diff = std::max(0.f, glm::dot(N, lightDir));
 
             // Specular reflection (Blinn-Phong)
             glm::vec3 reflectDir =
@@ -505,7 +516,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
 
             // Accumulate to local sum
             local_sum += (ambient * intersection.material->Ka) +
-                         (diffuse * intersection.material->Kd) +
+                         (intersection.color) +
                          (specular * intersection.material->Ks);
           }
           return local_sum;
