@@ -10,7 +10,19 @@ SoftRasterizer::Vertex::Vertex(const glm::vec3 &_pos, const glm::vec3 &_normal,
     : position(_pos), normal(_normal), texCoord(_tex), color(_color) {}
 
 SoftRasterizer::Object::Object()
-    : index(0), modelMatrix(1.0f), m_shader(nullptr) {}
+          :Object(nullptr, nullptr)
+{
+}
+
+SoftRasterizer::Object::Object(std::shared_ptr<Material> material)
+          :Object(material, nullptr)
+{
+}
+
+SoftRasterizer::Object::Object(std::shared_ptr<Material> material, std::shared_ptr<Shader> shader)
+          : index(0), modelMatrix(1.0f), m_shader(shader), m_material(material)
+{
+}
 
 SoftRasterizer::Object::~Object() {}
 
@@ -26,11 +38,4 @@ void SoftRasterizer::Object::updateModelMatrix(const glm::vec3 &axis,
 
 const glm::mat4x4 &SoftRasterizer::Object::getModelMatrix() const {
   return modelMatrix;
-}
-
-void SoftRasterizer::Object::bindShader2Mesh(std::shared_ptr<Shader> shader) {
-  /*bind shader2 mesh without dtor,  the life od this pointer is maintained by
-   * render class*/
-  m_shader.reset();
-  m_shader = shader;
 }
