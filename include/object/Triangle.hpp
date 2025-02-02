@@ -8,8 +8,11 @@
 #include <initializer_list>
 #include <object/Material.hpp>
 #include <object/Object.hpp>
+#include <loader/TextureLoader.hpp>
 
 namespace SoftRasterizer {
+
+          class TextureLoader;
 
 enum class FaceNormalType {
   PerGeometry,     // calculate by using cross product
@@ -74,7 +77,12 @@ struct alignas(32) Triangle : public Object {
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;
 
+  void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
+
   void calcBoundingBox(const std::size_t width, const std::size_t height);
+
+  /*Diffuse Color*/
+  glm::vec3 m_diffuseColor;
 
   /*
    * original coord of the triangle, v0, v1, v2 in counter clockwise order
@@ -89,8 +97,6 @@ struct alignas(32) Triangle : public Object {
   /*All the calculations should be done using vert!!!*/
   std::vector<SoftRasterizer::Vertex> vert;
   std::vector<glm::uvec3> faces;
-
-  std::shared_ptr<Material> m_material;
 
   /*BoundBox Calculation!*/
   struct BoundingBox {
