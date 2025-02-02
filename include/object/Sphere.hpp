@@ -27,10 +27,10 @@ public:
                                                 const glm::vec2 &uv);
 
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override {
-    return material->color;
+    return m_material->color;
   }
   [[nodiscard]] std::shared_ptr<Material> &getMaterial() override {
-    return material;
+    return m_material;
   }
 
   /*Compatible Consideration!*/
@@ -44,6 +44,8 @@ public:
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;
 
+  void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
+
 private:
   float radius;
   float square;
@@ -54,7 +56,6 @@ private:
   /*This is the converted center after NDC_MVP*/
   std::vector<SoftRasterizer::Vertex> vert;
   std::vector<glm::uvec3> faces;
-  std::shared_ptr<Material> material;
 };
 } // namespace SoftRasterizer
 
