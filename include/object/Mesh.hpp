@@ -28,21 +28,24 @@ public:
 
 public:
   [[nodiscard]] bool intersect(const Ray &ray) override { return true; }
-  [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override;
+  [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override { return true; }
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
   [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex,
                                                 const glm::vec3 &Point,
                                                 const glm::vec3 &viewDir,
-                                                const glm::vec2 &uv) override;
-  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override;
-  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override;
+                                                const glm::vec2 &uv) override{return {};}
+
+  [[nodiscard]] std::shared_ptr<Material>& getMaterial() override {return   m_material;}
+  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override { return m_material->color; }
 
   /*Compatible Consideration!*/
-  [[nodiscard]] const std::vector<Vertex> &getVertices() const override;
-  [[nodiscard]] const std::vector<glm::uvec3> &getFaces() const override;
+  [[nodiscard]] const std::vector<Vertex>& getVertices() const override { return vertices; }
+  [[nodiscard]] const std::vector<glm::uvec3>& getFaces() const override { return faces; }
 
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;
+
+  void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
   /*Rebuild BVH Structure, When Points position moved!*/
   void rebuildBVHAccel();
@@ -70,9 +73,6 @@ public:
   std::string meshname;
   std::vector<Vertex> vertices;
   std::vector<glm::uvec3> faces;
-
-  // Material
-  std::shared_ptr<Material> MeshMaterial;
 
   // Bounding Box
   Bounds3 bounding_box;
