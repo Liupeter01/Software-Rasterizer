@@ -10,7 +10,7 @@ SoftRasterizer::Mesh::Mesh(const std::string &name,
                            const std::vector<glm::uvec3> &_faces,
                            const Bounds3 &box)
     : meshname(name), vertices(_vertices), faces(_faces), bounding_box(box),
-          Object(std::make_shared<Material>(), nullptr) {
+          Object(std::make_shared<Material>(_material), nullptr) {
 
   /*Generating Triangles*/
   generateTriangles();
