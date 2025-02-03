@@ -5,7 +5,7 @@
 #include <loader/TextureLoader.hpp>
 
 SoftRasterizer::Triangle::Triangle()
-    : box(), vert(3), m_diffuseColor(0.5f), Object(std::make_shared<Material>(), nullptr) {
+    : box(), vert(3), Object(std::make_shared<Material>(), nullptr) {
   for (std::size_t index = 0; index < 3; ++index) {
     m_vertex[index] = glm::vec3(0.f);
     m_color[index] = glm::vec3(0.f);
@@ -22,7 +22,7 @@ SoftRasterizer::Triangle::Triangle(
     const glm::vec2 &texCoordB, const glm::vec2 &texCoordC,
     const glm::vec3 &colorA, const glm::vec3 &colorB, const glm::vec3 &colorC)
 
-    : box(), vert(3), Object(_material, nullptr)  ,m_diffuseColor(0.5f){
+    : box(), vert(3), Object(_material, nullptr){
   vert[0].position = m_vertex[0] = VertexA;
   vert[1].position = m_vertex[1] = VertexB;
   vert[2].position = m_vertex[2] = VertexC;
@@ -98,48 +98,15 @@ SoftRasterizer::Bounds3 SoftRasterizer::Triangle::getBounds() {
                      Bounds3(vert[1].position, vert[2].position));
 }
 
-bool SoftRasterizer::Triangle::rayTriangleIntersect(
-    const Ray &ray, const glm::vec3 &v0, const glm::vec3 &v1,
-    const glm::vec3 &v2, float &tNear, float &u, float &v) {
-
-  glm::vec3 e1 = v1 - v0;
-  glm::vec3 e2 = v2 - v0;
-
-  glm::vec3 pvec = glm::cross(ray.direction, e2);
-  float det = glm::dot(e1, pvec);
-  if (std::abs(det) < std::numeric_limits<float>::epsilon()) {
-    return false;
-  }
-
-  float inv_det = 1.f / det;
-  glm::vec3 tvec = ray.origin - v0;
-  u = glm::dot(tvec, pvec) * inv_det;
-  if (u < 0 || u > det) {
-    return false;
-  }
-
-  glm::vec3 qvec = glm::cross(tvec, e1);
-  v = glm::dot(ray.direction, qvec) * inv_det;
-  if (v < 0 || u + v > det) {
-    return false;
-  }
-
-  tNear = glm::dot(e2, qvec) * inv_det;
-  u *= inv_det;
-  v *= inv_det;
-
-  return tNear > 0;
-}
-
 // Moller Trumbore Algorithm
 SoftRasterizer::Intersection 
 SoftRasterizer::Triangle::getIntersect(Ray &ray) {
-  Intersection ret;
+
   glm::vec3 normal = getFaceNormal();
 
   // back face culling
   if (glm::dot(normal, ray.direction) <= 0) {
-    return ret;
+            return {};
   }
 
   // Caculate Edge Vectors
@@ -150,29 +117,30 @@ SoftRasterizer::Triangle::getIntersect(Ray &ray) {
   glm::vec3 pvec = glm::cross(ray.direction, e2);
   float det = glm::dot(e1, pvec);
   if (std::abs(det) < std::numeric_limits<float>::epsilon()) {
-    return ret;
+            return {};
   }
 
   // barycentric coordinates
   double det_inv = 1.f / det;
   glm::vec3 tvec = ray.origin - vert[0].position;
   float u = glm::dot(tvec, pvec) * det_inv;
-  if (u < 0 || u > 1) {
-    return ret;
+  if (u < 0 || std::abs(u - 1.0f) < std::numeric_limits<float>::epsilon() ) {
+            return {};
   }
 
   glm::vec3 qvec = glm::cross(tvec, e1);
   float v = glm::dot(ray.direction, qvec) * det_inv;
   if (v < 0 || u + v > 1) {
-    return ret;
+            return {};
   }
 
   // calculate the intersect time
   float t0 = glm::dot(e2, qvec) * det_inv;
   if (t0 < 0) {
-    return ret;
+            return {};
   }
 
+  Intersection ret;
   ret.obj = this;
   ret.intersect_time = t0;
   ret.coords = ray.direction * ret.intersect_time + ray.origin;
@@ -216,13 +184,13 @@ SoftRasterizer::Triangle::getSurfaceProperties(const std::size_t faceIndex,
   return ret;
 }
 
-glm::vec3 SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2 &uv) {
-
+glm::vec3 
+SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2 &uv) {
           //When m_shader is nullptr then skip this code block
-          if (m_shader) {
-                    m_diffuseColor = m_shader->getTextureObject()->getTextureColor(uv);
+          if (!m_shader) {
+                    return glm::vec3(1.0f);
           }
-          return m_diffuseColor;
+         return m_shader->getTextureObject()->getTextureColor(uv);
 }
 
 void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,

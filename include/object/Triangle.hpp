@@ -48,11 +48,6 @@ struct alignas(32) Triangle : public Object {
   }
 
   // Moller Trumbore Algorithm
-  [[nodiscard]] static bool
-  rayTriangleIntersect(const Ray &ray, const glm::vec3 &v0, const glm::vec3 &v1,
-                       const glm::vec3 &v2, float &tNear, float &u, float &v);
-
-  // Moller Trumbore Algorithm
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
   [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex,
                                                 const glm::vec3 &Point,
@@ -80,9 +75,6 @@ struct alignas(32) Triangle : public Object {
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);
-
-  /*Diffuse Color*/
-  glm::vec3 m_diffuseColor;
 
   /*
    * original coord of the triangle, v0, v1, v2 in counter clockwise order
