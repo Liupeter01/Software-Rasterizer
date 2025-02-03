@@ -25,35 +25,21 @@ void SoftRasterizer::RayTracing::draw(Primitive type) {
     float scale = std::tan(glm::radians(SceneObj->m_fovy * 0.5));
 
     oneapi::tbb::parallel_for(
-        oneapi::tbb::blocked_range<std::size_t>(0, m_height, 16),
-        [&](const oneapi::tbb::blocked_range<std::size_t> &yrange) {
-          for (auto ry = yrange.begin(); ry != yrange.end(); ++ry) {
+              oneapi::tbb::blocked_range<std::size_t>(0, m_height * m_width),
+              [&](const oneapi::tbb::blocked_range<std::size_t>& range) {
+                        for (auto idx = range.begin(); idx != range.end(); ++idx) {
+                                  int rx = idx % m_width, ry = idx / m_width;
 
-            oneapi::tbb::parallel_for(
-                oneapi::tbb::blocked_range<std::size_t>(0, m_width, 16),
-                [&](const oneapi::tbb::blocked_range<std::size_t> &xrange) {
-                  for (auto rx = xrange.begin(); rx != xrange.end(); ++rx) {
+                                  float x = (2 * (rx + 0.5f) / static_cast<float>(m_width) - 1) * aspect_ratio * scale;
+                                  float y = (2 * (ry + 0.5f) / static_cast<float>(m_height) - 1) * scale;
 
-                    float x =
-                        (2 * (rx + 0.5f) / static_cast<float>(m_width) - 1) *
-                        aspect_ratio * scale;
-                    float y =
-                        (2 * (ry + 0.5f) / static_cast<float>(m_height) - 1) *
-                        scale;
+                                  Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
 
-                    /*Don't forgot to normalize the direction argument*/
-                    Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
-
-                    /*Get the Nearest Intersection Point*/
-                    writePixel(
-                        rx, ry,
-                        Tools::normalizedToRGB(
-                            SceneObj->whittedRayTracing(ray, 0, lights)));
-                  }
-                },
-                ap);
-          }
-        },
-        ap);
+                                  writePixel(rx, ry,
+                                            Tools::normalizedToRGB(SceneObj->whittedRayTracing(ray, 0, lights))
+                                  );
+                        }
+              },
+              ap);
   }
 }
