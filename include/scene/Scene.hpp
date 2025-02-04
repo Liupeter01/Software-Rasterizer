@@ -76,6 +76,9 @@ public:
   addLights(std::vector<std::pair<std::string, std::shared_ptr<light_struct>>>
                 lights);
 
+  void cameraLight(bool status);
+  void cameraLight(const glm::vec3& intensity);
+
   /*Generating BVH Structure*/
   void buildBVHAccel();
 
@@ -90,6 +93,9 @@ protected:
   std::vector<SoftRasterizer::light_struct> loadLights();
 
 private:
+          /*The intensity is 0 by default*/
+          void initCameraLight();
+
   /*NDC Matrix Function is prepare for renderpipeline class!*/
   void setNDCMatrix(const std::size_t width, const std::size_t height);
 
@@ -123,6 +129,9 @@ private:
   /*display resolution*/
   std::size_t m_width, m_height;
   float m_aspectRatio;
+
+  /*Camera Light Status*/
+  std::shared_ptr<light_struct> m_cameraLight;
 
   /*Matrix View*/
   glm::vec3 m_eye, m_center, m_up;

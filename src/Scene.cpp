@@ -13,10 +13,11 @@ SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const std::size_t maxdepth)
     : m_width(0), m_height(0), m_sceneName(sceneName), m_maxDepth(maxdepth),
       m_backgroundColor(backgroundColor), m_eye(eye), m_center(center),
-      m_up(up), m_fovy(45.0f), m_aspectRatio(0.0f), scale(0.0f), offset(0.0f),
+      m_up(up), m_fovy(45.0f), m_aspectRatio(0.0f), scale(0.0f), offset(0.0f), m_cameraLight(nullptr),
       m_bvh(std::make_unique<BVHAcceleration>()) {
   try {
     setViewMatrix(eye, center, up);
+     initCameraLight();
   } catch (const std::exception &e) {
     spdlog::error("Scene Constructor Error! Reason: {}", e.what());
   }
@@ -219,6 +220,19 @@ void SoftRasterizer::Scene::addLights(
   }
 }
 
+void SoftRasterizer::Scene::cameraLight(bool status) {
+          //if status is false, then set intensity to zero
+          if (!status) {
+                    m_lights["sys_camera"]->intensity = glm::vec3(0.f);
+                    return;
+          }
+          cameraLight(glm::vec3(1.f));
+}
+
+void SoftRasterizer::Scene::cameraLight(const glm::vec3& intensity) {
+          m_lights["sys_camera"]->intensity = intensity;
+}
+
 /*set MVP*/
 bool SoftRasterizer::Scene::setModelMatrix(const std::string &meshName,
                                            const glm::vec3 &axis,
@@ -277,6 +291,15 @@ std::vector<SoftRasterizer::light_struct> SoftRasterizer::Scene::loadLights() {
                    return *light.second;
                  });
   return res;
+}
+
+void SoftRasterizer::Scene::initCameraLight() {
+          m_cameraLight.reset();
+          m_cameraLight = std::make_shared<light_struct>();
+          m_cameraLight->intensity = glm::vec3{ 0.f };
+          m_cameraLight->position = m_eye;
+
+          addLight("sys_camera", m_cameraLight);
 }
 
 void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
@@ -440,7 +463,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
             // Compute light contribution
             glm::vec3 ambient =
                 !is_shadow ? lights[i].intensity : glm::vec3(0.f);
-            glm::vec3 diffuse = !is_shadow ? glm::vec3(diff) : glm::vec3(0.f);
+            glm::vec3 diffuse = !is_shadow ? glm::vec3(diff) * lights[i].intensity: glm::vec3(0.f);
             glm::vec3 specular = spec * lights[i].intensity;
 
             // Accumulate to local sum
