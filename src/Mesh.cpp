@@ -10,7 +10,7 @@ SoftRasterizer::Mesh::Mesh(const std::string &name,
                            const std::vector<glm::uvec3> &_faces,
                            const Bounds3 &box)
     : meshname(name), vertices(_vertices), faces(_faces), bounding_box(box),
-          Object(std::make_shared<Material>(_material), nullptr) {
+      Object(std::make_shared<Material>(_material), nullptr) {
 
   /*Generating Triangles*/
   generateTriangles();
@@ -22,11 +22,12 @@ SoftRasterizer::Mesh::Mesh(const std::string &name,
   buildBVHAccel();
 }
 
-SoftRasterizer::Mesh::Mesh(const std::string& name,
-          SoftRasterizer::Material&& _material,
-          std::vector<Vertex>&& _vertices,
-          std::vector<glm::uvec3>&& _faces, Bounds3&& box)
-          : meshname(name), Object(std::make_shared<Material>(std::move(_material)), nullptr),
+SoftRasterizer::Mesh::Mesh(const std::string &name,
+                           SoftRasterizer::Material &&_material,
+                           std::vector<Vertex> &&_vertices,
+                           std::vector<glm::uvec3> &&_faces, Bounds3 &&box)
+    : meshname(name),
+      Object(std::make_shared<Material>(std::move(_material)), nullptr),
       vertices(std::move(_vertices)), faces(std::move(_faces)),
       bounding_box(std::move(box)) {
 
@@ -65,12 +66,12 @@ void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4 &NDC_MVP,
 }
 
 void SoftRasterizer::Mesh::bindShader2Mesh(std::shared_ptr<Shader> shader) {
-          m_shader.reset();
-          m_shader = shader;
+  m_shader.reset();
+  m_shader = shader;
 
-          tbb::parallel_for(std::size_t(0), m_triangles.size(), [&](std::size_t i) {
-                    m_triangles[i]->bindShader2Mesh(m_shader);
-                    });
+  tbb::parallel_for(std::size_t(0), m_triangles.size(), [&](std::size_t i) {
+    m_triangles[i]->bindShader2Mesh(m_shader);
+  });
 }
 
 /*Generating Triangles*/

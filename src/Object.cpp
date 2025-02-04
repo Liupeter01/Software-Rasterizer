@@ -9,20 +9,14 @@ SoftRasterizer::Vertex::Vertex(const glm::vec3 &_pos, const glm::vec3 &_normal,
                                const glm::vec2 &_tex, const glm::vec3 &_color)
     : position(_pos), normal(_normal), texCoord(_tex), color(_color) {}
 
-SoftRasterizer::Object::Object()
-          :Object(nullptr, nullptr)
-{
-}
+SoftRasterizer::Object::Object() : Object(nullptr, nullptr) {}
 
 SoftRasterizer::Object::Object(std::shared_ptr<Material> material)
-          :Object(material, nullptr)
-{
-}
+    : Object(material, nullptr) {}
 
-SoftRasterizer::Object::Object(std::shared_ptr<Material> material, std::shared_ptr<Shader> shader)
-          : index(0), modelMatrix(1.0f), m_shader(shader), m_material(material)
-{
-}
+SoftRasterizer::Object::Object(std::shared_ptr<Material> material,
+                               std::shared_ptr<Shader> shader)
+    : index(0), modelMatrix(1.0f), m_shader(shader), m_material(material) {}
 
 SoftRasterizer::Object::~Object() {}
 

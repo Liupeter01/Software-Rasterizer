@@ -3,9 +3,8 @@
 SoftRasterizer::Sphere::Sphere() : Sphere(glm::vec3(0.f), 1.f) {}
 
 SoftRasterizer::Sphere::Sphere(const glm::vec3 &_center, const float _radius)
-    : vert(1), center(_center), radius(_radius), square(radius * radius), 
-          Object(std::make_shared<Material>(), nullptr)
-{}
+    : vert(1), center(_center), radius(_radius), square(radius * radius),
+      Object(std::make_shared<Material>(), nullptr) {}
 
 SoftRasterizer::Sphere::~Sphere() {}
 
@@ -14,9 +13,9 @@ void SoftRasterizer::Sphere::updatePosition(const glm::mat4x4 &NDC_MVP,
   vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(center, 1.0f));
 }
 
-void SoftRasterizer::Sphere::bindShader2Mesh(std::shared_ptr<Shader> shader){
-          m_shader.reset();
-          m_shader = shader;
+void SoftRasterizer::Sphere::bindShader2Mesh(std::shared_ptr<Shader> shader) {
+  m_shader.reset();
+  m_shader = shader;
 }
 
 SoftRasterizer::Bounds3 SoftRasterizer::Sphere::getBounds() {

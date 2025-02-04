@@ -249,7 +249,7 @@ float SoftRasterizer::Tools::fresnel(const glm::vec3 &rayDirection,
                                      const glm::vec3 &normal,
                                      const float &refractiveIndex) {
 
-          // Compute the cosine of the angle between the incident ray and the normal
+  // Compute the cosine of the angle between the incident ray and the normal
   float cosi = std::clamp(glm::dot(rayDirection, normal), -1.0f, 1.0f);
   float etai = 1, etat = refractiveIndex;
   if (cosi > 0) {
@@ -259,14 +259,12 @@ float SoftRasterizer::Tools::fresnel(const glm::vec3 &rayDirection,
   float sint = etai / etat * sqrtf(std::max(0.f, 1 - cosi * cosi));
   // Total internal reflection
   if (sint >= 1.0f) {
-            return 1.0f;
+    return 1.0f;
   }
-    float cost = sqrtf(std::max(0.f, 1 - sint * sint));
-    cosi = fabsf(cosi);
-    float Rs =
-              ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
-    float Rp =
-              ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+  float cost = sqrtf(std::max(0.f, 1 - sint * sint));
+  cosi = fabsf(cosi);
+  float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+  float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
 
-    return (Rs * Rs + Rp * Rp) / 2.f;
+  return (Rs * Rs + Rp * Rp) / 2.f;
 }
