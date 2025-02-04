@@ -36,7 +36,7 @@ public:
                                                 const glm::vec2 &uv) override{return {};}
 
   [[nodiscard]] std::shared_ptr<Material>& getMaterial() override {return   m_material;}
-  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override { return m_material->color; }
+  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override { return glm::vec3(1.0f); }
 
   /*Compatible Consideration!*/
   [[nodiscard]] const std::vector<Vertex>& getVertices() const override { return vertices; }
