@@ -8,8 +8,11 @@
 #include <initializer_list>
 #include <object/Material.hpp>
 #include <object/Object.hpp>
+#include <loader/TextureLoader.hpp>
 
 namespace SoftRasterizer {
+
+          class TextureLoader;
 
 enum class FaceNormalType {
   PerGeometry,     // calculate by using cross product
@@ -45,11 +48,6 @@ struct alignas(32) Triangle : public Object {
   }
 
   // Moller Trumbore Algorithm
-  [[nodiscard]] static bool
-  rayTriangleIntersect(const Ray &ray, const glm::vec3 &v0, const glm::vec3 &v1,
-                       const glm::vec3 &v2, float &tNear, float &u, float &v);
-
-  // Moller Trumbore Algorithm
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
   [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex,
                                                 const glm::vec3 &Point,
@@ -74,6 +72,8 @@ struct alignas(32) Triangle : public Object {
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;
 
+  void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
+
   void calcBoundingBox(const std::size_t width, const std::size_t height);
 
   /*
@@ -89,8 +89,6 @@ struct alignas(32) Triangle : public Object {
   /*All the calculations should be done using vert!!!*/
   std::vector<SoftRasterizer::Vertex> vert;
   std::vector<glm::uvec3> faces;
-
-  std::shared_ptr<Material> m_material;
 
   /*BoundBox Calculation!*/
   struct BoundingBox {

@@ -1,6 +1,8 @@
 #include <object/Cube.hpp>
 
-SoftRasterizer::Cube::Cube() {}
+SoftRasterizer::Cube::Cube()
+          : Object(std::make_shared<Material>(), nullptr) 
+{}
 
 SoftRasterizer::Cube::~Cube() {}
 
@@ -22,23 +24,14 @@ SoftRasterizer::Object::Properties SoftRasterizer::Cube::getSurfaceProperties(
   return {};
 }
 
-std::shared_ptr<SoftRasterizer::Material> &SoftRasterizer::Cube::getMaterial() {
-  return material;
-}
-
-/*Compatible Consideration!*/
-const std::vector<SoftRasterizer::Vertex> &
-SoftRasterizer::Cube::getVertices() const {
-  return vert;
-}
-
-const std::vector<glm::uvec3> &SoftRasterizer::Cube::getFaces() const {
-  return faces;
-}
-
 glm::vec3 SoftRasterizer::Cube::getDiffuseColor(const glm::vec2 &uv) {
   return glm::vec3(0.5f);
 }
 
 void SoftRasterizer::Cube::updatePosition(const glm::mat4x4 &NDC_MVP,
                                           const glm::mat4x4 &Normal_M) {}
+
+void SoftRasterizer::Cube::bindShader2Mesh(std::shared_ptr<Shader> shader) {
+          m_shader.reset();
+          m_shader = shader;
+}

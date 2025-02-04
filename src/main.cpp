@@ -26,7 +26,6 @@ int main() {
 
   diffuse_sphere->getMaterial()->type =
       SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  diffuse_sphere->getMaterial()->color = glm::vec3(0.6f, 0.7f, 0.8f);
   diffuse_sphere->getMaterial()->Kd = glm::vec3(0.6f, 0.7f, 0.8f);
   diffuse_sphere->getMaterial()->Ka = glm::vec3(0.105f);
   diffuse_sphere->getMaterial()->Ks = glm::vec3(0.7937f);
@@ -40,25 +39,49 @@ int main() {
   /*Set REFLECTION_AND_REFRACTION Material*/
   reflect_sphere->getMaterial()->type =
       SoftRasterizer::MaterialType::REFLECTION_AND_REFRACTION;
-  reflect_sphere->getMaterial()->ior = 1.49f; /*Air to Glass*/
+  reflect_sphere->getMaterial()->ior = 2.0f; /*Air to Glass*/
 
   scene->addGraphicObj(std::move(reflect_sphere), "reflect");
   scene->addGraphicObj(std::move(diffuse_sphere), "diffuse");
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/bunny/bunny.obj", "bunny",
-                       glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(1.f));
+  /*Add a spot object*/
+  scene->addGraphicObj(
+            CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
+            glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(0.3f));
 
-  scene->startLoadingMesh("bunny");
+  scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
+            glm::vec3(0.f, 1.f, 0.f), 0.f, glm::vec3(0.0f), glm::vec3(0.2f));
 
-  /*Modify Bunny's Material Properties*/
-  auto bunny_obj = scene->getMeshObj("bunny");
-  bunny_obj.value()->getMaterial()->type =
-      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  bunny_obj.value()->getMaterial()->color = glm::vec3(1.0f);
-  bunny_obj.value()->getMaterial()->Kd = glm::vec3(1.0f);
-  bunny_obj.value()->getMaterial()->Ka = glm::vec3(0.015f);
-  bunny_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
-  bunny_obj.value()->getMaterial()->specularExponent = 150.f;
+  /*Add a texture shader for spot object!*/
+  scene->addShader("spot_shader",
+            CONFIG_HOME "examples/models/spot/spot_texture.png",
+            SoftRasterizer::SHADERS_TYPE::TEXTURE);
+
+  scene->addShader("crate_shader",
+            CONFIG_HOME "examples/models/Crate/crate1.png",
+            SoftRasterizer::SHADERS_TYPE::TEXTURE);
+
+  scene->startLoadingMesh("spot");
+  scene->startLoadingMesh("Crate");
+
+  /*Modify spot's Material Properties*/
+  auto spot_obj = scene->getMeshObj("spot");
+  spot_obj.value()->getMaterial()->type =
+            SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
+  spot_obj.value()->getMaterial()->Ka = glm::vec3(0.005f);
+  spot_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
+  spot_obj.value()->getMaterial()->specularExponent = 150.f;
+
+  /*Modify Crate's Material Properties*/
+  auto crate_obj = scene->getMeshObj("Crate");
+  crate_obj.value()->getMaterial()->type =
+            SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
+  crate_obj.value()->getMaterial()->Ka = glm::vec3(0.005f);
+  crate_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
+  crate_obj.value()->getMaterial()->specularExponent = 150.f;
+
+  scene->bindShader2Mesh("spot", "spot_shader");
+  scene->bindShader2Mesh("Crate", "crate_shader");
 
   /*Add Light To Scene*/
   auto light1 = std::make_shared<SoftRasterizer::light_struct>();
@@ -69,7 +92,7 @@ int main() {
   light2->position = glm::vec3{-0.5f, -0.4f, -0.9f};
   light2->intensity = glm::vec3{1, 1, 1};
 
-  scene->addLight("Light1", light1);
+  //scene->addLight("Light1", light1);
   scene->addLight("Light2", light2);
 
   /*Register Scene To Render Main Frame*/
@@ -83,11 +106,18 @@ int main() {
 
     /*Model Matrix*/
     scene->setModelMatrix(
-        "bunny",
+        "spot",
         /*axis=*/glm::vec3(0.f, 1.f, 0.f),
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.1f, -0.1f, 0.f),
-        /*scale=*/glm::vec3(1.f));
+        /*transform=*/glm::vec3(0.1f, 0.f, 0.f),
+        /*scale=*/glm::vec3(0.1f));
+
+    scene->setModelMatrix(
+              "Crate",
+              /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+              /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
+              /*transform=*/glm::vec3(0.1f, -0.12f, 0.f),
+              /*scale=*/glm::vec3(0.05f));
 
     scene->setModelMatrix("reflect",
                           /*axis=*/glm::vec3(0.f, 1.f, 0.f),

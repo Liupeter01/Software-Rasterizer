@@ -74,6 +74,10 @@ public:
   Shader(std::shared_ptr<TextureLoader> _loader);
 
 public:
+          std::shared_ptr<TextureLoader>& getTextureObject() {
+                    return texture;
+          }
+
   bool setFragmentShader(SHADERS_TYPE type);
 
   /*User Vertex Shader*/

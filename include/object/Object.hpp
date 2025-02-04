@@ -6,10 +6,13 @@
 #include <optional>
 #include <ray/Intersection.hpp>
 #include <ray/Ray.hpp> //ray def
+#include <object/Material.hpp>
+#include <shader/Shader.hpp>
 
 namespace SoftRasterizer {
 /*forward declaration*/
 class Shader;
+class Scene;
 
 struct Vertex {
   Vertex();
@@ -28,6 +31,7 @@ struct Vertex {
 };
 
 struct Object {
+          friend class Scene;
 
   struct Properties {
     glm::vec3 normal = glm::vec3(0.f);
@@ -36,6 +40,8 @@ struct Object {
   };
 
   Object();
+  Object(std::shared_ptr<Material> material);
+  Object(std::shared_ptr<Material> material, std::shared_ptr<Shader> shader);
   virtual ~Object();
   virtual Bounds3 getBounds() = 0;
   virtual bool intersect(const Ray &) = 0;
@@ -57,7 +63,8 @@ struct Object {
   virtual void updatePosition(const glm::mat4x4 &NDC_MVP,
                               const glm::mat4x4 &Normal_M) = 0;
 
-  void bindShader2Mesh(std::shared_ptr<Shader> shader);
+  virtual void bindShader2Mesh(std::shared_ptr<Shader> shader) = 0;
+
   void updateModelMatrix(const glm::vec3 &axis, const float angle,
                          const glm::vec3 &translation, const glm::vec3 &scale);
 
@@ -67,8 +74,11 @@ public:
   std::size_t index = 0;
   glm::mat4x4 modelMatrix = glm::mat4x4(1.0f);
 
-  // Shading structure
-  std::shared_ptr<Shader> m_shader;
+protected:
+          std::shared_ptr<Material> m_material;
+
+          // Shading structure
+          std::shared_ptr<Shader> m_shader;
 };
 } // namespace SoftRasterizer
 

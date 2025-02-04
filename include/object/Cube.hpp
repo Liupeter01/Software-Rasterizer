@@ -20,20 +20,21 @@ public:
                                                 const glm::vec3 &viewDir,
                                                 const glm::vec2 &uv) override;
 
-  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override;
+  [[nodiscard]] std::shared_ptr<Material>& getMaterial() override { return m_material; }
 
   /*Compatible Consideration!*/
-  [[nodiscard]] const std::vector<Vertex> &getVertices() const override;
-  [[nodiscard]] const std::vector<glm::uvec3> &getFaces() const override;
+  [[nodiscard]] const std::vector<Vertex> &getVertices() const override { return vert; }
+  [[nodiscard]] const std::vector<glm::uvec3>& getFaces() const override { return faces; }
 
   /*Perform (NDC) MVP Calculation*/
   [[nodiscard]] void updatePosition(const glm::mat4x4 &NDC_MVP,
                                     const glm::mat4x4 &Normal_M) override;
 
+  void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
+
 private:
-  std::shared_ptr<Material> material;
-  std::vector<SoftRasterizer::Vertex> vert;
-  std::vector<glm::uvec3> faces;
+          std::vector<SoftRasterizer::Vertex> vert;
+          std::vector<glm::uvec3> faces;
 };
 } // namespace SoftRasterizer
 

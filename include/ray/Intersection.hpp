@@ -11,8 +11,8 @@ struct Material;
 
 struct Intersection {
   Intersection()
-      : intersected(false), coords(glm::vec3(0.f)), normal(glm::vec3(0.f)),
-        index(0), intersect_time(std::numeric_limits<float>::max()),
+      : intersected(false), coords(glm::vec3(0.f)), normal(glm::vec3(0.f)),uv(glm::vec2(0.f)),
+        index(0), intersect_time(std::numeric_limits<float>::max()), color(1.0f),
         obj(nullptr), material(nullptr) {}
 
   std::size_t index;
@@ -20,6 +20,8 @@ struct Intersection {
   float intersect_time;
   glm::vec3 coords;
   glm::vec3 normal;
+  glm::vec3 color;
+  glm::vec2 uv;
   Object *obj;
   std::shared_ptr<Material> material;
 };
