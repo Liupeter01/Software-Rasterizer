@@ -97,6 +97,7 @@ SoftRasterizer::Intersection SoftRasterizer::Sphere::getIntersect(Ray &ray) {
 
   ret.obj = this;
   ret.intersect_time = t0;
+  ret.material = m_material;
   ret.coords = ray.direction * t0 + ray.origin;
 
   /*Normal of a sphere!*/
