@@ -98,9 +98,8 @@ private:
 
   // emit ray from eye to pixel and trace the scene to find the nearest object
   // intersected by the ray
-  std::optional<std::shared_ptr<Object>> traceScene(const Ray &ray,
-                                                    float &tNear);
   Intersection traceScene(Ray &ray);
+
   glm::vec3
   whittedRayTracing(Ray &ray, int depth,
                     const std::vector<SoftRasterizer::light_struct> &lights);
