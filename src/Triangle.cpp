@@ -142,6 +142,8 @@ SoftRasterizer::Triangle::getIntersect(Ray &ray) {
 
   Intersection ret;
   ret.obj = this;
+  ret.index = index;
+  ret.material = m_material;
   ret.intersect_time = t0;
   ret.coords = ray.direction * ret.intersect_time + ray.origin;
   ret.uv = glm::vec2(u, v);
@@ -169,15 +171,17 @@ SoftRasterizer::Triangle::getSurfaceProperties(const std::size_t faceIndex,
                                                const glm::vec3 &Point,
                                                const glm::vec3 &viewDir,
                                                const glm::vec2 &uv) {
+
+          float w = 1.0f - uv.x - uv.y;
+
   Properties ret;
-  //ret.normal = getFaceNormal();
   ret.normal = glm::normalize(
-            (1 - uv.x - uv.y) * vert[0].normal +
+            w* vert[0].normal +
             uv.x * vert[1].normal +
             uv.y * vert[2].normal
   );
 
-  ret.uv = m_texCoords[0] * (1 - uv.x - uv.y) + m_texCoords[1] * uv.x + m_texCoords[2] * uv.y;
+  ret.uv = m_texCoords[0] * w + m_texCoords[1] * uv.x + m_texCoords[2] * uv.y;
 
   /*get color of this point*/
   ret.color = getDiffuseColor(ret.uv);
