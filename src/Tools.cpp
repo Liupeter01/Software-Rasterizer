@@ -242,7 +242,7 @@ glm::vec3 SoftRasterizer::Tools::calculateNormalWithWeight(
   if (!(-(1e-8) <= length && length <= 1e-8)) {
     normal = normal * (glm::asin(arc_sin_degree) / length);
   }
-  return normal;
+  return glm::normalize(normal);
 }
 
 float SoftRasterizer::Tools::fresnel(const glm::vec3 &rayDirection,
