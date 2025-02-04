@@ -36,8 +36,8 @@ SoftRasterizer::Triangle::Triangle(
   vert[2].normal = m_normal[2] = NormalC;
 
   vert[0].texCoord = m_texCoords[0] = texCoordA;
-  vert[1].texCoord = m_texCoords[1] = texCoordA;
-  vert[2].texCoord = m_texCoords[2] = texCoordA;
+  vert[1].texCoord = m_texCoords[1] = texCoordB;
+  vert[2].texCoord = m_texCoords[2] = texCoordC;
 }
 
 void SoftRasterizer::Triangle::setVertex(
@@ -130,7 +130,7 @@ SoftRasterizer::Triangle::getIntersect(Ray &ray) {
 
   glm::vec3 qvec = glm::cross(tvec, e1);
   float v = glm::dot(ray.direction, qvec) * det_inv;
-  if (v < 0 || u + v > 1) {
+  if (v < 0 || (u + v) > 1) {
             return {};
   }
 
@@ -202,18 +202,12 @@ void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
 
   vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[0], 1.0f));
   vert[0].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f));
-  vert[0].texCoord = m_texCoords[0];
-  vert[0].color = m_color[0];
 
   vert[1].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[1], 1.0f));
   vert[1].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f));
-  vert[1].texCoord = m_texCoords[1];
-  vert[1].color = m_color[1];
 
   vert[2].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[2], 1.0f));
   vert[2].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f));
-  vert[2].texCoord = m_texCoords[2];
-  vert[2].color = m_color[2];
 }
 
 void SoftRasterizer::Triangle::bindShader2Mesh(std::shared_ptr<Shader> shader) {
