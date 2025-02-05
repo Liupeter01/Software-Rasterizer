@@ -72,6 +72,7 @@ struct Triangle;
 
 struct Tools {
   static constexpr float PI = 3.14159265358979323846f;
+  static constexpr float PI_INV = 1.0f / PI;
 
   // Base case: min with two arguments
   template <typename T> static T min(T a, T b) { return (a < b) ? a : b; }
