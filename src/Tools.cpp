@@ -1,6 +1,7 @@
+#include <random>
 #include <Tools.hpp>
-#include <object/Triangle.hpp>
 #include <spdlog/spdlog.h>
+#include <object/Triangle.hpp>
 
 #if defined(__x86_64__) || defined(_WIN64)
 SoftRasterizer::NormalSIMD::NormalSIMD(const __m256 &_x, const __m256 &_y,
@@ -267,4 +268,12 @@ float SoftRasterizer::Tools::fresnel(const glm::vec3 &rayDirection,
   float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
 
   return (Rs * Rs + Rp * Rp) / 2.f;
+}
+
+const float SoftRasterizer::Tools::random_generator() {
+          /*Random Generator*/
+          std::random_device rnd;
+          std::mt19937 mt(rnd());
+          std::uniform_real_distribution<float> unf(0.f, 1.0f);
+          return unf(mt);
 }
