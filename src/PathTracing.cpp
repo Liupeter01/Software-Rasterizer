@@ -1,7 +1,6 @@
 #include <render/PathTracing.hpp>
 #include <algorithm> // Add this include for std::clamp
 #include <base/Render.hpp>
-#include <render/PathTracing.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/blocked_range2d.h>
 #include <tbb/parallel_for.h>
@@ -14,6 +13,9 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
           }
 
           float aspect_ratio = m_width / static_cast<float>(m_height);
+
+          /*Path Tracing Sample Variable*/
+          const std::size_t sample = 16;
 
           for (auto& [SceneName, SceneObj] : m_scenes) {
                     /*
@@ -43,7 +45,10 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
 
                                                             try {
                                                                       Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
-                                                                      glm::vec3 color = SceneObj->pathTracingSerial(ray, 0, lights);
+                                                                      glm::vec3 color = glm::vec3(0.f);
+                                                                      for (std::size_t i = 0; i < sample; ++i) {
+                                                                                color += SceneObj->pathTracingSerial(ray, 0, lights) / glm::vec3(sample);
+                                                                      }
                                                                       writePixel(rx, ry, Tools::normalizedToRGB(color));
                                                             }
                                                             catch (const std::exception& e) {
