@@ -144,10 +144,12 @@ SoftRasterizer::BVHAcceleration::recursive(
 
   /*I'm the Leaf Node*/
   if (objs.size() == 1) {
+            auto obj = (*objs.begin());
     node->left = nullptr;
     node->right = nullptr;
-    node->box = (*objs.begin())->getBounds();
-    node->obj = std::shared_ptr<Object>(*objs.begin(), [](auto T) {});
+    node->box = obj->getBounds();
+    node->obj = std::shared_ptr<Object>(obj, [](auto T) {});
+    node->area = obj->getArea();
     return node;
   }
   /*I am The Root Node*/
@@ -182,5 +184,44 @@ SoftRasterizer::BVHAcceleration::recursive(
         tbb::concurrent_vector<Object *>(objs.begin() + middle, objs.end()));
   }
   node->box = BoundsUnion(node->left->box, node->right->box);
+  node->area = node->left->area + node->right->area;
   return node;
+}
+
+void
+SoftRasterizer::BVHAcceleration::sample(BVHBuildNode* node, 
+                                                                      const float area, 
+                                                                      Intersection &intersect, 
+                                                                      float&pdf) {
+          if (!node)  return;
+
+          /*Every Obj is on leaf node!*/
+          if (node->left == nullptr && node->right == nullptr) {
+                    auto [obj_intersection, obj_pdf] = node->obj->sample();
+                    intersect = obj_intersection;
+                    pdf = obj_pdf;
+                    pdf *= node->obj->getArea();
+                    return;
+          }
+          if (area < node->left->area) {
+                    if (node->left != nullptr) 
+                              sample(node->left.get(), area, intersect, pdf);
+          }
+          else {
+                    if (node->right != nullptr)  
+                              sample(node->right.get(), area - node->left->area, intersect, pdf);
+          }
+}
+
+/*Read Parameters from the object of sample*/
+std::tuple<SoftRasterizer::Intersection, float> 
+SoftRasterizer::BVHAcceleration::sample() {
+          Intersection intersect{};
+          float pdf = 0.f;
+
+          /*Use Total Area Value and a ratio to do sample*/
+          const float area = std::sqrt(Tools::random_generator()) * root->area;
+
+          sample(root.get(), area, intersect, pdf);
+          return { intersect, pdf /= root->area };
 }
