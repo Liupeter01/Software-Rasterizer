@@ -1,27 +1,30 @@
 #pragma once
 #ifndef _SCENE_HPP_
 #define _SCENE_HPP_
-#include <atomic>
-#include <bvh/BVHAcceleration.hpp>
-#include <future>
-#include <hpc/Simd.hpp>
-#include <loader/ObjLoader.hpp>
-#include <optional>
-#include <shader/Shader.hpp>
-#include <tbb/concurrent_vector.h>
 #include <tuple>
+#include <future>
+#include <atomic>
+#include <optional>
+#include <random>   //generate random number
 #include <unordered_map>
+#include <hpc/Simd.hpp>
+#include <shader/Shader.hpp>
+#include <loader/ObjLoader.hpp>
+#include <tbb/concurrent_vector.h>
+#include <bvh/BVHAcceleration.hpp>
 
 namespace SoftRasterizer {
 class Triangle;
 class RenderingPipeline;
 class TraditionalRasterizer;
 class RayTracing;
+class PathTracing;
 
 class Scene {
   friend class TraditionalRasterizer;
   friend class RayTracing;
   friend class RenderingPipeline;
+  friend class PathTracing;
 
 public:
   using ObjTuple = std::tuple<std::shared_ptr<Shader>,
@@ -106,9 +109,15 @@ private:
   // intersected by the ray
   Intersection traceScene(Ray &ray);
 
+  //Whitted Style Ray Tracing
   glm::vec3
   whittedRayTracing(Ray &ray, int depth,
                     const std::vector<SoftRasterizer::light_struct> &lights);
+
+  //Path Tracing
+glm::vec3
+ pathTracingSerial(Ray& ray, int depth,
+           const std::vector<SoftRasterizer::light_struct>& lights);
 
 private:
   /*Scene Configuration*/

@@ -13,8 +13,8 @@ SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const std::size_t maxdepth)
     : m_width(0), m_height(0), m_sceneName(sceneName), m_maxDepth(maxdepth),
       m_backgroundColor(backgroundColor), m_eye(eye), m_center(center),
-      m_up(up), m_fovy(45.0f), m_aspectRatio(0.0f), scale(0.0f), offset(0.0f),
-      m_cameraLight(nullptr), m_bvh(std::make_unique<BVHAcceleration>()) {
+      m_up(up), m_fovy(45.0f), m_aspectRatio(0.0f), scale(0.0f), offset(0.0f), 
+      m_cameraLight(nullptr), m_bvh(std::make_unique<BVHAcceleration>())  {
   try {
     setViewMatrix(eye, center, up);
     initCameraLight();
@@ -555,6 +555,24 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
   return final_color;
 }
 
+glm::vec3
+SoftRasterizer::Scene::pathTracingSerial(Ray& ray, int depth,
+          const std::vector<SoftRasterizer::light_struct>& lights) {
+
+          /*Russian Roulette with probability RussianRoulette*/
+          //generateRandomNumber();
+
+          glm::vec3 final_color = this->m_backgroundColor;
+
+          if (depth > m_maxDepth) {
+                    // Return black if the ray has reached the maximum depth
+                    return glm::vec3(0.f);
+                    // return this->m_backgroundColor;
+          }
+
+          return final_color;
+}
+
 void SoftRasterizer::Scene::buildBVHAccel() {
   try {
     m_bvh->loadNewObjects(m_exportedObjs);
@@ -585,9 +603,6 @@ void SoftRasterizer::Scene::updatePosition() {
         }
       },
       ap);
-
-  ///*Start to generate pointers to triangles*/
-  // preGenerateBVH();
 
   /*Delete Existing BVH structure*/
   clearBVHAccel();
