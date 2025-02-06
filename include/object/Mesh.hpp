@@ -54,6 +54,9 @@ public:
     return faces;
   }
 
+  [[nodiscard]] std::tuple<Intersection, float> sample() override;
+  [[nodiscard]] const float getArea() override { return area; }
+
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;
 
@@ -85,6 +88,9 @@ public:
   std::string meshname;
   std::vector<Vertex> vertices;
   std::vector<glm::uvec3> faces;
+
+  //Mesh Area Calculation
+  float area = 0.f;
 
   // Bounding Box
   Bounds3 bounding_box;

@@ -69,12 +69,19 @@ struct alignas(32) Triangle : public Object {
     return faces;
   }
 
+  [[nodiscard]] std::tuple<Intersection, float> sample() override;
+  [[nodiscard]] const float getArea() override { return m_area; }
+
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
   void calcBoundingBox(const std::size_t width, const std::size_t height);
+
+  const float calcArea();
+
+  float m_area;
 
   /*
    * original coord of the triangle, v0, v1, v2 in counter clockwise order
@@ -90,7 +97,8 @@ struct alignas(32) Triangle : public Object {
   std::vector<SoftRasterizer::Vertex> vert;
   std::vector<glm::uvec3> faces;
 
-  /*BoundBox Calculation!*/
+  /* BoundingBox Calculation!
+   * Only Tradition Rasterizer Code Will use this structure*/
   struct BoundingBox {
     BoundingBox() : startY(0), startX(0), endX(0), endY(0) {}
     long long startX;

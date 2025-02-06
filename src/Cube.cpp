@@ -26,6 +26,16 @@ glm::vec3 SoftRasterizer::Cube::getDiffuseColor(const glm::vec2 &uv) {
   return glm::vec3(0.5f);
 }
 
+std::tuple<SoftRasterizer::Intersection, float> 
+SoftRasterizer::Cube::sample() {
+          return {};
+}
+
+const float 
+SoftRasterizer::Cube::getArea() {
+          return {};
+}
+
 void SoftRasterizer::Cube::updatePosition(const glm::mat4x4 &NDC_MVP,
                                           const glm::mat4x4 &Normal_M) {}
 

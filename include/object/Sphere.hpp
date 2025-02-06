@@ -41,14 +41,21 @@ public:
     return faces;
   }
 
+  /*Generate A Random Intersection Point on the Object*/
+  [[nodiscard]] std::tuple<Intersection, float> sample() override;
+  [[nodiscard]] const float getArea() override { return area; }
+
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
+  void calcArea();
+
 private:
   float radius;
   float square;
+  float area;
 
   /*This is the original center*/
   glm::vec3 center;
