@@ -1,13 +1,14 @@
 #pragma once
 #ifndef _OBJECT_HPP_
 #define _OBJECT_HPP_
-#include <bvh/Bounds3.hpp>
+#include <tuple>
 #include <memory>
-#include <object/Material.hpp>
 #include <optional>
-#include <ray/Intersection.hpp>
 #include <ray/Ray.hpp> //ray def
+#include <bvh/Bounds3.hpp>
 #include <shader/Shader.hpp>
+#include <object/Material.hpp>
+#include <ray/Intersection.hpp>
 
 namespace SoftRasterizer {
 /*forward declaration*/
@@ -64,6 +65,10 @@ struct Object {
                               const glm::mat4x4 &Normal_M) = 0;
 
   virtual void bindShader2Mesh(std::shared_ptr<Shader> shader) = 0;
+
+  /*Generate A Random Intersection Point on the Object*/
+  virtual std::tuple<Intersection, float> sample() = 0;
+  virtual const float getArea() = 0;
 
   void updateModelMatrix(const glm::vec3 &axis, const float angle,
                          const glm::vec3 &translation, const glm::vec3 &scale);
