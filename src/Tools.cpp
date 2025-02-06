@@ -277,3 +277,23 @@ const float SoftRasterizer::Tools::random_generator() {
           std::uniform_real_distribution<float> unf(0.f, 1.0f);
           return unf(mt);
 }
+
+/*
+* Mathematical Transformation Principle
+* localRay = (x, y, z) => worldRay = xT+yB+zN
+*/
+const glm::vec3& 
+SoftRasterizer::Tools::toWorld(const glm::vec3& local, const glm::vec3& N) {
+          glm::vec3 T;
+
+          //Choose a tangent vector T perpendicular to N
+          if (std::fabs(N.x) > std::fabs(N.y)) {
+                    T = glm::normalize(glm::vec3(-N.y, N.x, 0));  // If N is not pointing directly up
+          }
+          else {
+                    T = glm::normalize(glm::vec3(0, -N.z, N.y));  // If N is pointing near the Z-axis
+          }
+
+          glm::vec3 B = glm::normalize(glm::cross(N, T));
+          return local.x * T + local.y * B + local.z * glm::normalize(N);
+}
