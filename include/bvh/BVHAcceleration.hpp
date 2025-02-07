@@ -12,13 +12,8 @@ namespace SoftRasterizer {
 class Scene;
 
 struct BVHBuildNode {
-  BVHBuildNode() 
-            : left(nullptr)
-            , right(nullptr)
-            , box()
-            , obj(nullptr)
-            ,area(0.f)
-  {}
+  BVHBuildNode()
+      : left(nullptr), right(nullptr), box(), obj(nullptr), area(0.f) {}
 
   Bounds3 box;
   std::unique_ptr<BVHBuildNode> left;
@@ -55,7 +50,8 @@ protected:
   recursive(tbb::concurrent_vector<Object *> objs);
   [[nodiscard]] Intersection intersection(BVHBuildNode *node, Ray &ray) const;
 
-  [[nodiscard]] void sample(BVHBuildNode* node, const float area, Intersection& intersect, float& pdf);
+  [[nodiscard]] void sample(BVHBuildNode *node, const float area,
+                            Intersection &intersect, float &pdf);
 
 private:
   /*BVH Head Node*/

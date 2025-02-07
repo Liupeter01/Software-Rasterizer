@@ -89,7 +89,7 @@ public:
   std::vector<Vertex> vertices;
   std::vector<glm::uvec3> faces;
 
-  //Mesh Area Calculation
+  // Mesh Area Calculation
   float area = 0.f;
 
   // Bounding Box

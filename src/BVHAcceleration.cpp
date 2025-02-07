@@ -144,7 +144,7 @@ SoftRasterizer::BVHAcceleration::recursive(
 
   /*I'm the Leaf Node*/
   if (objs.size() == 1) {
-            auto obj = (*objs.begin());
+    auto obj = (*objs.begin());
     node->left = nullptr;
     node->right = nullptr;
     node->box = obj->getBounds();
@@ -188,40 +188,39 @@ SoftRasterizer::BVHAcceleration::recursive(
   return node;
 }
 
-void
-SoftRasterizer::BVHAcceleration::sample(BVHBuildNode* node, 
-                                                                      const float area, 
-                                                                      Intersection &intersect, 
-                                                                      float&pdf) {
-          if (!node)  return;
+void SoftRasterizer::BVHAcceleration::sample(BVHBuildNode *node,
+                                             const float area,
+                                             Intersection &intersect,
+                                             float &pdf) {
+  if (!node)
+    return;
 
-          /*Every Obj is on leaf node!*/
-          if (node->left == nullptr && node->right == nullptr) {
-                    auto [obj_intersection, obj_pdf] = node->obj->sample();
-                    intersect = obj_intersection;
-                    pdf = obj_pdf;
-                    pdf *= node->obj->getArea();
-                    return;
-          }
-          if (area < node->left->area) {
-                    if (node->left != nullptr) 
-                              sample(node->left.get(), area, intersect, pdf);
-          }
-          else {
-                    if (node->right != nullptr)  
-                              sample(node->right.get(), area - node->left->area, intersect, pdf);
-          }
+  /*Every Obj is on leaf node!*/
+  if (node->left == nullptr && node->right == nullptr) {
+    auto [obj_intersection, obj_pdf] = node->obj->sample();
+    intersect = obj_intersection;
+    pdf = obj_pdf;
+    pdf *= node->obj->getArea();
+    return;
+  }
+  if (area < node->left->area) {
+    if (node->left != nullptr)
+      sample(node->left.get(), area, intersect, pdf);
+  } else {
+    if (node->right != nullptr)
+      sample(node->right.get(), area - node->left->area, intersect, pdf);
+  }
 }
 
 /*Read Parameters from the object of sample*/
-std::tuple<SoftRasterizer::Intersection, float> 
+std::tuple<SoftRasterizer::Intersection, float>
 SoftRasterizer::BVHAcceleration::sample() {
-          Intersection intersect{};
-          float pdf = 0.f;
+  Intersection intersect{};
+  float pdf = 0.f;
 
-          /*Use Total Area Value and a ratio to do sample*/
-          const float area = std::sqrt(Tools::random_generator()) * root->area;
+  /*Use Total Area Value and a ratio to do sample*/
+  const float area = std::sqrt(Tools::random_generator()) * root->area;
 
-          sample(root.get(), area, intersect, pdf);
-          return { intersect, pdf /= root->area };
+  sample(root.get(), area, intersect, pdf);
+  return {intersect, pdf /= root->area};
 }

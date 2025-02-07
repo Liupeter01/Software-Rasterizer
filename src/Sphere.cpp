@@ -3,16 +3,16 @@
 
 SoftRasterizer::Sphere::Sphere() : Sphere(glm::vec3(0.f), 1.f) {
 
-          /*Calculate Area*/
-          calcArea();
+  /*Calculate Area*/
+  calcArea();
 }
 
 SoftRasterizer::Sphere::Sphere(const glm::vec3 &_center, const float _radius)
     : vert(1), center(_center), radius(_radius), square(radius * radius),
       Object(std::make_shared<Material>(), nullptr) {
 
-          /*Calculate Area*/
-          calcArea();
+  /*Calculate Area*/
+  calcArea();
 }
 
 SoftRasterizer::Sphere::~Sphere() {}
@@ -27,9 +27,7 @@ void SoftRasterizer::Sphere::bindShader2Mesh(std::shared_ptr<Shader> shader) {
   m_shader = shader;
 }
 
-void  SoftRasterizer::Sphere::calcArea() {
-          area = 4 * Tools::PI * square;
-}
+void SoftRasterizer::Sphere::calcArea() { area = 4 * Tools::PI * square; }
 
 SoftRasterizer::Bounds3 SoftRasterizer::Sphere::getBounds() {
   Bounds3 ret;
@@ -130,27 +128,27 @@ SoftRasterizer::Object::Properties SoftRasterizer::Sphere::getSurfaceProperties(
 
 std::tuple<SoftRasterizer::Intersection, float>
 SoftRasterizer::Sphere::sample() {
-          /*Generator 2D Random Sample Coordinates*/
-          float theta = 2.0f * Tools::PI * Tools::random_generator();   //azimuth angle [0, 2PI]
-          float phi = Tools::PI * Tools::random_generator();                //polar angle [0, PI]    
+  /*Generator 2D Random Sample Coordinates*/
+  float theta =
+      2.0f * Tools::PI * Tools::random_generator();  // azimuth angle [0, 2PI]
+  float phi = Tools::PI * Tools::random_generator(); // polar angle [0, PI]
 
-          /*
-           * x=sinϕcosθ
-           * y=sinϕsinθ
-           * z=cosϕ
-           */
-          glm::vec3 dir(std::cos(phi), std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta));
+  /*
+   * x=sinϕcosθ
+   * y=sinϕsinθ
+   * z=cosϕ
+   */
+  glm::vec3 dir(std::cos(phi), std::sin(phi) * std::cos(theta),
+                std::sin(phi) * std::sin(theta));
 
-          Intersection intersection;
+  Intersection intersection;
 
-          intersection.intersected = true;
-          intersection.obj = this;
-          intersection.coords = center + radius * dir;
-          intersection.normal = dir;
-          intersection.emit = m_material->getEmission();
-          
-          return { 
-                    /*intersection = */intersection, 
-                    /*pdf = */1.0f / area
-          };
+  intersection.intersected = true;
+  intersection.obj = this;
+  intersection.coords = center + radius * dir;
+  intersection.normal = dir;
+  intersection.emit = m_material->getEmission();
+
+  return {/*intersection = */ intersection,
+          /*pdf = */ 1.0f / area};
 }

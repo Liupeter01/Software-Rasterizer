@@ -1,14 +1,14 @@
 #pragma once
 #ifndef _OBJECT_HPP_
 #define _OBJECT_HPP_
-#include <tuple>
-#include <memory>
-#include <optional>
-#include <ray/Ray.hpp> //ray def
 #include <bvh/Bounds3.hpp>
-#include <shader/Shader.hpp>
+#include <memory>
 #include <object/Material.hpp>
+#include <optional>
 #include <ray/Intersection.hpp>
+#include <ray/Ray.hpp> //ray def
+#include <shader/Shader.hpp>
+#include <tuple>
 
 namespace SoftRasterizer {
 /*forward declaration*/
@@ -71,9 +71,7 @@ struct Object {
   virtual const float getArea() = 0;
 
   /*Self Emissive object*/
-  const bool isSelfEmissiveObject() {
-            return m_material->hasEmission();
-  }
+  const bool isSelfEmissiveObject() { return m_material->hasEmission(); }
 
   void updateModelMatrix(const glm::vec3 &axis, const float angle,
                          const glm::vec3 &translation, const glm::vec3 &scale);

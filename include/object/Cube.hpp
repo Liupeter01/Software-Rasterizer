@@ -42,7 +42,7 @@ public:
   [[nodiscard]] const float getArea() override;
 
 private:
-          float area = 0.f;
+  float area = 0.f;
   std::vector<SoftRasterizer::Vertex> vert;
   std::vector<glm::uvec3> faces;
 };
