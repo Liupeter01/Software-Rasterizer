@@ -52,7 +52,9 @@ SoftRasterizer::Intersection SoftRasterizer::Mesh::getIntersect(Ray &ray) {
 
 std::tuple<SoftRasterizer::Intersection, float>
 SoftRasterizer::Mesh::sample() {
-          return m_bvh->sample();
+          auto [intersection, pdf] = m_bvh->sample();
+          intersection.emit = m_material->getEmission();
+          return { intersection, pdf };
 }
 
 void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4 &NDC_MVP,

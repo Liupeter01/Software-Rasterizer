@@ -28,7 +28,14 @@ glm::vec3 SoftRasterizer::Cube::getDiffuseColor(const glm::vec2 &uv) {
 
 std::tuple<SoftRasterizer::Intersection, float> 
 SoftRasterizer::Cube::sample() {
-          return {};
+          
+          float pdf = { 1.f };
+          SoftRasterizer::Intersection intersection;
+          intersection.intersected = true;
+          intersection.obj = this;
+          intersection.emit = m_material->getEmission();
+
+          return { intersection, 1.0f / pdf };
 }
 
 const float 

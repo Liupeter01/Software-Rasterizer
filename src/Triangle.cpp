@@ -211,6 +211,9 @@ SoftRasterizer::Triangle::sample() {
           float b3 = sqrt_u * v;
 
           Intersection intersection;
+          intersection.intersected = true;
+          intersection.obj = this;
+          intersection.emit = m_material->getEmission();
 
           /*Find a Point Randomly*/
           intersection.coords = b1 * m_vertex[0] +b2 * m_vertex[1] +b3 * m_vertex[2];

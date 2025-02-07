@@ -142,7 +142,15 @@ SoftRasterizer::Sphere::sample() {
           glm::vec3 dir(std::cos(phi), std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta));
 
           Intersection intersection;
+
+          intersection.intersected = true;
+          intersection.obj = this;
           intersection.coords = center + radius * dir;
           intersection.normal = dir;
-          return { intersection, /*pdf = */1.0f / area };
+          intersection.emit = m_material->getEmission();
+          
+          return { 
+                    /*intersection = */intersection, 
+                    /*pdf = */1.0f / area
+          };
 }
