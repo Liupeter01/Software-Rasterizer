@@ -160,7 +160,7 @@ struct Tools {
    * Mathematical Transformation Principle
    * localRay = (x, y, z) => worldRay = xT+yB+zN
    */
-  static const glm::vec3 &toWorld(const glm::vec3 &local, const glm::vec3 &N);
+  static glm::vec3 toWorld(const glm::vec3 &local, const glm::vec3 &N);
 
   template <size_t Begin, size_t End, typename F> static void static_for(F f) {
     if constexpr (Begin < End) {

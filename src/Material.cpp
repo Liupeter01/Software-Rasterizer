@@ -11,7 +11,7 @@ SoftRasterizer::Material::Material(MaterialType _type, const glm::vec3 &_Ka,
       map_d(""), map_bump("") {}
 
 // uniform sample on the hemisphere
-const glm::vec3 &SoftRasterizer::Material::sample(const glm::vec3 &wi,
+glm::vec3 SoftRasterizer::Material::sample(const glm::vec3 &wi,
                                                   const glm::vec3 &N) {
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {
     /*
@@ -48,7 +48,7 @@ const float SoftRasterizer::Material::pdf(const glm::vec3 &wi,
  * Given an incident direction, an outgoing direction, and a normal vector,
  *  calculate the contribution of this ray , which is Fr(P, wi, wo)
  */
-const glm::vec3 &SoftRasterizer::Material::fr_contribution(const glm::vec3 &wi,
+glm::vec3 SoftRasterizer::Material::fr_contribution(const glm::vec3 &wi,
                                                            const glm::vec3 &wo,
                                                            const glm::vec3 &N) {
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {

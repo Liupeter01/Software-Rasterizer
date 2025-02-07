@@ -282,7 +282,7 @@ const float SoftRasterizer::Tools::random_generator() {
 * Mathematical Transformation Principle
 * localRay = (x, y, z) => worldRay = xT+yB+zN
 */
-const glm::vec3& 
+glm::vec3
 SoftRasterizer::Tools::toWorld(const glm::vec3& local, const glm::vec3& N) {
           glm::vec3 T;
 

@@ -24,7 +24,7 @@ struct Material {
   MaterialType getMaterialType() const { return type; }
 
   // uniform sample on the hemisphere
-  const glm::vec3 &sample(const glm::vec3 &wi, const glm::vec3 &N);
+glm::vec3 sample(const glm::vec3 &wi, const glm::vec3 &N);
 
   /*
    * Given an incident direction, an outgoing direction, and a normal vector,
@@ -38,7 +38,7 @@ struct Material {
    * Given an incident direction, an outgoing direction, and a normal vector,
    *  calculate the contribution of this ray , which is Fr(P, wi, wo)
    */
-  const glm::vec3 &fr_contribution(const glm::vec3 &wi, const glm::vec3 &wo,
+  glm::vec3 fr_contribution(const glm::vec3 &wi, const glm::vec3 &wo,
                                    const glm::vec3 &N);
 
   const glm::vec3 &getEmission() const { return emission; }
