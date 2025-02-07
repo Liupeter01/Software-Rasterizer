@@ -70,6 +70,11 @@ struct Object {
   virtual std::tuple<Intersection, float> sample() = 0;
   virtual const float getArea() = 0;
 
+  /*Self Emissive object*/
+  const bool isSelfEmissiveObject() {
+            return m_material->hasEmission();
+  }
+
   void updateModelMatrix(const glm::vec3 &axis, const float angle,
                          const glm::vec3 &translation, const glm::vec3 &scale);
 
