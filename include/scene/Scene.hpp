@@ -35,7 +35,7 @@ public:
   Scene(const std::string &sceneName, const glm::vec3 &eye,
         const glm::vec3 &center, const glm::vec3 &up,
         glm::vec3 m_backgroundColor = glm::vec3(0.f),
-        const std::size_t maxdepth = 5);
+        const std::size_t maxdepth = 5, const float rr = 0.4f);
 
   virtual ~Scene();
 
@@ -109,17 +109,29 @@ private:
   // intersected by the ray
   Intersection traceScene(Ray &ray);
 
+  // Uniformly sample the light
+  [[nodiscard]] std::tuple<Intersection, float> sampleLight();
+
   //Whitted Style Ray Tracing
   glm::vec3
   whittedRayTracing(Ray &ray, int depth,
                     const std::vector<SoftRasterizer::light_struct> &lights);
 
   //Path Tracing
+glm::vec3 pathTracing(Ray& ray);
+
+//Calculate Points Direct light
+glm::vec3 
+pathTracingDirectLight(Ray& ray);
+
+//Calculate Point From Indirect Light
 glm::vec3
- pathTracingSerial(Ray& ray, int depth,
-           const std::vector<SoftRasterizer::light_struct>& lights);
+pathTracingIndirectLight(Ray& ray);
 
 private:
+          /*Russian Roulette*/
+          float p_rr;
+
   /*Scene Configuration*/
   std::string m_sceneName;
   const std::size_t m_maxDepth;
