@@ -695,9 +695,12 @@ SoftRasterizer::Scene::pathTracingIndirectLight(Ray& ray) {
 
           //BRDF
           auto Fr = obj_intersection.obj->getMaterial()->fr_contribution(-I, reflectDir, N);
+
+          //PDF
+          auto pdf = obj_intersection.obj->getMaterial()->pdf(-I, reflectDir, N);
           auto object_theta = std::max(0.f, glm::dot(N, reflectDir));
 
-          return pathTracingIndirectLight(reflectray) * Fr * object_theta / p_rr / (Tools::PI_INV * 0.5f);
+          return pathTracingIndirectLight(reflectray) * Fr * object_theta / pdf / p_rr;
 }
 
 glm::vec3
