@@ -28,31 +28,20 @@ public:
 
 public:
   [[nodiscard]] bool intersect(const Ray &ray) override { return true; }
-  [[nodiscard]] bool intersect(const Ray &ray, float &tNear) override {
-    return true;
-  }
+  [[nodiscard]] bool intersect(const Ray& ray, float& tNear) override { return true; }
   [[nodiscard]] Intersection getIntersect(Ray &ray) override;
   [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex,
                                                 const glm::vec3 &Point,
                                                 const glm::vec3 &viewDir,
-                                                const glm::vec2 &uv) override {
-    return {};
-  }
+                                                const glm::vec2 &uv) override { return {};}
 
-  [[nodiscard]] std::shared_ptr<Material> &getMaterial() override {
-    return m_material;
-  }
-  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override {
-    return glm::vec3(1.0f);
-  }
+  //GetMaterial Can only modify mesh's material variable, triangles are not included!
+  [[nodiscard]] std::shared_ptr<Material>& getMaterial() override { return m_material; }
+  [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2& uv) override { return m_material->Kd; }
 
   /*Compatible Consideration!*/
-  [[nodiscard]] const std::vector<Vertex> &getVertices() const override {
-    return vertices;
-  }
-  [[nodiscard]] const std::vector<glm::uvec3> &getFaces() const override {
-    return faces;
-  }
+  [[nodiscard]] const std::vector<Vertex>& getVertices() const override { return vertices; }
+  [[nodiscard]] const std::vector<glm::uvec3>& getFaces() const override { return faces; }
 
   [[nodiscard]] std::tuple<Intersection, float> sample() override;
   [[nodiscard]] const float getArea() override;
@@ -61,6 +50,8 @@ public:
                       const glm::mat4x4 &Normal_M) override;
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
+
+  void setMaterial(std::shared_ptr<Material> material) override;
 
   /*Rebuild BVH Structure, When Points position moved!*/
   void rebuildBVHAccel();

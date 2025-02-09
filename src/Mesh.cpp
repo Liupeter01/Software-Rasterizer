@@ -52,7 +52,6 @@ SoftRasterizer::Intersection SoftRasterizer::Mesh::getIntersect(Ray &ray) {
 
 std::tuple<SoftRasterizer::Intersection, float> SoftRasterizer::Mesh::sample() {
   auto [intersection, pdf] = m_bvh->sample();
-  intersection.emit = m_material->getEmission();
   return {intersection, pdf};
 }
 
@@ -93,6 +92,17 @@ void SoftRasterizer::Mesh::bindShader2Mesh(std::shared_ptr<Shader> shader) {
   tbb::parallel_for(std::size_t(0), m_triangles.size(), [&](std::size_t i) {
     m_triangles[i]->bindShader2Mesh(m_shader);
   });
+}
+
+void SoftRasterizer::Mesh::setMaterial(std::shared_ptr<Material> material) {
+          /*Change Mesh's Material*/
+          m_material.reset();
+          m_material = material;
+
+          /*Change Triangles Material*/
+          tbb::parallel_for(std::size_t(0), m_triangles.size(), [&](std::size_t i) {
+                    m_triangles[i]->setMaterial(material);
+                    });
 }
 
 /*Generating Triangles*/
