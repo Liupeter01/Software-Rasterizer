@@ -55,6 +55,7 @@ struct Object {
                                           const glm::vec2 &uv) = 0;
 
   virtual std::shared_ptr<Material> &getMaterial() = 0;
+  virtual void setMaterial(std::shared_ptr<Material>) = 0;
 
   /*Compatible Consideration!*/
   virtual const std::vector<Vertex> &getVertices() const = 0;
