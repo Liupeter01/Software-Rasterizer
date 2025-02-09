@@ -55,7 +55,7 @@ public:
   }
 
   [[nodiscard]] std::tuple<Intersection, float> sample() override;
-  [[nodiscard]] const float getArea() override { return area; }
+  [[nodiscard]] const float getArea() override;
 
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;
