@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _RAYTRACING_HPP_
-#define _RAYTRACING_HPP_
+#ifndef _PATHTRACING_HPP_
+#define _PATHTRACING_HPP_
 #include <base/Render.hpp>
 
 namespace SoftRasterizer {
