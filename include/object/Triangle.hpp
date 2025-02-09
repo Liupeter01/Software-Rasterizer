@@ -70,7 +70,7 @@ struct alignas(32) Triangle : public Object {
   }
 
   [[nodiscard]] std::tuple<Intersection, float> sample() override;
-  [[nodiscard]] const float getArea() override { return m_area; }
+  [[nodiscard]] const float getArea() override { return calcArea(); }
 
   void updatePosition(const glm::mat4x4 &NDC_MVP,
                       const glm::mat4x4 &Normal_M) override;

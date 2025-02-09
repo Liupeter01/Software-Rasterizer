@@ -192,7 +192,7 @@ SoftRasterizer::Triangle::getSurfaceProperties(const std::size_t faceIndex,
 glm::vec3 SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2 &uv) {
   // When m_shader is nullptr then skip this code block
   if (!m_shader) {
-    return glm::vec3(1.0f);
+    return m_material->Kd;
   }
   return m_shader->getTextureObject()->getTextureColor(uv);
 }
@@ -222,7 +222,7 @@ SoftRasterizer::Triangle::sample() {
                     m_vertex[0], m_vertex[1], m_vertex[2]
           );
 
-          return { intersection, 1.0f / m_area };
+          return { intersection, 1.0f / calcArea() };
 }
 
 void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
