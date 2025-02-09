@@ -46,3 +46,8 @@ void SoftRasterizer::Cube::bindShader2Mesh(std::shared_ptr<Shader> shader) {
   m_shader.reset();
   m_shader = shader;
 }
+
+void SoftRasterizer::Cube::setMaterial(std::shared_ptr<Material> material)  {
+          m_material.reset();
+          m_material = material;
+}

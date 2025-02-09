@@ -27,6 +27,11 @@ void SoftRasterizer::Sphere::bindShader2Mesh(std::shared_ptr<Shader> shader) {
   m_shader = shader;
 }
 
+void SoftRasterizer::Sphere::setMaterial(std::shared_ptr<Material> material) {
+          m_material.reset();
+          m_material = material;
+}
+
 void SoftRasterizer::Sphere::calcArea() { area = 4 * Tools::PI * square; }
 
 SoftRasterizer::Bounds3 SoftRasterizer::Sphere::getBounds() {

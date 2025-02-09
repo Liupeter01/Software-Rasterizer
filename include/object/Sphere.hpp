@@ -50,6 +50,8 @@ public:
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
+  void setMaterial(std::shared_ptr<Material> material) override;
+
   void calcArea();
 
 private:

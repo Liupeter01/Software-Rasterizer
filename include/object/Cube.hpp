@@ -20,6 +20,8 @@ public:
                                                 const glm::vec3 &viewDir,
                                                 const glm::vec2 &uv) override;
 
+  void setMaterial(std::shared_ptr<Material> material) override;
+
   [[nodiscard]] std::shared_ptr<Material> &getMaterial() override {
     return m_material;
   }
