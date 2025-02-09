@@ -160,6 +160,8 @@ SoftRasterizer::BVHAcceleration::recursive(
     node->right->obj = std::shared_ptr<Object>(objs[1], [](auto) {});
     node->left->box = objs[0]->getBounds();
     node->right->box = objs[1]->getBounds();
+    node->left->area = objs[0]->getArea();
+    node->right->area = objs[1]->getArea();
   }
   /*Other Condition*/
   else {
@@ -199,8 +201,7 @@ void SoftRasterizer::BVHAcceleration::sample(BVHBuildNode *node,
   if (node->left == nullptr && node->right == nullptr) {
     auto [obj_intersection, obj_pdf] = node->obj->sample();
     intersect = obj_intersection;
-    pdf = obj_pdf;
-    pdf *= node->obj->getArea();
+    pdf = obj_pdf * node->area;
     return;
   }
   if (area < node->left->area) {
