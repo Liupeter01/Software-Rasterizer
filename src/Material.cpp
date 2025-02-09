@@ -52,7 +52,7 @@ glm::vec3 SoftRasterizer::Material::fr_contribution(const glm::vec3 &wi,
                                                            const glm::vec3 &wo,
                                                            const glm::vec3 &N) {
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {
-    return glm::dot(wi, N) > 0 ? Kd * Tools::PI_INV : glm::vec3(0.f);
+    return glm::dot(wi, N) > 0 ? Kd * Tools::PI_INV * glm::dot(wi, N): glm::vec3(0.f);
   }
   return glm::vec3(0.f);
 }

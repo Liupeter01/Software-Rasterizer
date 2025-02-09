@@ -14,7 +14,7 @@ enum class MaterialType {
 };
 
 struct Material {
-  Material(MaterialType _type = MaterialType::REFLECTION_AND_REFRACTION,
+  Material(MaterialType _type = MaterialType::DIFFUSE_AND_GLOSSY,
            const glm::vec3 &_Ka = glm::vec3(0.0f),
            const glm::vec3 &_Kd = glm::vec3(0.0f),
            const glm::vec3 &_Ks = glm::vec3(0.0f),
