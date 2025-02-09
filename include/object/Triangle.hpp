@@ -77,6 +77,8 @@ struct alignas(32) Triangle : public Object {
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
+  void setMaterial(std::shared_ptr<Material> material) override;
+
   void calcBoundingBox(const std::size_t width, const std::size_t height);
 
   const float calcArea();

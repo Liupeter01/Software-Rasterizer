@@ -154,6 +154,7 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
 
   // we could find a intersect time point
   ret.intersected = true;
+  ret.emit = m_material->getEmission();
   return ret;
 }
 
@@ -216,10 +217,10 @@ SoftRasterizer::Triangle::sample() {
           intersection.emit = m_material->getEmission();
 
           /*Find a Point Randomly*/
-          intersection.coords = b1 * m_vertex[0] +b2 * m_vertex[1] +b3 * m_vertex[2];
+          intersection.coords = b1 * vert[0].position + b2 * vert[1].position + b3 * vert[2].position;
           intersection.normal = Tools::interpolateNormal(
                     b1, b2, b3,
-                    m_vertex[0], m_vertex[1], m_vertex[2]
+                    vert[0].normal, vert[1].normal, vert[2].normal
           );
 
           return { intersection, 1.0f / calcArea() };
@@ -244,6 +245,11 @@ void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
 void SoftRasterizer::Triangle::bindShader2Mesh(std::shared_ptr<Shader> shader) {
   m_shader.reset();
   m_shader = shader;
+}
+
+void SoftRasterizer::Triangle::setMaterial(std::shared_ptr<Material> material) {
+          m_material.reset();
+          m_material = material;
 }
 
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,
