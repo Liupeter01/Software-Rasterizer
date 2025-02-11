@@ -2,14 +2,15 @@
 #include <opencv2/opencv.hpp>
 #include <render/Rasterizer.hpp>
 #include <render/RayTracing.hpp>
+#include <render/PathTracing.hpp>
 #include <scene/Scene.hpp>
 
 int main() {
   int key = 0;
-  float degree = 0.0f;
+  float degree = 180.0f;
 
-  // Create Ray Tracing Main Class
-  auto render = std::make_shared<SoftRasterizer::RayTracing>(1024, 1024);
+  //Create Path Tracing Main Class
+  auto render = std::make_shared<SoftRasterizer::PathTracing>(1024, 1024);
 
   // Create A Scene
   auto scene = std::make_shared<SoftRasterizer::Scene>(
@@ -19,82 +20,58 @@ int main() {
       /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
       /*background color*/ glm::vec3(0.235294, 0.67451, 0.843137));
 
-  /*Set Diffuse Color*/
-  auto diffuse_sphere = std::make_unique<SoftRasterizer::Sphere>(
-      /*center=*/glm::vec3(-0.07f, 0.0f, 0.f),
-      /*radius=*/0.1f);
+  std::shared_ptr<SoftRasterizer::Material> red = std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material>green = std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material>white = std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material>light = std::make_shared<SoftRasterizer::Material>();
 
-  diffuse_sphere->getMaterial()->type =
-      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  diffuse_sphere->getMaterial()->Kd = glm::vec3(0.6f, 0.7f, 0.8f);
-  diffuse_sphere->getMaterial()->Ka = glm::vec3(0.105f);
-  diffuse_sphere->getMaterial()->Ks = glm::vec3(0.7937f);
-  diffuse_sphere->getMaterial()->specularExponent = 150.f;
+  red->Kd = glm::vec3(0.f, 0.f, 1.f);
+  green->Kd = glm::vec3(0.f, 1.f, 0.f);
+  white->Kd = glm::vec3(1.f);
+  light->Kd = glm::vec3(1.f);
+  light->emission = glm::vec3(255.f);
 
-  /*Set Reflect Sphere Object*/
-  auto reflect_sphere = std::make_unique<SoftRasterizer::Sphere>(
-      /*center=*/glm::vec3(-0.05f, 0.01f, 0.f),
-      /*radius=*/0.1f);
+  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/floor.obj", "floor",
+            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  /*Set REFLECTION_AND_REFRACTION Material*/
-  reflect_sphere->getMaterial()->type =
-      SoftRasterizer::MaterialType::REFLECTION_AND_REFRACTION;
-  reflect_sphere->getMaterial()->ior = 2.0f; /*Air to Glass*/
+  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/back.obj", "back",
+            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(std::move(reflect_sphere), "reflect");
-  scene->addGraphicObj(std::move(diffuse_sphere), "diffuse");
+  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/top.obj", "top",
+            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  /*Add a spot object*/
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
-      glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(0.3f));
+  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/left.obj", "left",
+            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
-                       glm::vec3(0.f, 1.f, 0.f), 0.f, glm::vec3(0.0f),
-                       glm::vec3(0.2f));
+  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/right.obj", "right",
+            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  /*Add a texture shader for spot object!*/
-  scene->addShader("spot_shader",
-                   CONFIG_HOME "examples/models/spot/spot_texture.png",
-                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
+  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/light.obj", "light",
+            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addShader("crate_shader",
-                   CONFIG_HOME "examples/models/Crate/crate1.png",
-                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
+  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/small.obj", "shortbox",
+            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->startLoadingMesh("spot");
-  scene->startLoadingMesh("Crate");
+  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/large.obj", "tallbox",
+            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  /*Modify spot's Material Properties*/
-  auto spot_obj = scene->getMeshObj("spot");
-  spot_obj.value()->getMaterial()->type =
-      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  spot_obj.value()->getMaterial()->Ka = glm::vec3(0.005f);
-  spot_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
-  spot_obj.value()->getMaterial()->specularExponent = 150.f;
+  scene->startLoadingMesh("floor");
+  scene->startLoadingMesh("back");
+  scene->startLoadingMesh("top");
+  scene->startLoadingMesh("left");
+  scene->startLoadingMesh("right");
+  scene->startLoadingMesh("light");
+  scene->startLoadingMesh("shortbox");
+  scene->startLoadingMesh("tallbox");
 
-  /*Modify Crate's Material Properties*/
-  auto crate_obj = scene->getMeshObj("Crate");
-  crate_obj.value()->getMaterial()->type =
-      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  crate_obj.value()->getMaterial()->Ka = glm::vec3(0.005f);
-  crate_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
-  crate_obj.value()->getMaterial()->specularExponent = 150.f;
-
-  scene->bindShader2Mesh("spot", "spot_shader");
-  scene->bindShader2Mesh("Crate", "crate_shader");
-
-  /*Add Light To Scene*/
-  auto light1 = std::make_shared<SoftRasterizer::light_struct>();
-  light1->position = glm::vec3{0.5f, -0.4f, -0.9f};
-  light1->intensity = glm::vec3{1, 1, 1};
-
-  auto light2 = std::make_shared<SoftRasterizer::light_struct>();
-  light2->position = glm::vec3{-0.5f, -0.4f, -0.9f};
-  light2->intensity = glm::vec3{1, 1, 1};
-
-  // scene->addLight("Light1", light1);
-  scene->addLight("Light2", light2);
+  if (auto lightOpt = scene->getMeshObj("light"); lightOpt) { (*lightOpt)->setMaterial(light); }
+  if (auto leftOpt = scene->getMeshObj("left"); leftOpt) { (*leftOpt)->setMaterial(green); }
+  if (auto rightOpt = scene->getMeshObj("right"); rightOpt) { (*rightOpt)->setMaterial(red); }
+  if (auto floorOpt = scene->getMeshObj("floor"); floorOpt) { (*floorOpt)->setMaterial(white); }
+  if (auto topOpt = scene->getMeshObj("top"); topOpt) { (*topOpt)->setMaterial(white); }
+  if (auto backOpt = scene->getMeshObj("back"); backOpt) { (*backOpt)->setMaterial(white); }
+  if (auto shortboxOpt = scene->getMeshObj("shortbox"); shortboxOpt) { (*shortboxOpt)->setMaterial(white); }
+  if (auto tallboxOpt = scene->getMeshObj("tallbox"); tallboxOpt) { (*tallboxOpt)->setMaterial(white); }
 
   /*Register Scene To Render Main Frame*/
   render->addScene(scene);
@@ -105,30 +82,18 @@ int main() {
     render->clear(SoftRasterizer::Buffers::Color |
                   SoftRasterizer::Buffers::Depth);
 
-    /*Model Matrix*/
-    scene->setModelMatrix(
-        "spot",
-        /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-        /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.1f, 0.f, 0.f),
-        /*scale=*/glm::vec3(0.1f));
-
-    scene->setModelMatrix(
-        "Crate",
-        /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-        /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.1f, -0.12f, 0.f),
-        /*scale=*/glm::vec3(0.05f));
-
-    scene->setModelMatrix("reflect",
-                          /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-                          /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
-                          /*transform=*/glm::vec3(0.05f, -0.02f, -0.2f),
-                          /*scale=*/glm::vec3(1.f));
+    scene->setModelMatrix("floor", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("back", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("top", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("left", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("right", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
 
     /*View Matrix*/
     scene->setViewMatrix(
-        /*eye=*/glm::vec3(0.0f, 0.0f, -0.5f),
+        /*eye=*/glm::vec3(0.0f, 0.0f, -0.8f),
         /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
         /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
 
