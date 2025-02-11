@@ -42,11 +42,11 @@ struct Bounds3 {
      * Use a large value to handle division by zero for rays parallel to an axis
      */
     const glm::vec3 inv_dir =
-        glm::vec3(ray.direction.x != 0 ? 1.0f / ray.direction.x
+        glm::vec3(std::abs(ray.direction.x) > std::numeric_limits<float>::epsilon() ? 1.0f / ray.direction.x
                                        : std::numeric_limits<float>::max(),
-                  ray.direction.y != 0 ? 1.0f / ray.direction.y
+                  std::abs(ray.direction.y) > std::numeric_limits<float>::epsilon() ? 1.0f / ray.direction.y
                                        : std::numeric_limits<float>::max(),
-                  ray.direction.z != 0 ? 1.0f / ray.direction.z
+                  std::abs(ray.direction.z) > std::numeric_limits<float>::epsilon() ? 1.0f / ray.direction.z
                                        : std::numeric_limits<float>::max());
 
     auto x_min = min.x, x_max = max.x;
@@ -76,7 +76,7 @@ struct Bounds3 {
     auto leaving = Tools::min(x_max_t, y_max_t, z_max_t);
 
     // Use a small epsilon to account for floating - point precision errors
-    return (entering < leaving + std::numeric_limits<float>::epsilon() &&
+    return (entering <= leaving + std::numeric_limits<float>::epsilon() &&
             leaving >= std::numeric_limits<float>::epsilon());
   }
 
