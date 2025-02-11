@@ -25,11 +25,11 @@ int main() {
   std::shared_ptr<SoftRasterizer::Material>white = std::make_shared<SoftRasterizer::Material>();
   std::shared_ptr<SoftRasterizer::Material>light = std::make_shared<SoftRasterizer::Material>();
 
-  red->Kd = glm::vec3(0.f, 0.f, 1.f);
-  green->Kd = glm::vec3(0.f, 1.f, 0.f);
-  white->Kd = glm::vec3(1.f);
+  red->Kd = glm::vec3(0.f, 0.f, 0.5f);
+  green->Kd = glm::vec3(0.f, 0.5f, 0.f);
+  white->Kd = glm::vec3(0.725f, 0.71f, 0.68f);
   light->Kd = glm::vec3(1.f);
-  light->emission = glm::vec3(255.f);
+  light->emission = glm::vec3(8.0f * glm::vec3(0.747f + 0.058f, 0.747f + 0.258f, 0.747f) + 15.6f * glm::vec3(0.740f + 0.287f, 0.740f + 0.160f, 0.740f) + 18.4f * glm::vec3(0.737f + 0.642f, 0.737f + 0.159f, 0.737f));
 
   scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/floor.obj", "floor",
             glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
