@@ -69,7 +69,7 @@ glm::vec3 sample(const glm::vec3 &wi, const glm::vec3 &N);
   static constexpr float radius = 1.0f;
 
   // Uniform Random Sphere Sampling Variable
-  static constexpr float uniform_sampling_on_sphere = 0.5f * Tools::PI_INV;
+  static constexpr float uniform_sampling_on_sphere = 0.25f * Tools::PI_INV;
 };
 } // namespace SoftRasterizer
 
