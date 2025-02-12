@@ -35,7 +35,7 @@ public:
   Scene(const std::string &sceneName, const glm::vec3 &eye,
         const glm::vec3 &center, const glm::vec3 &up,
         glm::vec3 m_backgroundColor = glm::vec3(0.f),
-        const std::size_t maxdepth = 5, const float rr = 0.4f);
+        const std::size_t maxdepth = 5, const float rr = 0.8f);
 
   virtual ~Scene();
 
@@ -62,6 +62,7 @@ public:
                      const std::string &objectName);
 
   bool startLoadingMesh(const std::string &meshName);
+
   std::optional<std::shared_ptr<Object>>
   getMeshObj(const std::string &meshName);
 
@@ -87,6 +88,9 @@ public:
 
   /*Remove BVH Structure*/
   void clearBVHAccel();
+
+  //Path Tracing
+  glm::vec3 pathTracing(Ray& ray);
 
 protected:
   void updatePosition();
@@ -117,16 +121,15 @@ private:
   whittedRayTracing(Ray &ray, int depth,
                     const std::vector<SoftRasterizer::light_struct> &lights);
 
-  //Path Tracing
-glm::vec3 pathTracing(Ray& ray);
+glm::vec3 pathTracingShading(Ray& ray);
 
 //Calculate Points Direct light
-glm::vec3 
-pathTracingDirectLight(Ray& ray);
+glm::vec3
+pathTracingDirectLight(const Intersection& shadeObjIntersection, Ray& ray);
 
 //Calculate Point From Indirect Light
 glm::vec3
-pathTracingIndirectLight(Ray& ray);
+pathTracingIndirectLight(const Intersection& shadeObjIntersection, Ray& ray);
 
 private:
           /*Russian Roulette*/
