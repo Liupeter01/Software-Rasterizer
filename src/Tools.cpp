@@ -1,3 +1,4 @@
+#include <cmath>
 #include <random>
 #include <Tools.hpp>
 #include <spdlog/spdlog.h>
@@ -284,16 +285,14 @@ const float SoftRasterizer::Tools::random_generator() {
 */
 glm::vec3
 SoftRasterizer::Tools::toWorld(const glm::vec3& local, const glm::vec3& N) {
-          glm::vec3 T;
+          glm::vec3 T = glm::abs(N.x) < 0.99f ? glm::normalize(glm::cross(N, glm::vec3(1.f, 0.f, 0.f)))
+                    : glm::normalize(glm::cross(N, glm::vec3(0.f, 1.f, 0.f)));
 
-          //Choose a tangent vector T perpendicular to N
-          if (std::fabs(N.x) > std::fabs(N.y)) {
-                    T = glm::normalize(glm::vec3(-N.y, N.x, 0));  // If N is not pointing directly up
-          }
-          else {
-                    T = glm::normalize(glm::vec3(0, -N.z, N.y));  // If N is pointing near the Z-axis
-          }
+          glm::vec3 B = glm::cross(N, T);
 
-          glm::vec3 B = glm::normalize(glm::cross(N, T));
-          return local.x * T + local.y * B + local.z * glm::normalize(N);
+          return local.x * T + local.y * B + local.z * N;
+}
+
+bool SoftRasterizer::Tools::isfinite(const glm::vec3& v) {
+          return std::isfinite(v.x) || std::isfinite(v.y) || std::isfinite(v.z);
 }
