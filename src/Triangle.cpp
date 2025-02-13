@@ -231,13 +231,13 @@ void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
                                               const glm::mat4x4 &Normal_M) {
 
   vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[0], 1.0f));
-  vert[0].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f));
+  vert[0].normal = glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f)));
 
   vert[1].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[1], 1.0f));
-  vert[1].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f));
+  vert[1].normal = glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f)));
 
   vert[2].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[2], 1.0f));
-  vert[2].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f));
+  vert[2].normal = glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f)));
 
   /*because of position changed, then we have to recalcuate area*/
   [[maybe_unused]] auto res = calcArea();        
