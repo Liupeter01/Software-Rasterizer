@@ -202,8 +202,8 @@ std::tuple<SoftRasterizer::Intersection, float>
 SoftRasterizer::Triangle::sample() {
 
           /*Generator 2D Random Sample Coordinates*/
-          float u = Tools::random_generator();
-          float v = Tools::random_generator();
+          float u = std::max(Tools::random_generator(), std::numeric_limits<float>::epsilon());
+          float v = std::max(Tools::random_generator(), std::numeric_limits<float>::epsilon());
           
           /*Use Barycentric to do the calculation*/
           float sqrt_u = std::sqrt(u);
@@ -214,6 +214,7 @@ SoftRasterizer::Triangle::sample() {
           Intersection intersection;
           intersection.intersected = true;
           intersection.obj = this;
+          intersection.index = index;
           intersection.emit = m_material->getEmission();
 
           /*Find a Point Randomly*/
