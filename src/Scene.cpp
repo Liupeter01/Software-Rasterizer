@@ -397,7 +397,7 @@ SoftRasterizer::Scene::sampleLight() {
           * Generate A Random Sampling Area Value
           * Generate a random area value and traverse the objects until the cumulative area exceeds that value
           */
-          float random_area_size = std::max(Tools::random_generator(), m_epsilon) *
+          float random_area_size = std::max(Tools::random_generator(), std::numeric_limits<float>::epsilon()) *
 
                     /* 
                     * Calculate Self - illuminating Total Area Size 
@@ -643,7 +643,7 @@ SoftRasterizer::Scene::pathTracingDirectLight(const Intersection& shadeObjInters
 
           /*Radiant Radiance (L)*/
           auto ObjectNormal = glm::faceforward(N, wi, -N);
-          auto LightNormal = glm::faceforward(-intersection_status.normal, shadingPoint2lightDir, intersection_status.normal);
+          auto LightNormal = glm::faceforward(intersection_status.normal, shadingPoint2lightDir, -intersection_status.normal);
 
           auto Li = intersection_status.emit;
           auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(wi, shadingPoint2lightDir, ObjectNormal);  /*BRDF*/
@@ -670,7 +670,8 @@ SoftRasterizer::Scene::pathTracingIndirectLight(const Intersection& shadeObjInte
           /*Russian Roulette with probability RussianRoulette*/
           //This Object should not be a illumination source
           if (Tools::random_generator() > p_rr || glm::length(shadeObjIntersection.emit) > m_epsilon) {
-                    return glm::vec3(0.f);
+                    //return glm::vec3(0.f);
+                    return shadeObjIntersection.color;
           }
 
           auto ObjectNormal = glm::faceforward(N, wi, -N);
