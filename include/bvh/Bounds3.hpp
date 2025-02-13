@@ -41,13 +41,16 @@ struct Bounds3 {
      * Multiply is faster that Division
      * Use a large value to handle division by zero for rays parallel to an axis
      */
-    const glm::vec3 inv_dir =
-        glm::vec3(std::abs(ray.direction.x) > std::numeric_limits<float>::epsilon() ? 1.0f / ray.direction.x
-                                       : std::numeric_limits<float>::max(),
-                  std::abs(ray.direction.y) > std::numeric_limits<float>::epsilon() ? 1.0f / ray.direction.y
-                                       : std::numeric_limits<float>::max(),
-                  std::abs(ray.direction.z) > std::numeric_limits<float>::epsilon() ? 1.0f / ray.direction.z
-                                       : std::numeric_limits<float>::max());
+    const glm::vec3 inv_dir = glm::vec3(
+        std::abs(ray.direction.x) > std::numeric_limits<float>::epsilon()
+            ? 1.0f / ray.direction.x
+            : std::numeric_limits<float>::max(),
+        std::abs(ray.direction.y) > std::numeric_limits<float>::epsilon()
+            ? 1.0f / ray.direction.y
+            : std::numeric_limits<float>::max(),
+        std::abs(ray.direction.z) > std::numeric_limits<float>::epsilon()
+            ? 1.0f / ray.direction.z
+            : std::numeric_limits<float>::max());
 
     auto x_min = min.x, x_max = max.x;
     auto y_min = min.y, y_max = max.y;

@@ -6,14 +6,16 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
 
-SoftRasterizer::PathTracing::PathTracing(const std::size_t width, const std::size_t height, const std::size_t spp)
-          : RenderingPipeline(width, height) {
-          setSPP(spp);
+SoftRasterizer::PathTracing::PathTracing(const std::size_t width,
+                                         const std::size_t height,
+                                         const std::size_t spp)
+    : RenderingPipeline(width, height) {
+  setSPP(spp);
 }
 
-//Sample Per Pixel
+// Sample Per Pixel
 void SoftRasterizer::PathTracing::setSPP(const std::size_t spp) {
-          sample = spp;
+  sample = spp;
 }
 
 void SoftRasterizer::PathTracing::draw(Primitive type) {
@@ -53,22 +55,26 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
               try {
                 Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
 
-                   // Use parallel_reduce for efficient accumulation
+                // Use parallel_reduce for efficient accumulation
                 glm::vec3 color = oneapi::tbb::parallel_reduce(
-                          oneapi::tbb::blocked_range<std::size_t>(0, sample),
-                          glm::vec3(0.f),
-                          [&](const oneapi::tbb::blocked_range<std::size_t>& r, glm::vec3 partialColor) -> glm::vec3 {
-                                    for (std::size_t i = r.begin(); i < r.end(); ++i) {
-                                              partialColor += SceneObj->pathTracing(ray);
-                                    }
-                                    return partialColor;
-                          },
-                          std::plus<glm::vec3>() // Reduce with addition
-                          , oneapi::tbb::auto_partitioner() 
-                          /*Consume lots of memory!!!! If you are going to use affinity_partitioner (ap)*/
+                    oneapi::tbb::blocked_range<std::size_t>(0, sample),
+                    glm::vec3(0.f),
+                    [&](const oneapi::tbb::blocked_range<std::size_t> &r,
+                        glm::vec3 partialColor) -> glm::vec3 {
+                      for (std::size_t i = r.begin(); i < r.end(); ++i) {
+                        partialColor += SceneObj->pathTracing(ray);
+                      }
+                      return partialColor;
+                    },
+                    std::plus<glm::vec3>() // Reduce with addition
+                    ,
+                    oneapi::tbb::auto_partitioner()
+                    /*Consume lots of memory!!!! If you are going to use
+                       affinity_partitioner (ap)*/
                 );
 
-                writePixel(rx, ry, Tools::normalizedToRGB(color / glm::vec3(sample)));
+                writePixel(rx, ry,
+                           Tools::normalizedToRGB(color / glm::vec3(sample)));
 
               } catch (const std::exception &e) {
                 spdlog::error("RayTracing System Error! Message: {}", e.what());

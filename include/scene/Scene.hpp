@@ -1,17 +1,17 @@
 #pragma once
 #ifndef _SCENE_HPP_
 #define _SCENE_HPP_
-#include <tuple>
-#include <future>
 #include <atomic>
-#include <optional>
-#include <random>   //generate random number
-#include <unordered_map>
-#include <hpc/Simd.hpp>
-#include <shader/Shader.hpp>
-#include <loader/ObjLoader.hpp>
-#include <tbb/concurrent_vector.h>
 #include <bvh/BVHAcceleration.hpp>
+#include <future>
+#include <hpc/Simd.hpp>
+#include <loader/ObjLoader.hpp>
+#include <optional>
+#include <random> //generate random number
+#include <shader/Shader.hpp>
+#include <tbb/concurrent_vector.h>
+#include <tuple>
+#include <unordered_map>
 
 namespace SoftRasterizer {
 class Triangle;
@@ -89,8 +89,8 @@ public:
   /*Remove BVH Structure*/
   void clearBVHAccel();
 
-  //Path Tracing
-  glm::vec3 pathTracing(Ray& ray);
+  // Path Tracing
+  glm::vec3 pathTracing(Ray &ray);
 
 protected:
   void updatePosition();
@@ -116,27 +116,28 @@ private:
   // Uniformly sample the light
   [[nodiscard]] std::tuple<Intersection, float> sampleLight();
 
-  //Whitted Style Ray Tracing
+  // Whitted Style Ray Tracing
   glm::vec3
   whittedRayTracing(Ray &ray, int depth,
                     const std::vector<SoftRasterizer::light_struct> &lights);
 
-glm::vec3 pathTracingShading(Ray& ray, int maxRecursionDepth = 5,int currentDepth = 0);
+  glm::vec3 pathTracingShading(Ray &ray, int maxRecursionDepth = 5,
+                               int currentDepth = 0);
 
-//Calculate Points Direct light
-glm::vec3
-pathTracingDirectLight(const Intersection& shadeObjIntersection, Ray& ray);
+  // Calculate Points Direct light
+  glm::vec3 pathTracingDirectLight(const Intersection &shadeObjIntersection,
+                                   Ray &ray);
 
-//Calculate Point From Indirect Light
-glm::vec3
-pathTracingIndirectLight(const Intersection& shadeObjIntersection, 
-                                        Ray& ray, 
-                                        const std::size_t maxRecursionDepth = std::thread::hardware_concurrency() / 2,
-                                        std::size_t currentDepth = 0);
+  // Calculate Point From Indirect Light
+  glm::vec3
+  pathTracingIndirectLight(const Intersection &shadeObjIntersection, Ray &ray,
+                           const std::size_t maxRecursionDepth =
+                               std::thread::hardware_concurrency() / 2,
+                           std::size_t currentDepth = 0);
 
 private:
-          /*Russian Roulette*/
-          float p_rr;
+  /*Russian Roulette*/
+  float p_rr;
 
   /*Scene Configuration*/
   std::string m_sceneName;

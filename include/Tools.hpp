@@ -162,7 +162,7 @@ struct Tools {
    */
   static glm::vec3 toWorld(const glm::vec3 &local, const glm::vec3 &N);
 
-  static bool isfinite(const glm::vec3& v);
+  static bool isfinite(const glm::vec3 &v);
 
   template <size_t Begin, size_t End, typename F> static void static_for(F f) {
     if constexpr (Begin < End) {

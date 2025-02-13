@@ -1,16 +1,17 @@
 #include <object/Sphere.hpp>
 #include <opencv2/opencv.hpp>
+#include <render/PathTracing.hpp>
 #include <render/Rasterizer.hpp>
 #include <render/RayTracing.hpp>
-#include <render/PathTracing.hpp>
 #include <scene/Scene.hpp>
 
 int main() {
   int key = 0;
   float degree = 180.0f;
 
-  //Create Path Tracing Main Class
-  auto render = std::make_shared<SoftRasterizer::PathTracing>(1024, 1024, /*SPP=*/16);
+  // Create Path Tracing Main Class
+  auto render =
+      std::make_shared<SoftRasterizer::PathTracing>(1024, 1024, /*SPP=*/16);
 
   // Create A Scene
   auto scene = std::make_shared<SoftRasterizer::Scene>(
@@ -20,40 +21,53 @@ int main() {
       /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
       /*background color*/ glm::vec3(0.f));
 
-  std::shared_ptr<SoftRasterizer::Material> red = std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material>green = std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material>white = std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material>light = std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material> red =
+      std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material> green =
+      std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material> white =
+      std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material> light =
+      std::make_shared<SoftRasterizer::Material>();
 
   red->Kd = glm::vec3(0.f, 0.f, 0.5f);
   green->Kd = glm::vec3(0.f, 0.5f, 0.f);
   white->Kd = glm::vec3(0.68f, 0.71f, 0.725f);
   light->Kd = glm::vec3(1.0f);
-  light->emission = glm::vec3(31.0808f / 50.f, 38.5664f / 50.f, 47.8848f / 50.f);
+  light->emission =
+      glm::vec3(31.0808f / 50.f, 38.5664f / 50.f, 47.8848f / 50.f);
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/floor.obj", "floor",
-            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/floor.obj",
+      "floor", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/back.obj", "back",
-            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/back.obj",
+      "back", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/top.obj", "top",
-            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/top.obj", "top",
+      glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/left.obj", "left",
-            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/left.obj",
+      "left", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/right.obj", "right",
-            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/right.obj",
+      "right", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/light.obj", "light",
-            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/light.obj",
+      "light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/small.obj", "shortbox",
-            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/small.obj",
+      "shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  scene->addGraphicObj(CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/large.obj", "tallbox",
-            glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/large.obj",
+      "tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
   scene->startLoadingMesh("floor");
   scene->startLoadingMesh("back");
@@ -64,14 +78,30 @@ int main() {
   scene->startLoadingMesh("shortbox");
   scene->startLoadingMesh("tallbox");
 
-  if (auto lightOpt = scene->getMeshObj("light"); lightOpt) { (*lightOpt)->setMaterial(light); }
-  if (auto leftOpt = scene->getMeshObj("left"); leftOpt) { (*leftOpt)->setMaterial(green); }
-  if (auto rightOpt = scene->getMeshObj("right"); rightOpt) { (*rightOpt)->setMaterial(red); }
-  if (auto floorOpt = scene->getMeshObj("floor"); floorOpt) { (*floorOpt)->setMaterial(white); }
-  if (auto topOpt = scene->getMeshObj("top"); topOpt) { (*topOpt)->setMaterial(white); }
-  if (auto backOpt = scene->getMeshObj("back"); backOpt) { (*backOpt)->setMaterial(white); }
-  if (auto shortboxOpt = scene->getMeshObj("shortbox"); shortboxOpt) { (*shortboxOpt)->setMaterial(white); }
-  if (auto tallboxOpt = scene->getMeshObj("tallbox"); tallboxOpt) { (*tallboxOpt)->setMaterial(white); }
+  if (auto lightOpt = scene->getMeshObj("light"); lightOpt) {
+    (*lightOpt)->setMaterial(light);
+  }
+  if (auto leftOpt = scene->getMeshObj("left"); leftOpt) {
+    (*leftOpt)->setMaterial(green);
+  }
+  if (auto rightOpt = scene->getMeshObj("right"); rightOpt) {
+    (*rightOpt)->setMaterial(red);
+  }
+  if (auto floorOpt = scene->getMeshObj("floor"); floorOpt) {
+    (*floorOpt)->setMaterial(white);
+  }
+  if (auto topOpt = scene->getMeshObj("top"); topOpt) {
+    (*topOpt)->setMaterial(white);
+  }
+  if (auto backOpt = scene->getMeshObj("back"); backOpt) {
+    (*backOpt)->setMaterial(white);
+  }
+  if (auto shortboxOpt = scene->getMeshObj("shortbox"); shortboxOpt) {
+    (*shortboxOpt)->setMaterial(white);
+  }
+  if (auto tallboxOpt = scene->getMeshObj("tallbox"); tallboxOpt) {
+    (*tallboxOpt)->setMaterial(white);
+  }
 
   /*Register Scene To Render Main Frame*/
   render->addScene(scene);
@@ -82,14 +112,22 @@ int main() {
     render->clear(SoftRasterizer::Buffers::Color |
                   SoftRasterizer::Buffers::Depth);
 
-    scene->setModelMatrix("floor", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
-    scene->setModelMatrix("back", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
-    scene->setModelMatrix("top", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
-    scene->setModelMatrix("left", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
-    scene->setModelMatrix("right", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
-    scene->setModelMatrix("light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
-    scene->setModelMatrix("shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
-    scene->setModelMatrix("tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("floor", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
+                          glm::vec3(0.25f));
+    scene->setModelMatrix("back", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
+                          glm::vec3(0.25f));
+    scene->setModelMatrix("top", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
+                          glm::vec3(0.25f));
+    scene->setModelMatrix("left", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
+                          glm::vec3(0.25f));
+    scene->setModelMatrix("right", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
+                          glm::vec3(0.25f));
+    scene->setModelMatrix("light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
+                          glm::vec3(0.25f));
+    scene->setModelMatrix("shortbox", glm::vec3(0, 1, 0), degree,
+                          glm::vec3(0.f), glm::vec3(0.25f));
+    scene->setModelMatrix("tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
+                          glm::vec3(0.25f));
 
     /*View Matrix*/
     scene->setViewMatrix(
