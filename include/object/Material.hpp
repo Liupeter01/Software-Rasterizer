@@ -19,10 +19,9 @@ struct Material {
            const glm::vec3 &_Ks = glm::vec3(0.0f),
            const float _specularExponent = 0.0f)
 
-      : type(_type), Ka(_Ka), Kd(_Kd), Ks(_Ks), Ns(0.f), Ni(0.f),
-        d(0.f), illum(0), ior(0.f), specularExponent(_specularExponent),
-        map_Ka(""), map_Kd(""), map_Ks(""), map_Ns(""), map_d(""),
-        map_bump("") {}
+      : type(_type), Ka(_Ka), Kd(_Kd), Ks(_Ks), Ns(0.f), Ni(0.f), d(0.f),
+        illum(0), ior(0.f), specularExponent(_specularExponent), map_Ka(""),
+        map_Kd(""), map_Ks(""), map_Ns(""), map_d(""), map_bump("") {}
 
   MaterialType getMaterialType() const { return type; }
 

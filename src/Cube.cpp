@@ -1,8 +1,6 @@
 #include <object/Cube.hpp>
 
-SoftRasterizer::Cube::Cube()
-          : Object(std::make_shared<Material>(), nullptr) 
-{}
+SoftRasterizer::Cube::Cube() : Object(std::make_shared<Material>(), nullptr) {}
 
 SoftRasterizer::Cube::~Cube() {}
 
@@ -32,6 +30,6 @@ void SoftRasterizer::Cube::updatePosition(const glm::mat4x4 &NDC_MVP,
                                           const glm::mat4x4 &Normal_M) {}
 
 void SoftRasterizer::Cube::bindShader2Mesh(std::shared_ptr<Shader> shader) {
-          m_shader.reset();
-          m_shader = shader;
+  m_shader.reset();
+  m_shader = shader;
 }

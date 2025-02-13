@@ -77,7 +77,7 @@ public:
                 lights);
 
   void cameraLight(bool status);
-  void cameraLight(const glm::vec3& intensity);
+  void cameraLight(const glm::vec3 &intensity);
 
   /*Generating BVH Structure*/
   void buildBVHAccel();
@@ -93,8 +93,8 @@ protected:
   std::vector<SoftRasterizer::light_struct> loadLights();
 
 private:
-          /*The intensity is 0 by default*/
-          void initCameraLight();
+  /*The intensity is 0 by default*/
+  void initCameraLight();
 
   /*NDC Matrix Function is prepare for renderpipeline class!*/
   void setNDCMatrix(const std::size_t width, const std::size_t height);

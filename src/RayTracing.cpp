@@ -2,8 +2,8 @@
 #include <base/Render.hpp>
 #include <render/RayTracing.hpp>
 #include <spdlog/spdlog.h>
-#include <tbb/parallel_for.h>
 #include <tbb/blocked_range2d.h>
+#include <tbb/parallel_for.h>
 
 void SoftRasterizer::RayTracing::draw(Primitive type) {
   if ((type != SoftRasterizer::Primitive::LINES) &&
@@ -27,24 +27,29 @@ void SoftRasterizer::RayTracing::draw(Primitive type) {
     float scale = std::tan(glm::radians(SceneObj->m_fovy * 0.5));
 
     oneapi::tbb::parallel_for(
-              oneapi::tbb::blocked_range2d<std::size_t>(0, m_height, 16, 0, m_width, 16),  // 16x16 Block
-              [&](const oneapi::tbb::blocked_range2d<std::size_t>& range) {
-                        for (std::size_t ry = range.rows().begin(); ry < range.rows().end(); ++ry) {
-                                  for (std::size_t rx = range.cols().begin(); rx < range.cols().end(); ++rx) {
+        oneapi::tbb::blocked_range2d<std::size_t>(0, m_height, 16, 0, m_width,
+                                                  16), // 16x16 Block
+        [&](const oneapi::tbb::blocked_range2d<std::size_t> &range) {
+          for (std::size_t ry = range.rows().begin(); ry < range.rows().end();
+               ++ry) {
+            for (std::size_t rx = range.cols().begin(); rx < range.cols().end();
+                 ++rx) {
 
-                                            float x = (2 * (rx + 0.5f) / static_cast<float>(m_width) - 1) * aspect_ratio * scale;
-                                            float y = (2 * (ry + 0.5f) / static_cast<float>(m_height) - 1) * scale;
+              float x = (2 * (rx + 0.5f) / static_cast<float>(m_width) - 1) *
+                        aspect_ratio * scale;
+              float y =
+                  (2 * (ry + 0.5f) / static_cast<float>(m_height) - 1) * scale;
 
-                                            try {
-                                                      Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
-                                                      glm::vec3 color = SceneObj->whittedRayTracing(ray, 0, lights);
-                                                      writePixel(rx, ry, Tools::normalizedToRGB(color));
-                                            }
-                                            catch (const std::exception& e) {
-                                                      spdlog::error("RayTracing System Error! Message: {}", e.what());
-                                            }
-                                  }
-                        }
-              }, ap);
+              try {
+                Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
+                glm::vec3 color = SceneObj->whittedRayTracing(ray, 0, lights);
+                writePixel(rx, ry, Tools::normalizedToRGB(color));
+              } catch (const std::exception &e) {
+                spdlog::error("RayTracing System Error! Message: {}", e.what());
+              }
+            }
+          }
+        },
+        ap);
   }
 }

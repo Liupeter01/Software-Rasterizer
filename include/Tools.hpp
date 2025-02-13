@@ -72,6 +72,7 @@ struct Triangle;
 
 struct Tools {
   static constexpr float PI = 3.14159265358979323846f;
+  static constexpr float PI_INV = 1.0f / PI;
 
   // Base case: min with two arguments
   template <typename T> static T min(T a, T b) { return (a < b) ? a : b; }
@@ -152,6 +153,8 @@ struct Tools {
 
   static float fresnel(const glm::vec3 &rayDirection, const glm::vec3 &normal,
                        const float &refractiveIndex);
+
+  static const float random_generator();
 
   template <size_t Begin, size_t End, typename F> static void static_for(F f) {
     if constexpr (Begin < End) {

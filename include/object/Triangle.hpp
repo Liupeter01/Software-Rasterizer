@@ -6,13 +6,13 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <initializer_list>
+#include <loader/TextureLoader.hpp>
 #include <object/Material.hpp>
 #include <object/Object.hpp>
-#include <loader/TextureLoader.hpp>
 
 namespace SoftRasterizer {
 
-          class TextureLoader;
+class TextureLoader;
 
 enum class FaceNormalType {
   PerGeometry,     // calculate by using cross product

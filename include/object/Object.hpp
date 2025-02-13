@@ -3,10 +3,10 @@
 #define _OBJECT_HPP_
 #include <bvh/Bounds3.hpp>
 #include <memory>
+#include <object/Material.hpp>
 #include <optional>
 #include <ray/Intersection.hpp>
 #include <ray/Ray.hpp> //ray def
-#include <object/Material.hpp>
 #include <shader/Shader.hpp>
 
 namespace SoftRasterizer {
@@ -31,7 +31,7 @@ struct Vertex {
 };
 
 struct Object {
-          friend class Scene;
+  friend class Scene;
 
   struct Properties {
     glm::vec3 normal = glm::vec3(0.f);
@@ -75,10 +75,10 @@ public:
   glm::mat4x4 modelMatrix = glm::mat4x4(1.0f);
 
 protected:
-          std::shared_ptr<Material> m_material;
+  std::shared_ptr<Material> m_material;
 
-          // Shading structure
-          std::shared_ptr<Shader> m_shader;
+  // Shading structure
+  std::shared_ptr<Shader> m_shader;
 };
 } // namespace SoftRasterizer
 

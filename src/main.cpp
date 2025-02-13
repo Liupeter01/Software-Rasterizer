@@ -46,20 +46,21 @@ int main() {
 
   /*Add a spot object*/
   scene->addGraphicObj(
-            CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
-            glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(0.3f));
+      CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
+      glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(0.3f));
 
   scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
-            glm::vec3(0.f, 1.f, 0.f), 0.f, glm::vec3(0.0f), glm::vec3(0.2f));
+                       glm::vec3(0.f, 1.f, 0.f), 0.f, glm::vec3(0.0f),
+                       glm::vec3(0.2f));
 
   /*Add a texture shader for spot object!*/
   scene->addShader("spot_shader",
-            CONFIG_HOME "examples/models/spot/spot_texture.png",
-            SoftRasterizer::SHADERS_TYPE::TEXTURE);
+                   CONFIG_HOME "examples/models/spot/spot_texture.png",
+                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
   scene->addShader("crate_shader",
-            CONFIG_HOME "examples/models/Crate/crate1.png",
-            SoftRasterizer::SHADERS_TYPE::TEXTURE);
+                   CONFIG_HOME "examples/models/Crate/crate1.png",
+                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
   scene->startLoadingMesh("spot");
   scene->startLoadingMesh("Crate");
@@ -67,7 +68,7 @@ int main() {
   /*Modify spot's Material Properties*/
   auto spot_obj = scene->getMeshObj("spot");
   spot_obj.value()->getMaterial()->type =
-            SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
+      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
   spot_obj.value()->getMaterial()->Ka = glm::vec3(0.005f);
   spot_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
   spot_obj.value()->getMaterial()->specularExponent = 150.f;
@@ -75,7 +76,7 @@ int main() {
   /*Modify Crate's Material Properties*/
   auto crate_obj = scene->getMeshObj("Crate");
   crate_obj.value()->getMaterial()->type =
-            SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
+      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
   crate_obj.value()->getMaterial()->Ka = glm::vec3(0.005f);
   crate_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
   crate_obj.value()->getMaterial()->specularExponent = 150.f;
@@ -92,7 +93,7 @@ int main() {
   light2->position = glm::vec3{-0.5f, -0.4f, -0.9f};
   light2->intensity = glm::vec3{1, 1, 1};
 
-  //scene->addLight("Light1", light1);
+  // scene->addLight("Light1", light1);
   scene->addLight("Light2", light2);
 
   /*Register Scene To Render Main Frame*/
@@ -113,11 +114,11 @@ int main() {
         /*scale=*/glm::vec3(0.1f));
 
     scene->setModelMatrix(
-              "Crate",
-              /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-              /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-              /*transform=*/glm::vec3(0.1f, -0.12f, 0.f),
-              /*scale=*/glm::vec3(0.05f));
+        "Crate",
+        /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+        /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
+        /*transform=*/glm::vec3(0.1f, -0.12f, 0.f),
+        /*scale=*/glm::vec3(0.05f));
 
     scene->setModelMatrix("reflect",
                           /*axis=*/glm::vec3(0.f, 1.f, 0.f),
