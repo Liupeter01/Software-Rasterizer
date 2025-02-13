@@ -63,8 +63,7 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
                                               }
                                               return partialColor;
                                     },
-                                    std::plus<glm::vec3>(), // Reduce with addition
-                                    ap
+                                    std::plus<glm::vec3>() // Reduce with addition
                           );
 
                 writePixel(rx, ry, Tools::normalizedToRGB(color / glm::vec3(sample)));
