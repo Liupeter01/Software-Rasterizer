@@ -55,16 +55,18 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
 
                    // Use parallel_reduce for efficient accumulation
                 glm::vec3 color = oneapi::tbb::parallel_reduce(
-                                    oneapi::tbb::blocked_range<std::size_t>(0, sample),
-                                    glm::vec3(0.f),
-                                    [&](const oneapi::tbb::blocked_range<std::size_t>& r, glm::vec3 partialColor) -> glm::vec3 {
-                                              for (std::size_t i = r.begin(); i < r.end(); ++i) {
-                                                        partialColor += SceneObj->pathTracing(ray);
-                                              }
-                                              return partialColor;
-                                    },
-                                    std::plus<glm::vec3>() // Reduce with addition
-                          );
+                          oneapi::tbb::blocked_range<std::size_t>(0, sample),
+                          glm::vec3(0.f),
+                          [&](const oneapi::tbb::blocked_range<std::size_t>& r, glm::vec3 partialColor) -> glm::vec3 {
+                                    for (std::size_t i = r.begin(); i < r.end(); ++i) {
+                                              partialColor += SceneObj->pathTracing(ray);
+                                    }
+                                    return partialColor;
+                          },
+                          std::plus<glm::vec3>() // Reduce with addition
+                          , oneapi::tbb::auto_partitioner() 
+                          /*Consume lots of memory!!!! If you are going to use affinity_partitioner (ap)*/
+                );
 
                 writePixel(rx, ry, Tools::normalizedToRGB(color / glm::vec3(sample)));
 
