@@ -634,7 +634,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
   // If the ray is not blocked in the middle
   auto intersection_status = traceScene(shadingPoint2light);
   if (!intersection_status.intersected) {
-            return lightSample.emit / lightAreaPdf; 
+    return lightSample.emit / lightAreaPdf;
   }
 
   // Shadow Detection: If the ray is not blocked in the middle
@@ -684,9 +684,10 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
     return shadeObjIntersection.color;
   }
 
-  /*If its a self-illumination object, then it should only handled by DirectLight Algo*/
+  /*If its a self-illumination object, then it should only handled by
+   * DirectLight Algo*/
   if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
-            return glm::vec3(0.f);
+    return glm::vec3(0.f);
   }
 
   auto ObjectNormal = glm::faceforward(N, wi, -N);
@@ -727,14 +728,15 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
   glm::vec3 direct = pathTracingDirectLight(shadeObjIntersection, ray);
   glm::vec3 indirect = glm::vec3(0.f);
   if (currentDepth < maxRecursionDepth) {
-            tbb::task_group tg;
-            tg.run([&]() {indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
-                                maxRecursionDepth, currentDepth + 1);});
-            tg.wait();
-  }
-  else {
-            indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
-                      maxRecursionDepth, currentDepth + 1);
+    tbb::task_group tg;
+    tg.run([&]() {
+      indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
+                                          maxRecursionDepth, currentDepth + 1);
+    });
+    tg.wait();
+  } else {
+    indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
+                                        maxRecursionDepth, currentDepth + 1);
   }
   return direct + indirect;
 }
