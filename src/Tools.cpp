@@ -273,8 +273,8 @@ float SoftRasterizer::Tools::fresnel(const glm::vec3 &rayDirection,
 
 const float SoftRasterizer::Tools::random_generator() {
   /*Random Generator*/
-  static thread_local std::mt19937 mt(std::random_device{}()); 
-  static thread_local std::uniform_real_distribution<float> dist(0.f, 1.f); 
+  static  std::mt19937 mt(std::random_device{}()); 
+  static  std::uniform_real_distribution<float> dist(0.f, 1.f); 
   return dist(mt);
 }
 
