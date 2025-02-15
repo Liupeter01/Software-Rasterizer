@@ -627,6 +627,13 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
   /*  Sampling The Light, Finding The Intersection point on the light, and its
    * Pdf*/
   auto [lightSample, lightAreaPdf] = sampleLight();
+
+  //spdlog::info("Sampled Light Position: (x, y, z) =({}, {}, {})",
+  //          lightSample.coords.x, lightSample.coords.y, lightSample.coords.z);
+
+  //spdlog::info("Shading Position: (x, y, z) =({}, {}, {})",
+  //          shadeObjIntersection.coords.x, shadeObjIntersection.coords.y, shadeObjIntersection.coords.z);
+
   glm::vec3 shadingPoint2lightDir =
       glm::normalize(lightSample.coords - shadeObjIntersection.coords);
   Ray shadingPoint2light(shadeObjIntersection.coords, shadingPoint2lightDir);
@@ -634,7 +641,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
   // If the ray is not blocked in the middle
   auto intersection_status = traceScene(shadingPoint2light);
   if (!intersection_status.intersected) {
-    return lightSample.emit / lightAreaPdf;
+    return lightSample.emit / lightAreaPdf;       //Handle 2D Area Light
   }
 
   // Shadow Detection: If the ray is not blocked in the middle
@@ -677,17 +684,11 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
   const glm::vec3 N = glm::normalize(shadeObjIntersection.normal);
   const glm::vec3 wi = -I;
 
-  /*Russian Roulette with probability RussianRoulette*/
-  // This Object should not be a illumination source
-  if (Tools::random_generator() > p_rr) {
-    // return glm::vec3(0.f);
-    return shadeObjIntersection.color;
-  }
-
-  /*If its a self-illumination object, then it should only handled by
-   * DirectLight Algo*/
-  if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
-    return glm::vec3(0.f);
+  /*Russian Roulette with probability RussianRoulette
+  * And also, This Object should not be a illumination source*/
+  if (Tools::random_generator() > p_rr 
+            || glm::length(shadeObjIntersection.emit) > m_epsilon) {
+     return glm::vec3(0.f);
   }
 
   auto ObjectNormal = glm::faceforward(N, wi, -N);
@@ -704,14 +705,12 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
       m_epsilon); // PDF
   auto object_theta = std::max(0.f, glm::dot(wi, ObjectNormal));
 
-  if (object_theta < m_epsilon) {
+  //Skip Recursive Function
+  if (object_theta < m_epsilon || pdf < m_epsilon || Fr == glm::vec3(0.f)) {
     return glm::vec3(0.f);
   }
 
-  return glm::clamp(
-      pathTracingShading(newray, maxRecursionDepth, currentDepth + 1) * Fr *
-          object_theta / (pdf * p_rr),
-      glm::vec3(0.f), glm::vec3(1.f));
+  return Fr * object_theta * pathTracingShading(newray, maxRecursionDepth, currentDepth + 1) / (pdf * p_rr);
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
@@ -734,7 +733,8 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
                                           maxRecursionDepth, currentDepth + 1);
     });
     tg.wait();
-  } else {
+  } 
+  else {
     indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
                                         maxRecursionDepth, currentDepth + 1);
   }
