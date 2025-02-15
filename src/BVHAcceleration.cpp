@@ -198,19 +198,18 @@ void SoftRasterizer::BVHAcceleration::sample(BVHBuildNode *node,
     return;
 
   /*Every Obj is on leaf node!*/
-  if (node->left == nullptr && node->right == nullptr) {
+  if (!node->left || !node->right) {
     auto [obj_intersection, obj_pdf] = node->obj->sample();
     intersect = obj_intersection;
     pdf = obj_pdf * node->area;
+    //pdf = obj_pdf * (node->area < std::numeric_limits<float>::epsilon() ? 1.0f : node->area);
     return;
   }
-  if (area < node->left->area) {
-    if (node->left != nullptr)
-      sample(node->left.get(), area, intersect, pdf);
-  } else {
-    if (node->right != nullptr)
-      sample(node->right.get(), area - node->left->area, intersect, pdf);
-  }
+  if (area < node->left->area) 
+            sample(node->left.get(), area, intersect, pdf);
+  else 
+            sample(node->right.get(), area - node->left->area, intersect, pdf);
+  
 }
 
 /*Read Parameters from the object of sample*/
@@ -221,8 +220,7 @@ SoftRasterizer::BVHAcceleration::sample() {
 
   /*Use Total Area Value and a ratio to do sample*/
   const float area =
-      std::sqrt(std::max(Tools::random_generator(),
-                         std::numeric_limits<float>::epsilon())) *
+     Tools::random_generator() *
       root->area;
 
   sample(root.get(), area, intersect, pdf);
