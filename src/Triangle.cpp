@@ -241,6 +241,10 @@ void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
   vert[2].normal =
       glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f)));
 
+  Tools::epsilonEqual(vert[0].normal);
+  Tools::epsilonEqual(vert[1].normal);
+  Tools::epsilonEqual(vert[2].normal);
+
   /*because of position changed, then we have to recalcuate area*/
   [[maybe_unused]] auto res = calcArea();
 }
