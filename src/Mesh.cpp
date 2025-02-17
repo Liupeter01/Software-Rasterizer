@@ -53,8 +53,7 @@ SoftRasterizer::Intersection SoftRasterizer::Mesh::getIntersect(Ray &ray) {
 std::tuple<SoftRasterizer::Intersection, float> SoftRasterizer::Mesh::sample() {
   if (m_bvh == nullptr)
     return {};
-  auto [intersection, pdf] = m_bvh->sample();
-  return {intersection, pdf};
+  return m_bvh->sample();
 }
 
 const float SoftRasterizer::Mesh::getArea() {
