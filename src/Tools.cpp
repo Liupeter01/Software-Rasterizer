@@ -274,9 +274,15 @@ float SoftRasterizer::Tools::fresnel(const glm::vec3 &rayDirection,
 const float SoftRasterizer::Tools::random_generator() {
   /*Random Generator*/
   static  std::mt19937 mt(std::random_device{}()); 
-  static  std::uniform_real_distribution<float> dist(0.f, 1.f); 
+  static  std::uniform_real_distribution<double> dist(0.f, 1.f); 
   return dist(mt);
 }
+
+void SoftRasterizer::Tools::epsilonEqual(glm::vec3& transformedNormal) {
+          if (glm::abs(transformedNormal.x) < 1e-6) transformedNormal.x = 0.f;
+          if (glm::abs(transformedNormal.y) < 1e-6) transformedNormal.y = 0.f;
+          if (glm::abs(transformedNormal.z) < 1e-6) transformedNormal.z = 0.f;
+};
 
 /*
  * Mathematical Transformation Principle
