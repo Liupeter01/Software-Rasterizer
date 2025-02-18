@@ -299,9 +299,7 @@ std::vector<SoftRasterizer::light_struct> SoftRasterizer::Scene::loadLights() {
 
 void SoftRasterizer::Scene::initCameraLight() {
   m_cameraLight.reset();
-  m_cameraLight = std::make_shared<light_struct>();
-  m_cameraLight->intensity = glm::vec3{0.f};
-  m_cameraLight->position = m_eye;
+  m_cameraLight = std::make_shared<light_struct>(m_eye, glm::vec3(0.f));
 
   addLight("sys_camera", m_cameraLight);
 }
@@ -399,9 +397,7 @@ SoftRasterizer::Scene::sampleLight() {
    * Generate a random area value and traverse the objects until the cumulative
    * area exceeds that value
    */
-  float random_area_size =
-      std::max(Tools::random_generator(),
-               std::numeric_limits<float>::epsilon()) *
+  float random_area_size = Tools::random_generator() *
 
       /*
        * Calculate Self - illuminating Total Area Size
@@ -628,51 +624,41 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
    * Pdf*/
   auto [lightSample, lightAreaPdf] = sampleLight();
 
-  //spdlog::info("Sampled Light Position: (x, y, z) =({}, {}, {})",
-  //          lightSample.coords.x, lightSample.coords.y, lightSample.coords.z);
+  glm::vec3 light2ShadingPointDir = 
+            glm::normalize(shadeObjIntersection.coords - lightSample.coords);
 
-  //spdlog::info("Shading Position: (x, y, z) =({}, {}, {})",
-  //          shadeObjIntersection.coords.x, shadeObjIntersection.coords.y, shadeObjIntersection.coords.z);
+  Ray light2ShadingPoint(lightSample.coords, light2ShadingPointDir);
 
-  glm::vec3 shadingPoint2lightDir =
-      glm::normalize(lightSample.coords - shadeObjIntersection.coords);
-  Ray shadingPoint2light(shadeObjIntersection.coords, shadingPoint2lightDir);
-
-  // If the ray is not blocked in the middle
-  auto intersection_status = traceScene(shadingPoint2light);
+  auto intersection_status = traceScene(light2ShadingPoint);
   if (!intersection_status.intersected) {
-    return lightSample.emit / lightAreaPdf;       //Handle 2D Area Light
+            return glm::vec3(0.f);
   }
 
   // Shadow Detection: If the ray is not blocked in the middle
-  // And the intersection point is NOT a self-illuminate light source
-  float distToLight =
-      glm::length(intersection_status.coords - shadeObjIntersection.coords);
-  float distToIntersection =
-      glm::length(lightSample.coords - shadeObjIntersection.coords);
-  if (std::abs(distToIntersection - distToLight) > m_epsilon &&
-      glm::length(intersection_status.emit) < m_epsilon) {
-    return glm::vec3(0.f);
+// And the intersection point is NOT a self-illuminate light source
+  float distToIntersection = glm::length(lightSample.coords - intersection_status.coords);
+  float distToLight = glm::length(lightSample.coords - shadeObjIntersection.coords);
+  if (std::abs(distToIntersection - distToLight) > m_epsilon
+            && glm::length(intersection_status.emit) < m_epsilon) {
+            return glm::vec3(0.f);
   }
 
-  /*Radiant Radiance (L)*/
-  auto ObjectNormal = glm::faceforward(N, wi, -N);
-  auto LightNormal =
-      glm::faceforward(intersection_status.normal, shadingPoint2lightDir,
-                       -intersection_status.normal);
+  auto distanceSquare = std::max(0.f, pow(distToLight, 2.f));
 
-  auto Li = intersection_status.emit;
-  auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
-      wi, shadingPoint2lightDir, ObjectNormal); /*BRDF*/
+  /*Radiant Radiance (L)*/
+  glm::vec3 ObjectNormal = glm::faceforward(N, light2ShadingPointDir, -N); // Correct normal facing
+  glm::vec3 LightNormal = glm::faceforward(lightSample.normal, light2ShadingPointDir, -lightSample.normal); // Light normal
 
   auto object_theta =
-      std::max(0.f, glm::dot(ObjectNormal, shadingPoint2lightDir));
+      std::max(0.f, glm::dot(ObjectNormal, light2ShadingPointDir));
   auto light_theta =
-      std::max(0.f, glm::dot(LightNormal, shadingPoint2lightDir));
+      std::max(0.f, glm::dot(LightNormal, light2ShadingPointDir));
 
-  auto distanceSquare = std::max(distToLight * distToLight, m_epsilon);
+  auto Li = lightSample.emit;
+  auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
+            wi, light2ShadingPointDir, ObjectNormal); /*BRDF*/
 
-  return Li * Fr * object_theta * light_theta / (lightAreaPdf * distanceSquare);
+  return Li * Fr  *object_theta * light_theta / (lightAreaPdf * distanceSquare);
 }
 
 // Calculate Point From Indirect Light
@@ -686,8 +672,8 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
 
   /*Russian Roulette with probability RussianRoulette
   * And also, This Object should not be a illumination source*/
-  if (Tools::random_generator() > p_rr 
-            || glm::length(shadeObjIntersection.emit) > m_epsilon) {
+  auto p = Tools::random_generator();
+  if (p > p_rr || glm::length(shadeObjIntersection.emit) > m_epsilon) {
      return glm::vec3(0.f);
   }
 
@@ -710,13 +696,12 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
     return glm::vec3(0.f);
   }
 
-  return Fr * object_theta * pathTracingShading(newray, maxRecursionDepth, currentDepth + 1) / (pdf * p_rr);
+  return Fr * object_theta * pathTracingShading(newray, maxRecursionDepth, currentDepth + 1) / (pdf * p);
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
                                                     int maxRecursionDepth,
                                                     int currentDepth) {
-  bool useParallel = currentDepth < maxRecursionDepth;
 
   /*Camera emits a ray, find a shading point in the scene*/
   Intersection shadeObjIntersection = traceScene(ray);
@@ -750,9 +735,8 @@ glm::vec3 SoftRasterizer::Scene::pathTracing(Ray &ray) {
   }
 
   /*Maybe this Ray Could hit the self-illuminateion Object directly*/
-  if (glm::length(shadeObjIntersection.emit) >
-      std::numeric_limits<float>::epsilon()) {
-    return shadeObjIntersection.color;
+  if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
+            return shadeObjIntersection.color;
   }
 
   return glm::clamp(pathTracingShading(ray), glm::vec3(0.f), glm::vec3(1.f));
@@ -782,7 +766,7 @@ void SoftRasterizer::Scene::updatePosition() {
 
           auto NDC_MVP =
               /*m_ndcToScreenMatrix **/ m_projection * m_view * modelMatrix;
-          auto Normal_M = glm::transpose(glm::inverse(modelMatrix));
+          auto Normal_M = glm::mat4(glm::transpose(glm::inverse(glm::mat3(modelMatrix))));
 
           m_exportedObjs[i]->updatePosition(NDC_MVP, Normal_M);
         }
