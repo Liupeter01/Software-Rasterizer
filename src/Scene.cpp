@@ -702,7 +702,8 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
     return glm::vec3(0.f);
   }
 
-  return Fr * object_theta / (pdf * p) * pathTracingShading(newray, maxRecursionDepth, currentDepth + 1);
+  return Fr * object_theta / (pdf * p) *
+         pathTracingShading(newray, maxRecursionDepth, currentDepth + 1);
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
@@ -721,19 +722,17 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
   glm::vec3 indirect = glm::vec3(0.f);
   if (glm::length(shadeObjIntersection.emit) < m_epsilon) {
 
-            if (currentDepth < maxRecursionDepth) {
-                      tbb::task_group tg;
-                      tg.run([&]() {
-
-                                indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
+    if (currentDepth < maxRecursionDepth) {
+      tbb::task_group tg;
+      tg.run([&]() {
+        indirect = pathTracingIndirectLight(
+            shadeObjIntersection, ray, maxRecursionDepth, currentDepth + 1);
+      });
+      tg.wait();
+    } else {
+      indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
                                           maxRecursionDepth, currentDepth + 1);
-                                });
-                      tg.wait();
-            }
-            else {
-                      indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
-                                maxRecursionDepth, currentDepth + 1);
-            }
+    }
   }
   return direct + indirect;
 }
