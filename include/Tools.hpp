@@ -157,7 +157,7 @@ struct Tools {
 
   static const float random_generator();
 
-  static void epsilonEqual(glm::vec3& transformedNormal);
+  static void epsilonEqual(glm::vec3 &transformedNormal);
 
   /*
    * Mathematical Transformation Principle

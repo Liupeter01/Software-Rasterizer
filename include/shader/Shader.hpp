@@ -4,11 +4,11 @@
 #include <array>
 #include <functional>
 #include <hpc/Simd.hpp>
+#include <light/Light.hpp>
 #include <loader/TextureLoader.hpp>
 #include <memory>
 #include <tuple>
 #include <vector>
-#include <light/Light.hpp>
 
 namespace SoftRasterizer {
 

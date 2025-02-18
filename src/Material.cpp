@@ -55,10 +55,10 @@ glm::vec3 SoftRasterizer::Material::fr_contribution(const glm::vec3 &wi,
                                                     const glm::vec3 &wo,
                                                     const glm::vec3 &N) {
 
-          auto angle = glm::dot(wi, N);
+  auto angle = glm::dot(wi, N);
 
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {
-            return Kd * Tools::PI_INV;
+    return Kd * Tools::PI_INV;
   }
   return glm::vec3(0.f);
 }

@@ -138,8 +138,8 @@ processingVertexData(const std::string &objName,
         /*normal exist*/
         noNormal = false;
 
-        vertex.normal =
-            glm::normalize(glm::vec3(attrib.normals[3 * size_t(idx.normal_index) + 0],
+        vertex.normal = glm::normalize(
+            glm::vec3(attrib.normals[3 * size_t(idx.normal_index) + 0],
                       attrib.normals[3 * size_t(idx.normal_index) + 1],
                       attrib.normals[3 * size_t(idx.normal_index) + 2]));
       }

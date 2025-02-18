@@ -203,8 +203,8 @@ std::tuple<SoftRasterizer::Intersection, float>
 SoftRasterizer::Triangle::sample() {
 
   /*Generator 2D Random Sample Coordinates*/
-  float u =Tools::random_generator();
-  float v =Tools::random_generator();
+  float u = Tools::random_generator();
+  float v = Tools::random_generator();
 
   /*Use Barycentric to do the calculation*/
   float b1 = 1.0f - u;
