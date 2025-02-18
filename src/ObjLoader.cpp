@@ -139,9 +139,9 @@ processingVertexData(const std::string &objName,
         noNormal = false;
 
         vertex.normal =
-            glm::vec3(attrib.normals[3 * size_t(idx.normal_index) + 0],
+            glm::normalize(glm::vec3(attrib.normals[3 * size_t(idx.normal_index) + 0],
                       attrib.normals[3 * size_t(idx.normal_index) + 1],
-                      attrib.normals[3 * size_t(idx.normal_index) + 2]);
+                      attrib.normals[3 * size_t(idx.normal_index) + 2]));
       }
 
       // Check if `texcoord_index` is zero or positive. negative = no texcoord
