@@ -679,7 +679,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
   /*Russian Roulette with probability RussianRoulette
    * And also, This Object should not be a illumination source*/
   auto p = Tools::random_generator();
-  if (p > p_rr || glm::length(shadeObjIntersection.emit) > m_epsilon) {
+  if (p > p_rr) {
     return glm::vec3(0.f);
   }
 
@@ -702,9 +702,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
     return glm::vec3(0.f);
   }
 
-  return Fr * object_theta *
-         pathTracingShading(newray, maxRecursionDepth, currentDepth + 1) /
-         (pdf * p);
+  return Fr * object_theta / (pdf * p) * pathTracingShading(newray, maxRecursionDepth, currentDepth + 1);
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
@@ -718,17 +716,24 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
   }
 
   glm::vec3 direct = pathTracingDirectLight(shadeObjIntersection, ray);
+
+  /*indirect light should not hit a light source!*/
   glm::vec3 indirect = glm::vec3(0.f);
-  if (currentDepth < maxRecursionDepth) {
-    tbb::task_group tg;
-    tg.run([&]() {
-      indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
+  if (glm::length(shadeObjIntersection.emit) < m_epsilon) {
+
+            if (currentDepth < maxRecursionDepth) {
+                      tbb::task_group tg;
+                      tg.run([&]() {
+
+                                indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
                                           maxRecursionDepth, currentDepth + 1);
-    });
-    tg.wait();
-  } else {
-    indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
-                                        maxRecursionDepth, currentDepth + 1);
+                                });
+                      tg.wait();
+            }
+            else {
+                      indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
+                                maxRecursionDepth, currentDepth + 1);
+            }
   }
   return direct + indirect;
 }
