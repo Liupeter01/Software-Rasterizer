@@ -219,10 +219,8 @@ SoftRasterizer::BVHAcceleration::sample() {
   float pdf = 0.f;
 
   /*Use Total Area Value and a ratio to do sample*/
-  const float area =
-     Tools::random_generator() *
-      root->area;
+  const float area = Tools::random_generator() * root->area;
 
   sample(root.get(), area, intersect, pdf);
-  return {intersect, pdf /= root->area};
+  return {intersect, pdf / root->area};
 }
