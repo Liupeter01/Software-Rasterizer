@@ -7,6 +7,7 @@
 #include <hpc/Simd.hpp>
 #include <loader/ObjLoader.hpp>
 #include <optional>
+#include <random> //generate random number
 #include <shader/Shader.hpp>
 #include <tbb/concurrent_vector.h>
 #include <tuple>
@@ -17,11 +18,13 @@ class Triangle;
 class RenderingPipeline;
 class TraditionalRasterizer;
 class RayTracing;
+class PathTracing;
 
 class Scene {
   friend class TraditionalRasterizer;
   friend class RayTracing;
   friend class RenderingPipeline;
+  friend class PathTracing;
 
 public:
   using ObjTuple = std::tuple<std::shared_ptr<Shader>,
@@ -32,7 +35,7 @@ public:
   Scene(const std::string &sceneName, const glm::vec3 &eye,
         const glm::vec3 &center, const glm::vec3 &up,
         glm::vec3 m_backgroundColor = glm::vec3(0.f),
-        const std::size_t maxdepth = 5);
+        const std::size_t maxdepth = 5, const float rr = 0.8f);
 
   virtual ~Scene();
 
@@ -59,6 +62,7 @@ public:
                      const std::string &objectName);
 
   bool startLoadingMesh(const std::string &meshName);
+
   std::optional<std::shared_ptr<Object>>
   getMeshObj(const std::string &meshName);
 
@@ -85,6 +89,9 @@ public:
   /*Remove BVH Structure*/
   void clearBVHAccel();
 
+  // Path Tracing
+  glm::vec3 pathTracing(Ray &ray);
+
 protected:
   void updatePosition();
 
@@ -106,11 +113,32 @@ private:
   // intersected by the ray
   Intersection traceScene(Ray &ray);
 
+  // Uniformly sample the light
+  [[nodiscard]] std::tuple<Intersection, float> sampleLight();
+
+  // Whitted Style Ray Tracing
   glm::vec3
   whittedRayTracing(Ray &ray, int depth,
                     const std::vector<SoftRasterizer::light_struct> &lights);
 
+  glm::vec3 pathTracingShading(Ray &ray, int maxRecursionDepth = 5,
+                               int currentDepth = 0);
+
+  // Calculate Points Direct light
+  glm::vec3 pathTracingDirectLight(const Intersection &shadeObjIntersection,
+                                   Ray &ray);
+
+  // Calculate Point From Indirect Light
+  glm::vec3
+  pathTracingIndirectLight(const Intersection &shadeObjIntersection, Ray &ray,
+                           const std::size_t maxRecursionDepth =
+                               std::thread::hardware_concurrency() / 2,
+                           std::size_t currentDepth = 0);
+
 private:
+  /*Russian Roulette*/
+  float p_rr;
+
   /*Scene Configuration*/
   std::string m_sceneName;
   const std::size_t m_maxDepth;

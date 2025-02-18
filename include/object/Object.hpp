@@ -8,6 +8,7 @@
 #include <ray/Intersection.hpp>
 #include <ray/Ray.hpp> //ray def
 #include <shader/Shader.hpp>
+#include <tuple>
 
 namespace SoftRasterizer {
 /*forward declaration*/
@@ -54,6 +55,7 @@ struct Object {
                                           const glm::vec2 &uv) = 0;
 
   virtual std::shared_ptr<Material> &getMaterial() = 0;
+  virtual void setMaterial(std::shared_ptr<Material>) = 0;
 
   /*Compatible Consideration!*/
   virtual const std::vector<Vertex> &getVertices() const = 0;
@@ -64,6 +66,13 @@ struct Object {
                               const glm::mat4x4 &Normal_M) = 0;
 
   virtual void bindShader2Mesh(std::shared_ptr<Shader> shader) = 0;
+
+  /*Generate A Random Intersection Point on the Object*/
+  virtual std::tuple<Intersection, float> sample() = 0;
+  virtual const float getArea() = 0;
+
+  /*Self Emissive object*/
+  const bool isSelfEmissiveObject() { return m_material->hasEmission(); }
 
   void updateModelMatrix(const glm::vec3 &axis, const float angle,
                          const glm::vec3 &translation, const glm::vec3 &scale);

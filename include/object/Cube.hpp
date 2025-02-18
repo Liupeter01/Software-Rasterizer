@@ -20,6 +20,8 @@ public:
                                                 const glm::vec3 &viewDir,
                                                 const glm::vec2 &uv) override;
 
+  void setMaterial(std::shared_ptr<Material> material) override;
+
   [[nodiscard]] std::shared_ptr<Material> &getMaterial() override {
     return m_material;
   }
@@ -38,7 +40,11 @@ public:
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
+  [[nodiscard]] std::tuple<Intersection, float> sample() override;
+  [[nodiscard]] const float getArea() override;
+
 private:
+  float area = 0.f;
   std::vector<SoftRasterizer::Vertex> vert;
   std::vector<glm::uvec3> faces;
 };

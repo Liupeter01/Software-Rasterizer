@@ -3,6 +3,7 @@
 #include <object/Triangle.hpp>
 #include <spdlog/spdlog.h>
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
 
 SoftRasterizer::Mesh::Mesh(const std::string &name,
                            const SoftRasterizer::Material &_material,
@@ -49,6 +50,26 @@ SoftRasterizer::Intersection SoftRasterizer::Mesh::getIntersect(Ray &ray) {
   return m_bvh->getIntersection(ray);
 }
 
+std::tuple<SoftRasterizer::Intersection, float> SoftRasterizer::Mesh::sample() {
+  if (m_bvh == nullptr)
+    return {};
+  return m_bvh->sample();
+}
+
+const float SoftRasterizer::Mesh::getArea() {
+  return tbb::parallel_reduce(
+      tbb::blocked_range<std::size_t>(0, m_triangles.size()), 0.f,
+      [&](const tbb::blocked_range<std::size_t> &r, float sum) {
+        for (std::size_t index = r.begin(); index < r.end(); ++index) {
+
+          /*Update Triangle*/
+          sum += m_triangles[index]->getArea();
+        }
+        return sum;
+      },
+      [](const float a, const float b) -> float { return a + b; });
+}
+
 void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4 &NDC_MVP,
                                           const glm::mat4x4 &Normal_M) {
 
@@ -71,6 +92,17 @@ void SoftRasterizer::Mesh::bindShader2Mesh(std::shared_ptr<Shader> shader) {
 
   tbb::parallel_for(std::size_t(0), m_triangles.size(), [&](std::size_t i) {
     m_triangles[i]->bindShader2Mesh(m_shader);
+  });
+}
+
+void SoftRasterizer::Mesh::setMaterial(std::shared_ptr<Material> material) {
+  /*Change Mesh's Material*/
+  m_material.reset();
+  m_material = material;
+
+  /*Change Triangles Material*/
+  tbb::parallel_for(std::size_t(0), m_triangles.size(), [&](std::size_t i) {
+    m_triangles[i]->setMaterial(material);
   });
 }
 

@@ -144,10 +144,12 @@ SoftRasterizer::BVHAcceleration::recursive(
 
   /*I'm the Leaf Node*/
   if (objs.size() == 1) {
+    auto obj = (*objs.begin());
     node->left = nullptr;
     node->right = nullptr;
-    node->box = (*objs.begin())->getBounds();
-    node->obj = std::shared_ptr<Object>(*objs.begin(), [](auto T) {});
+    node->box = obj->getBounds();
+    node->obj = std::shared_ptr<Object>(obj, [](auto T) {});
+    node->area = obj->getArea();
     return node;
   }
   /*I am The Root Node*/
@@ -158,6 +160,8 @@ SoftRasterizer::BVHAcceleration::recursive(
     node->right->obj = std::shared_ptr<Object>(objs[1], [](auto) {});
     node->left->box = objs[0]->getBounds();
     node->right->box = objs[1]->getBounds();
+    node->left->area = objs[0]->getArea();
+    node->right->area = objs[1]->getArea();
   }
   /*Other Condition*/
   else {
@@ -182,5 +186,41 @@ SoftRasterizer::BVHAcceleration::recursive(
         tbb::concurrent_vector<Object *>(objs.begin() + middle, objs.end()));
   }
   node->box = BoundsUnion(node->left->box, node->right->box);
+  node->area = node->left->area + node->right->area;
   return node;
+}
+
+void SoftRasterizer::BVHAcceleration::sample(BVHBuildNode *node,
+                                             const float area,
+                                             Intersection &intersect,
+                                             float &pdf) {
+  if (!node)
+    return;
+
+  /*Every Obj is on leaf node!*/
+  if (!node->left || !node->right) {
+    auto [obj_intersection, obj_pdf] = node->obj->sample();
+    intersect = obj_intersection;
+    pdf = obj_pdf * node->area;
+    // pdf = obj_pdf * (node->area < std::numeric_limits<float>::epsilon()
+    // ? 1.0f : node->area);
+    return;
+  }
+  if (area < node->left->area)
+    sample(node->left.get(), area, intersect, pdf);
+  else
+    sample(node->right.get(), area - node->left->area, intersect, pdf);
+}
+
+/*Read Parameters from the object of sample*/
+std::tuple<SoftRasterizer::Intersection, float>
+SoftRasterizer::BVHAcceleration::sample() {
+  Intersection intersect{};
+  float pdf = 0.f;
+
+  /*Use Total Area Value and a ratio to do sample*/
+  const float area = Tools::random_generator() * root->area;
+
+  sample(root.get(), area, intersect, pdf);
+  return {intersect, pdf / root->area};
 }

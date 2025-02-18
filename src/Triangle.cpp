@@ -5,7 +5,8 @@
 #include <shader/Shader.hpp>
 
 SoftRasterizer::Triangle::Triangle()
-    : box(), vert(3), Object(std::make_shared<Material>(), nullptr) {
+    : box(), vert(3), Object(std::make_shared<Material>(), nullptr),
+      m_area(0.f) {
   for (std::size_t index = 0; index < 3; ++index) {
     m_vertex[index] = glm::vec3(0.f);
     m_color[index] = glm::vec3(0.f);
@@ -38,6 +39,9 @@ SoftRasterizer::Triangle::Triangle(
   vert[0].texCoord = m_texCoords[0] = texCoordA;
   vert[1].texCoord = m_texCoords[1] = texCoordB;
   vert[2].texCoord = m_texCoords[2] = texCoordC;
+
+  /*Calculate Area of Triangle*/
+  [[maybe_unused]] auto res = calcArea();
 }
 
 void SoftRasterizer::Triangle::setVertex(
@@ -49,6 +53,8 @@ void SoftRasterizer::Triangle::setVertex(
   vert[0].position = m_vertex[0];
   vert[1].position = m_vertex[1];
   vert[2].position = m_vertex[2];
+
+  [[maybe_unused]] auto res = calcArea();
 }
 
 void SoftRasterizer::Triangle::setNormal(
@@ -149,6 +155,7 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
 
   // we could find a intersect time point
   ret.intersected = true;
+  ret.emit = m_material->getEmission();
   return ret;
 }
 
@@ -187,27 +194,69 @@ SoftRasterizer::Triangle::getSurfaceProperties(const std::size_t faceIndex,
 glm::vec3 SoftRasterizer::Triangle::getDiffuseColor(const glm::vec2 &uv) {
   // When m_shader is nullptr then skip this code block
   if (!m_shader) {
-    return glm::vec3(1.0f);
+    return m_material->Kd;
   }
   return m_shader->getTextureObject()->getTextureColor(uv);
+}
+
+std::tuple<SoftRasterizer::Intersection, float>
+SoftRasterizer::Triangle::sample() {
+
+  /*Generator 2D Random Sample Coordinates*/
+  float u = Tools::random_generator();
+  float v = Tools::random_generator();
+
+  /*Use Barycentric to do the calculation*/
+  float b1 = 1.0f - u;
+  float b2 = u * (1.0f - v);
+  float b3 = u * v;
+
+  Intersection intersection;
+  intersection.intersected = true;
+  intersection.obj = this;
+  intersection.index = index;
+  intersection.emit = m_material->getEmission();
+
+  /*Find a Point Randomly*/
+  intersection.coords =
+      b1 * vert[0].position + b2 * vert[1].position + b3 * vert[2].position;
+  intersection.normal = Tools::interpolateNormal(
+      b1, b2, b3, vert[0].normal, vert[1].normal, vert[2].normal);
+
+  return {intersection, 1.0f / calcArea()};
 }
 
 void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
                                               const glm::mat4x4 &Normal_M) {
 
   vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[0], 1.0f));
-  vert[0].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f));
+  vert[0].normal =
+      glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f)));
 
   vert[1].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[1], 1.0f));
-  vert[1].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f));
+  vert[1].normal =
+      glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f)));
 
   vert[2].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[2], 1.0f));
-  vert[2].normal = Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f));
+  vert[2].normal =
+      glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f)));
+
+  Tools::epsilonEqual(vert[0].normal);
+  Tools::epsilonEqual(vert[1].normal);
+  Tools::epsilonEqual(vert[2].normal);
+
+  /*because of position changed, then we have to recalcuate area*/
+  [[maybe_unused]] auto res = calcArea();
 }
 
 void SoftRasterizer::Triangle::bindShader2Mesh(std::shared_ptr<Shader> shader) {
   m_shader.reset();
   m_shader = shader;
+}
+
+void SoftRasterizer::Triangle::setMaterial(std::shared_ptr<Material> material) {
+  m_material.reset();
+  m_material = material;
 }
 
 void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,
@@ -224,4 +273,14 @@ void SoftRasterizer::Triangle::calcBoundingBox(const std::size_t width,
   box.endY = std::clamp(static_cast<long long>(std::max(
                             {m_vertex[0].y, m_vertex[1].y, m_vertex[2].y})),
                         0LL, static_cast<long long>(height - 1));
+}
+
+const float SoftRasterizer::Triangle::calcArea() {
+  /*
+   *Calculate Area by 0.5 * |BA x CA|
+   */
+  m_area = 0.5f * glm::cross(vert[1].position - vert[0].position,
+                             vert[2].position - vert[0].position)
+                      .length();
+  return m_area;
 }

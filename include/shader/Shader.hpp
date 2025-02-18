@@ -4,6 +4,7 @@
 #include <array>
 #include <functional>
 #include <hpc/Simd.hpp>
+#include <light/Light.hpp>
 #include <loader/TextureLoader.hpp>
 #include <memory>
 #include <tuple>
@@ -20,11 +21,6 @@ struct PointSIMD;
 struct NormalSIMD;
 struct TexCoordSIMD;
 struct ColorSIMD;
-
-struct light_struct {
-  glm::vec3 position;
-  glm::vec3 intensity;
-};
 
 struct vertex_displacement {
   vertex_displacement(const glm::vec3 &pos, const glm::vec3 &normal)
