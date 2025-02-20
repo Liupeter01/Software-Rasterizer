@@ -1,4 +1,4 @@
-#include <Tools.hpp>
+﻿#include <Tools.hpp>
 #include <base/Render.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtx/norm.hpp>
@@ -648,7 +648,6 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
 
   auto distanceSquare = std::max(0.f, pow(distToLight, 2.f));
 
-  /*Radiant Radiance (L)*/
   glm::vec3 ObjectNormal =
       glm::faceforward(N, light2ShadingPointDir, -N); // Correct normal facing
   glm::vec3 LightNormal =
@@ -664,7 +663,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
   auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
       wi, light2ShadingPointDir, ObjectNormal); /*BRDF*/
 
-  return Li * Fr * object_theta * light_theta / (lightAreaPdf * distanceSquare);
+  return glm::clamp(Li * Fr * object_theta * light_theta / (lightAreaPdf * distanceSquare), glm::vec3(0.f), glm::vec3(1.f));
 }
 
 // Calculate Point From Indirect Light
@@ -692,18 +691,16 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
 
   auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
       wi, wo, ObjectNormal); // BRDF
-  auto pdf = std::max(
-      shadeObjIntersection.obj->getMaterial()->pdf(wi, wo, ObjectNormal),
-      m_epsilon); // PDF
+  auto pdf = shadeObjIntersection.obj->getMaterial()->pdf(wi, wo, ObjectNormal); // PDF
   auto object_theta = std::max(0.f, glm::dot(wi, ObjectNormal));
 
   // Skip Recursive Function
-  if (object_theta < m_epsilon || pdf < m_epsilon || Fr == glm::vec3(0.f)) {
+  if (object_theta < m_epsilon || pdf < m_epsilon) {
     return glm::vec3(0.f);
   }
 
-  return Fr * object_theta / (pdf * p) *
-         pathTracingShading(newray, maxRecursionDepth, currentDepth + 1);
+  return glm::clamp(Fr * object_theta / (pdf * p_rr) *
+            pathTracingShading(newray, maxRecursionDepth, currentDepth + 1), glm::vec3(0.f), glm::vec3(1.f));
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingShading(Ray &ray,
@@ -750,7 +747,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracing(Ray &ray) {
     return shadeObjIntersection.color;
   }
 
-  return glm::clamp(pathTracingShading(ray), glm::vec3(0.f), glm::vec3(1.f));
+  return pathTracingShading(ray);
 }
 
 void SoftRasterizer::Scene::buildBVHAccel() {
