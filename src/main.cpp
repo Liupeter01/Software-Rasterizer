@@ -58,7 +58,7 @@ int main() {
       "right", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
   scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/light.obj",
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/3dlight.obj",
       "light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
   scene->addGraphicObj(
