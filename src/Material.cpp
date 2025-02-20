@@ -44,7 +44,7 @@ glm::vec3 SoftRasterizer::Material::sample(const glm::vec3 &wi,
 const float SoftRasterizer::Material::pdf(const glm::vec3 &wi,
                                           const glm::vec3 &wo,
                                           const glm::vec3 &N) {
-  return glm::dot(wi, N) > 0 ? uniform_sampling_on_sphere : 0.f;
+          return uniform_sampling_on_sphere;
 }
 
 /*
