@@ -7,7 +7,7 @@
 
 int main() {
   int key = 0;
-  float degree = 180.0f;
+  float degree = 0.f;
 
   // Create Path Tracing Main Class
   auto render =
@@ -35,7 +35,7 @@ int main() {
   white->Kd = glm::vec3(0.68f, 0.71f, 0.725f);
   light->Kd = glm::vec3(1.0f);
   light->emission =
-      glm::vec3(31.0808f / 50.f, 38.5664f / 50.f, 47.8848f / 50.f);
+      glm::vec3(31.0808f, 38.5664f, 47.8848f) / 50.f;
 
   scene->addGraphicObj(
       CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/floor.obj",
