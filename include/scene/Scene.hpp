@@ -121,8 +121,9 @@ private:
   whittedRayTracing(Ray &ray, int depth,
                     const std::vector<SoftRasterizer::light_struct> &lights);
 
-  glm::vec3 pathTracingShading(Ray &ray, int maxRecursionDepth = 5,
-                               int currentDepth = 0);
+  glm::vec3 pathTracingShading(const Intersection &shadeObjIntersection, 
+                                                    Ray &ray, int maxRecursionDepth = 5,
+                                                    int currentDepth = 0);
 
   // Calculate Points Direct light
   glm::vec3 pathTracingDirectLight(const Intersection &shadeObjIntersection,
