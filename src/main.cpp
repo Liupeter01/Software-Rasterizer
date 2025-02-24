@@ -34,8 +34,7 @@ int main() {
   green->Kd = glm::vec3(0.f, 1.f, 0.f);
   white->Kd = glm::vec3(0.68f, 0.71f, 0.725f);
   light->Kd = glm::vec3(1.0f);
-  light->emission =
-      glm::vec3(31.0808f, 38.5664f, 47.8848f) / 50.f;
+  light->emission = glm::vec3(31.0808f, 38.5664f, 47.8848f) / 50.f;
 
   scene->addGraphicObj(
       CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/floor.obj",

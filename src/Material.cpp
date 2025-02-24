@@ -15,20 +15,20 @@ glm::vec3 SoftRasterizer::Material::sample(const glm::vec3 &wi,
                                            const glm::vec3 &N) {
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {
 
-            float x_1 = Tools::random_generator();
-            float x_2 = Tools::random_generator();
+    float x_1 = Tools::random_generator();
+    float x_2 = Tools::random_generator();
 
-            /* Generator 2D Random Sample Coordinates
-             * x ^ 2 + y ^ 2 + z ^ 2 = 1 = r^2 + z^2 = 1 */
-            float z = std::fabs(1.0f - 2.0f * x_1);
-            float r = std::sqrt(1.0f - z * z), phi = 2 * Tools::PI * x_2;
+    /* Generator 2D Random Sample Coordinates
+     * x ^ 2 + y ^ 2 + z ^ 2 = 1 = r^2 + z^2 = 1 */
+    float z = std::fabs(1.0f - 2.0f * x_1);
+    float r = std::sqrt(1.0f - z * z), phi = 2 * Tools::PI * x_2;
 
-            /*Generate a ray from (0, 0, 0) to (x, y, z)*/
-            glm::vec3 localRay(r * std::cos(phi), r * std::sin(phi), z);
+    /*Generate a ray from (0, 0, 0) to (x, y, z)*/
+    glm::vec3 localRay(r * std::cos(phi), r * std::sin(phi), z);
 
-            /* Mathematical Transformation Principle
-             * localRay = (x, y, z) => worldRay = xT+yB+zN*/
-            return Tools::toWorld(localRay, N);
+    /* Mathematical Transformation Principle
+     * localRay = (x, y, z) => worldRay = xT+yB+zN*/
+    return Tools::toWorld(localRay, N);
   }
   return glm::vec3(0.f);
 }
@@ -41,7 +41,7 @@ glm::vec3 SoftRasterizer::Material::sample(const glm::vec3 &wi,
 const float SoftRasterizer::Material::pdf(const glm::vec3 &wi,
                                           const glm::vec3 &wo,
                                           const glm::vec3 &N) {
-          return uniform_sampling_on_sphere;
+  return uniform_sampling_on_sphere;
 }
 
 /*

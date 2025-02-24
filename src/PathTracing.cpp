@@ -38,8 +38,8 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
 
     float scale = std::tan(glm::radians(SceneObj->m_fovy * 0.5));
 
-    //Start Time
-    auto start_time = std::chrono::high_resolution_clock::now(); 
+    // Start Time
+    auto start_time = std::chrono::high_resolution_clock::now();
 
     oneapi::tbb::parallel_for(
         oneapi::tbb::blocked_range2d<std::size_t>(0, m_height, 16, 0, m_width,
@@ -87,9 +87,10 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
         },
         ap);
 
-    //End Time
-    auto end_time = std::chrono::high_resolution_clock::now(); 
+    // End Time
+    auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end_time - start_time;
-    spdlog::info("Path tracing took {:.3f} seconds for scene: {}", elapsed.count(), SceneName);
+    spdlog::info("Path tracing took {:.3f} seconds for scene: {}",
+                 elapsed.count(), SceneName);
   }
 }

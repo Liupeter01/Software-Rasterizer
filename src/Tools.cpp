@@ -293,17 +293,16 @@ void SoftRasterizer::Tools::epsilonEqual(glm::vec3 &transformedNormal) {
  */
 glm::vec3 SoftRasterizer::Tools::toWorld(const glm::vec3 &local,
                                          const glm::vec3 &N) {
-          glm::vec3 B, C;
-          if (std::fabs(N.x) > std::fabs(N.y)) {
-                    float invLen = 1.0f / std::sqrt(N.x * N.x + N.z * N.z);
-                    C = glm::vec3(N.z * invLen, 0.0f, -N.x * invLen);
-          }
-          else {
-                    float invLen = 1.0f / std::sqrt(N.y * N.y + N.z * N.z);
-                    C = glm::vec3(0.0f, N.z * invLen, -N.y * invLen);
-          }
-          B = glm::cross(C, N);
-          return local.x * B + local.y * C + local.z * N;
+  glm::vec3 B, C;
+  if (std::fabs(N.x) > std::fabs(N.y)) {
+    float invLen = 1.0f / std::sqrt(N.x * N.x + N.z * N.z);
+    C = glm::vec3(N.z * invLen, 0.0f, -N.x * invLen);
+  } else {
+    float invLen = 1.0f / std::sqrt(N.y * N.y + N.z * N.z);
+    C = glm::vec3(0.0f, N.z * invLen, -N.y * invLen);
+  }
+  B = glm::cross(C, N);
+  return local.x * B + local.y * C + local.z * N;
 }
 
 bool SoftRasterizer::Tools::isfinite(const glm::vec3 &v) {
