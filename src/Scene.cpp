@@ -615,23 +615,20 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
 
 // Calculate Points Direct light
 glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
-    const Intersection &shadeObjIntersection, Ray &ray) {
+    const Intersection &shadeObjIntersection, const glm::vec3& wo) {
 
           /*Maybe this Ray Could hit the self-illuminateion Object directly*/
           if (shadeObjIntersection.obj->isSelfEmissiveObject()) {
                     return shadeObjIntersection.color;
           }
 
-  const glm::vec3 I = glm::normalize(ray.direction);
   const glm::vec3 N = glm::normalize(shadeObjIntersection.normal);
-  const glm::vec3 wi = -I;
 
-  /*  Sampling The Light, Finding The Intersection point on the light, and its
-   * Pdf*/
+  /*  Sampling The Light*/
   auto [lightSample, lightAreaPdf] = sampleLight();
 
-  glm::vec3 light2ShadingPointDir =
-      glm::normalize(shadeObjIntersection.coords - lightSample.coords);
+  glm::vec3 delta = shadeObjIntersection.coords - lightSample.coords;
+  glm::vec3 light2ShadingPointDir = glm::normalize(delta);
 
   Ray light2ShadingPoint(lightSample.coords, light2ShadingPointDir);
 
@@ -645,12 +642,11 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
       glm::length(lightSample.coords - shadeObjIntersection.coords);
   if (!intersection_status.intersected || 
             (intersection_status.intersected && 
-           std::abs(distToIntersection - distToLight) > m_epsilon &&
-          intersection_status.obj->isSelfEmissiveObject())) {
+           std::abs(distToIntersection - distToLight) > m_epsilon)) {
     return glm::vec3(0.f);
   }
 
-  auto distanceSquare = std::max(0.f, distToLight * distToLight);
+  auto distanceSquare = std::max(0.f, glm::dot(delta, delta));
 
   glm::vec3 ObjectNormal =
       glm::faceforward(N, light2ShadingPointDir, -N); // Correct normal facing
@@ -665,19 +661,17 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
 
   auto Li = lightSample.emit;
   auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
-      wi, light2ShadingPointDir, ObjectNormal); /*BRDF*/
+          light2ShadingPointDir, wo, ObjectNormal); /*BRDF*/
 
-  return glm::clamp(Li * Fr * object_theta * light_theta / (lightAreaPdf * distanceSquare), glm::vec3(0.f), glm::vec3(1.f));
+  return Li * Fr * object_theta * light_theta / (lightAreaPdf * distanceSquare);
 }
 
 // Calculate Point From Indirect Light
 glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
-    const Intersection &shadeObjIntersection, Ray &ray,
+    const Intersection &shadeObjIntersection, const glm::vec3& wo,
     const std::size_t maxRecursionDepth, std::size_t currentDepth) {
 
-  const glm::vec3 I = glm::normalize(ray.direction);
   const glm::vec3 N = glm::normalize(shadeObjIntersection.normal);
-  const glm::vec3 wi = -I;
   glm::vec3 indirectLight = glm::vec3(0.f);
 
   /*Russian Roulette with probability RussianRoulette
@@ -686,55 +680,50 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
     return glm::vec3(0.f);
   }
 
-  auto ObjectNormal = glm::faceforward(N, wi, -N);
-  glm::vec3 wo = glm::normalize(
-      shadeObjIntersection.obj->getMaterial()->sample(wi, ObjectNormal));
+  auto ObjectNormal = glm::faceforward(N, wo, -N);
+  glm::vec3 wi = glm::normalize(
+      shadeObjIntersection.obj->getMaterial()->sample(wo, ObjectNormal));
 
   // prevent relfection and refraction from happening at the same time
-  Ray newray(shadeObjIntersection.coords, wo);
+  Ray newray(shadeObjIntersection.coords, wi);
   Intersection nextObj = traceScene(newray);
 
   auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(wi, wo, ObjectNormal); // BRDF
   auto pdf = shadeObjIntersection.obj->getMaterial()->pdf(wi, wo, ObjectNormal); // PDF
+  auto object_theta = std::max(0.f, glm::dot(wi, ObjectNormal));
 
-  if (pdf <= 0) {
-            return indirectLight;
+  if (pdf <= 0 || !nextObj.intersected || 
+            (nextObj.intersected && nextObj.obj->isSelfEmissiveObject())) {
+            return {};
   }
 
-  //No Self illumination
-  if (nextObj.intersected && !nextObj.obj->isSelfEmissiveObject()) {
-
-            auto object_theta = std::max(0.f, glm::dot(wi, ObjectNormal));
-
-            indirectLight = Fr * object_theta / pdf / p_rr *
-                      pathTracingShading(nextObj, newray, maxRecursionDepth, currentDepth + 1);
-  }
-
-  return indirectLight;
+  indirectLight = pathTracingShading(nextObj, -wi, maxRecursionDepth, currentDepth + 1);
+  return Fr * object_theta / pdf / p_rr * indirectLight;
 }
 
-glm::vec3 SoftRasterizer::Scene::pathTracingShading(const Intersection& shadeObjIntersection, Ray &ray,
+glm::vec3 SoftRasterizer::Scene::pathTracingShading(const Intersection& shadeObjIntersection, 
+                                                    const glm::vec3& wo,
                                                     int maxRecursionDepth,
                                                     int currentDepth) {
 
-  glm::vec3 direct = pathTracingDirectLight(shadeObjIntersection, ray);
+  glm::vec3 direct = pathTracingDirectLight(shadeObjIntersection, wo);
 
   /*indirect light should not hit a light source!*/
   glm::vec3 indirect = glm::vec3(0.f);
-  if (currentDepth < maxRecursionDepth) {
+  if (!currentDepth) {
             tbb::task_group tg;
             tg.run([&]() {
                       indirect = pathTracingIndirectLight(
-                                shadeObjIntersection, ray, maxRecursionDepth, currentDepth + 1);
+                                shadeObjIntersection, wo, maxRecursionDepth, currentDepth + 1);
                       });
             tg.wait();
   }
   else {
-            indirect = pathTracingIndirectLight(shadeObjIntersection, ray,
+            indirect = pathTracingIndirectLight(shadeObjIntersection, wo,
                       maxRecursionDepth, currentDepth + 1);
   }
 
-  return direct + indirect;
+  return  glm::clamp(direct + indirect, glm::vec3(0.f), glm::vec3(1.f));
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracing(Ray &ray) {
@@ -745,7 +734,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracing(Ray &ray) {
     return this->m_backgroundColor;
   }
 
-  return pathTracingShading(shadeObjIntersection, ray);
+  return pathTracingShading(shadeObjIntersection, -ray.direction);
 }
 
 void SoftRasterizer::Scene::buildBVHAccel() {
