@@ -2,6 +2,7 @@
 #include <base/Render.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtx/norm.hpp>
+#include <limits>
 #include <numeric> // For std::accumulate
 #include <scene/Scene.hpp>
 #include <shader/Shader.hpp>
@@ -647,7 +648,9 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
   }
 
   glm::vec3 ObjectNormal =
-      glm::faceforward(N, -light2ShadingPointDir, N); // Correct normal facing
+      glm::faceforward(intersection_status.normal, light2ShadingPointDir,
+                       -intersection_status.normal); // Correct normal facing
+  //
   glm::vec3 LightNormal =
       glm::faceforward(lightSample.normal, light2ShadingPointDir,
                        -lightSample.normal); // Light normal
@@ -699,7 +702,8 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
     return glm::vec3(0.f);
   }
 
-  if (nextObj.obj->isSelfEmissiveObject()) {
+  // if nextobj is a self-illumination object
+  if (glm::length(nextObj.emit) > m_epsilon) {
     return nextObj.color;
   }
 
@@ -712,14 +716,31 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(
     const Intersection &shadeObjIntersection, const glm::vec3 &wo,
     int maxRecursionDepth, int currentDepth) {
 
-  glm::vec3 direct = pathTracingDirectLight(shadeObjIntersection, wo);
-  glm::vec3 indirect = pathTracingIndirectLight(
-      shadeObjIntersection, wo, maxRecursionDepth, currentDepth + 1);
+  glm::vec3 direct{0.f}, indirect{0.f};
 
-  // Reinhard Algo
-  glm::vec3 color = direct + indirect;
-  return color / (color + glm::vec3(1.0f));
-  // return glm::clamp(direct + indirect, glm::vec3(0.f), glm::vec3(1.f));
+  // direct = pathTracingDirectLight(shadeObjIntersection, wo);
+  // indirect = pathTracingIndirectLight(shadeObjIntersection, wo,
+  //                                     maxRecursionDepth, currentDepth + 1);
+
+  if (currentDepth <
+      maxRecursionDepth / 2) { // Parallelize only at early recursion levels
+    tbb::task_group tg;
+    tg.run([&] { direct = pathTracingDirectLight(shadeObjIntersection, wo); });
+    tg.run([&] {
+      indirect = pathTracingIndirectLight(shadeObjIntersection, wo,
+                                          maxRecursionDepth, currentDepth + 1);
+    });
+    tg.wait();
+
+  } else {
+    direct = pathTracingDirectLight(shadeObjIntersection, wo);
+    indirect = pathTracingIndirectLight(shadeObjIntersection, wo,
+                                        maxRecursionDepth, currentDepth + 1);
+  }
+
+  auto color = direct + indirect;
+  color /= (color + glm::vec3(std::numeric_limits<float>::epsilon()));
+  return color;
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracing(Ray &ray) {
@@ -731,7 +752,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracing(Ray &ray) {
   }
 
   /*Maybe this Ray Could hit the self-illuminateion Object directly*/
-  if (shadeObjIntersection.obj->isSelfEmissiveObject()) {
+  if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
     return shadeObjIntersection.color;
   }
 
