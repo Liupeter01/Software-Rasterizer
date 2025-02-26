@@ -33,7 +33,7 @@ int main() {
   red->Kd = glm::vec3(0.f, 0.f, 1.0f);
   green->Kd = glm::vec3(0.f, 1.0f, 0.f);
   white->Kd = glm::vec3(0.68f, 0.71f, 0.725f);
-  light->Kd = glm::vec3(0.65f);
+  light->Kd = glm::vec3(1.0f);
   light->emission = glm::vec3(31.0808f, 38.5664f, 47.8848f);
 
   scene->addGraphicObj(
