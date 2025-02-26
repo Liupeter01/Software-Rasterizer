@@ -389,53 +389,6 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
   return ret;
 }
 
-// Uniformly sample the light
-std::tuple<SoftRasterizer::Intersection, float>
-SoftRasterizer::Scene::sampleLight() {
-
-          //Calculate All Light Area, and Caching the result
-  static float total_light_area = -1.f;
-  static std::vector<std::pair<std::shared_ptr<Object>, float>> light_sources;
-
-  if (total_light_area < 0.f) {  // only calculate for one time
-            total_light_area = 0.f;
-            light_sources.clear();
-            for (const auto& obj : m_exportedObjs) {
-                      if (obj->isSelfEmissiveObject()) {
-                                float area = obj->getArea();
-                                if (area > m_epsilon) { // area is big enough
-                                          total_light_area += area;
-                                          light_sources.emplace_back(obj, area);
-                                }
-                      }
-            }
-  }
-
-  //No Light Source Found!
-  if (total_light_area < m_epsilon) {
-            return { Intersection{}, 1.f };
-  }
-
-  float random_area_size = Tools::random_generator() * total_light_area;
-
-  float area_sum = 0.f;
-  Intersection intersection{};
-  float pdf = 0.f;
-
-  // Traversal All Light Source List, Found Smapling Area
-  for (const auto& [obj, area] : light_sources) {
-            area_sum += area;
-            if (random_area_size < area_sum + m_epsilon) {
-                      auto [obj_intersect, obj_pdf] = obj->sample();
-                      intersection = obj_intersect;
-                      pdf = obj_pdf > m_epsilon ? obj_pdf : 0; // prevent pdf so small
-                      break;
-            }
-  }
-
-  return { intersection, pdf };
-}
-
 glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
     Ray &ray, int depth,
     const std::vector<SoftRasterizer::light_struct> &lights) {
@@ -607,6 +560,53 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
   return final_color;
 }
 
+// Uniformly sample the light
+std::tuple<SoftRasterizer::Intersection, float>
+SoftRasterizer::Scene::sampleLight() {
+
+          //Calculate All Light Area, and Caching the result
+          static std::once_flag flag;
+          static float total_light_area = -1.f;
+          static std::vector<std::pair<std::shared_ptr<Object>, float>> light_sources;
+
+          std::call_once(flag, [this]() {
+                    total_light_area = 0.f;
+                    light_sources.clear();
+                    for (const auto& obj : m_exportedObjs) {
+                              if (obj->isSelfEmissiveObject()) {
+                                        float area = obj->getArea();
+                                        if (area > m_epsilon) {
+                                                  total_light_area += area;
+                                                  light_sources.emplace_back(obj, area);
+                                        }
+                              }
+                    }
+                    });
+
+          //No Light Source Found!
+          if (total_light_area < m_epsilon) {
+                    return { Intersection{}, 1.f };
+          }
+
+          float random_area_size = Tools::random_generator() * total_light_area;
+
+          float area_sum = 0.f;
+          Intersection intersection{};
+          float pdf = 0.f;
+
+          // Traversal All Light Source List, Found Smapling Area
+          for (const auto& [obj, area] : light_sources) {
+                    area_sum += area;
+                    if (random_area_size <= area_sum) {
+                              auto [obj_intersect, obj_pdf] = obj->sample();
+                              intersection = obj_intersect;
+                              pdf = obj_pdf > m_epsilon ? obj_pdf : m_epsilon;
+                              break;
+                    }
+          }
+          return { intersection, pdf };
+}
+
 // Calculate Points Direct light
 glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
     const Intersection &shadeObjIntersection, const glm::vec3 &wo) {
@@ -666,11 +666,11 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
   auto light_theta =
       std::max(0.f, glm::dot(LightNormal, light2ShadingPointDir));
 
-  auto Li = lightSample.emit;
+  auto Li = lightSample.emit * lightAreaPdf / distanceSquare;
   auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
       light2ShadingPointDir, wo, ObjectNormal); /*BRDF*/
 
-  return Li * Fr * object_theta * light_theta / (lightAreaPdf * distanceSquare);
+  return Li * Fr * object_theta * light_theta;
 }
 
 // Calculate Point From Indirect Light
@@ -720,7 +720,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
 
   glm::vec3 indirectLight =
       pathTracingShading(nextObj, -wi, maxRecursionDepth, currentDepth + 1);
-  return indirectLight * Fr * object_theta / pdf / p_rr;
+  return indirectLight * Fr * object_theta * pdf / p_rr;
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingShading(
@@ -746,7 +746,6 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(
   }
 
   auto color = direct + indirect;
-  //color /= (color + glm::vec3(std::numeric_limits<float>::epsilon()));
   color = glm::clamp(color, glm::vec3(0.f), glm::vec3(1.f));
   return color;
 }
