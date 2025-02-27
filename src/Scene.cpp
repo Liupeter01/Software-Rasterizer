@@ -2,7 +2,6 @@
 #include <base/Render.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtx/norm.hpp>
-#include <limits>
 #include <numeric> // For std::accumulate
 #include <scene/Scene.hpp>
 #include <shader/Shader.hpp>
@@ -564,47 +563,54 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
 std::tuple<SoftRasterizer::Intersection, float>
 SoftRasterizer::Scene::sampleLight() {
 
-          //Calculate All Light Area, and Caching the result
-          static std::once_flag flag;
-          static float total_light_area = -1.f;
-          static std::vector<std::pair<std::shared_ptr<Object>, float>> light_sources;
+  /*
+   * Generate A Random Sampling Area Value
+   * Generate a random area value and traverse the objects until the cumulative
+   * area exceeds that value
+   */
+  float random_area_size =
+      Tools::random_generator() *
 
-          std::call_once(flag, [this]() {
-                    total_light_area = 0.f;
-                    light_sources.clear();
-                    for (const auto& obj : m_exportedObjs) {
-                              if (obj->isSelfEmissiveObject()) {
-                                        float area = obj->getArea();
-                                        if (area > m_epsilon) {
-                                                  total_light_area += area;
-                                                  light_sources.emplace_back(obj, area);
-                                        }
-                              }
-                    }
-                    });
+      /*
+       * Calculate Self - illuminating Total Area Size
+       * Compute Total Area: Sum the areas of all self-emissive objects.
+       */
+      tbb::parallel_reduce(
+          tbb::blocked_range<std::size_t>(0, m_exportedObjs.size()), 0.f,
+          [&](const tbb::blocked_range<std::size_t> &range, float init) {
+            for (auto i = range.begin(); i != range.end(); ++i) {
+              /*Self self-illuminating object*/
+              if (glm::(m_exportedObjs[i]->m_material->emission) {
+        init += m_exportedObjs[i]->getArea();
+              }
+            }
+            return init;
+          },
+          [](const float a, const float b) { return a + b; });
 
-          //No Light Source Found!
-          if (total_light_area < m_epsilon) {
-                    return { Intersection{}, 1.f };
-          }
+  float area_sum = 0.f;
+  Intersection intersection{};
+  float pdf = 0.f;
 
-          float random_area_size = Tools::random_generator() * total_light_area;
+  // Find a self-emission object according to a random area value
+  for (const auto &obj : m_exportedObjs) {
+    if (obj->isSelfEmissiveObject()) {
 
-          float area_sum = 0.f;
-          Intersection intersection{};
-          float pdf = 0.f;
+      area_sum += obj->getArea();
 
-          // Traversal All Light Source List, Found Smapling Area
-          for (const auto& [obj, area] : light_sources) {
-                    area_sum += area;
-                    if (random_area_size <= area_sum) {
-                              auto [obj_intersect, obj_pdf] = obj->sample();
-                              intersection = obj_intersect;
-                              pdf = obj_pdf > m_epsilon ? obj_pdf : m_epsilon;
-                              break;
-                    }
-          }
-          return { intersection, pdf };
+      if (random_area_size <= area_sum) {
+
+        /* Sample A Point From An object:
+         * Call the object's sample() method to get the intersection and pdf */
+        auto [obj_intersect, obj_pdf] = obj->sample();
+        intersection = obj_intersect;
+        pdf = obj_pdf;
+        break;
+      }
+    }
+  }
+
+  return {intersection, pdf};
 }
 
 // Calculate Points Direct light
@@ -615,17 +621,14 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
 
   /*Maybe this Ray Could hit the self-illuminateion Object directly*/
   if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
-            return shadeObjIntersection.color;
+    return shadeObjIntersection.color;
   }
 
   /*  Sampling The Light*/
   auto [lightSample, lightAreaPdf] = sampleLight();
-  //spdlog::info("[ID = {}] LightSample Coords(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), lightSample.coords.x, lightSample.coords.y, lightSample.coords.z);
-  //spdlog::info("[ID = {}] LightSample Normal(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), lightSample.normal.x, lightSample.normal.y, lightSample.normal.z);
-
   if (std::isnan(lightAreaPdf) || lightAreaPdf < m_epsilon) {
-            spdlog::warn("Warning: Light area PDF is too small!");
-            return glm::vec3(0.0f);
+    spdlog::warn("Warning: Light area PDF is too small!");
+    return glm::vec3(0.0f);
   }
 
   glm::vec3 delta = shadeObjIntersection.coords - lightSample.coords;
@@ -637,37 +640,33 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
   // And the intersection point is NOT a self-illuminate light source
   auto intersection_status = traceScene(light2ShadingPoint);
 
-  //spdlog::info("[ID = {}] ShadingPoint Coords(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), shadeObjIntersection.coords.x, shadeObjIntersection.coords.y, shadeObjIntersection.coords.z);
-  //spdlog::info("[ID = {}] ShadingPoint Normal(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), shadeObjIntersection.normal.x, shadeObjIntersection.normal.y, shadeObjIntersection.normal.z);
-  //spdlog::info("[ID = {}] intersection_status Coords(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), intersection_status.coords.x, intersection_status.coords.y, intersection_status.coords.z);
-  //spdlog::info("[ID = {}] intersection_status Normal(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), intersection_status.normal.x, intersection_status.normal.y, intersection_status.normal.z);
+  float distToIntersection =
+      glm::length(lightSample.coords - intersection_status.coords);
+  float distToLight =
+      glm::length(lightSample.coords - shadeObjIntersection.coords);
 
-  float distToIntersection = glm::length(lightSample.coords - intersection_status.coords);
-  float distToLight = glm::length(lightSample.coords - shadeObjIntersection.coords);
-
-  //if (!intersection_status.intersected || (intersection_status.intersected &&
-  //          std::abs(distToIntersection - distToLight) / (distToLight + m_epsilon) > 1e-3f)) {
-
-  //          spdlog::debug("Shadow miss: distToIntersection={}, distToLight={}, err={}", distToIntersection,
-  //                    distToLight, std::abs(distToIntersection - distToLight) / (distToLight + m_epsilon));
-
-  //          return glm::vec3(0.f);
-  //}
+  if (!intersection_status.intersected) {
+    return glm::vec3(0.f);
+  }
 
   auto distanceSquare = distToIntersection * distToIntersection;
   if (distanceSquare < m_epsilon) {
     return glm::vec3(0.f);
   }
 
-  auto object_theta = std::max(0.f, glm::dot(N, -light2ShadingPointDir));
-  auto light_theta = std::max(0.f, glm::dot(-lightSample.normal, light2ShadingPointDir));
-  //spdlog::info("[ID = {}] object_theta = {}, light_theta = {}", tbb::this_task_arena::current_thread_index(), object_theta, light_theta);
+  if (std::abs(distToIntersection - distToLight) < m_epsilon) {
 
-  auto Li = lightSample.emit / static_cast<float>(lightAreaPdf / distanceSquare);
-  auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
-      -light2ShadingPointDir, wo, N); /*BRDF*/
+    auto object_theta = std::max(0.f, glm::dot(N, -light2ShadingPointDir));
+    auto light_theta =
+        std::max(0.f, glm::dot(lightSample.normal, light2ShadingPointDir));
 
-  return Li * Fr * object_theta * light_theta;
+    auto Li = lightSample.emit;
+    auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
+        -light2ShadingPointDir, wo, N); /*BRDF*/
+
+    return Li * Fr * object_theta * light_theta / lightAreaPdf / distanceSquare;
+  }
+  return glm::vec3(0.f);
 }
 
 // Calculate Point From Indirect Light
@@ -679,35 +678,28 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
 
   /*Russian Roulette with probability RussianRoulette
    * And also, This Object should not be a illumination source*/
-  if (Tools::random_generator() > p_rr) {
+  if (Tools::random_generator() > p_rr)
     return glm::vec3(0.f);
-  }
 
-  auto ObjectNormal = glm::faceforward(N, wo, -N);
-  glm::vec3 wi = glm::normalize(
-      shadeObjIntersection.obj->getMaterial()->sample(wo, ObjectNormal));
-
-  if (glm::length(wi) < m_epsilon) {
-    return glm::vec3(0.f);
-  }
+  glm::vec3 wi =
+      glm::normalize(shadeObjIntersection.obj->getMaterial()->sample(wo, N));
 
   // prevent relfection and refraction from happening at the same time
   Ray newray(shadeObjIntersection.coords, wi);
   Intersection nextObj = traceScene(newray);
 
-  auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
-      wi, wo, ObjectNormal); // BRDF
-  auto pdf =
-      shadeObjIntersection.obj->getMaterial()->pdf(wi, wo, ObjectNormal); // PDF
-  auto object_theta = std::max(0.f, glm::dot(wi, ObjectNormal));
+  auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(wi, wo,
+                                                                     N); // BRDF
+  auto pdf = shadeObjIntersection.obj->getMaterial()->pdf(wi, wo, N);    // PDF
+  auto object_theta = std::max(0.f, glm::dot(wi, N));
 
   if (!nextObj.intersected) {
     return glm::vec3(0.f);
   }
 
   if (std::isnan(pdf) || pdf < m_epsilon) {
-            spdlog::warn("Warning: Light area PDF is too small!");
-            return glm::vec3(0.0f);
+    spdlog::warn("Warning: Light area PDF is too small!");
+    return glm::vec3(0.0f);
   }
 
   // if nextobj is a self-illumination object
@@ -717,7 +709,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
 
   glm::vec3 indirectLight =
       pathTracingShading(nextObj, -wi, maxRecursionDepth, currentDepth + 1);
-  return indirectLight * Fr * object_theta * pdf / p_rr;
+  return indirectLight * Fr * object_theta / pdf / p_rr;
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingShading(
@@ -730,10 +722,12 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(
       maxRecursionDepth / 2) { // Parallelize only at early recursion levels
     tbb::task_group tg;
     tg.run([&] { direct = pathTracingDirectLight(shadeObjIntersection, wo); });
+
     tg.run([&] {
       indirect = pathTracingIndirectLight(shadeObjIntersection, wo,
                                           maxRecursionDepth, currentDepth + 1);
     });
+
     tg.wait();
 
   } else {
@@ -743,7 +737,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(
   }
 
   auto color = direct + indirect;
-  color = glm::clamp(color, glm::vec3(0.f), glm::vec3(1.f));
+  // color = glm::clamp(color, glm::vec3(0.f), glm::vec3(1.f));
   return color;
 }
 
@@ -753,11 +747,6 @@ glm::vec3 SoftRasterizer::Scene::pathTracing(Ray &ray) {
   Intersection shadeObjIntersection = traceScene(ray);
   if (!shadeObjIntersection.intersected) {
     return this->m_backgroundColor;
-  }
-
-  /*Maybe this Ray Could hit the self-illuminateion Object directly*/
-  if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
-    return shadeObjIntersection.color;
   }
 
   return pathTracingShading(shadeObjIntersection, -ray.direction);
