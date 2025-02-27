@@ -1,3 +1,4 @@
+#include "glm/geometric.hpp"
 #include <Tools.hpp>
 #include <algorithm>
 #include <loader/TextureLoader.hpp>
@@ -110,9 +111,8 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
   glm::vec3 normal = getFaceNormal();
 
   // back face culling
-  if (glm::dot(normal, ray.direction) <= 0) {
+  if (glm::dot(normal, ray.direction) < 0)
     return {};
-  }
 
   // Caculate Edge Vectors
   glm::vec3 e1 = vert[1].position - vert[0].position;
@@ -218,10 +218,9 @@ SoftRasterizer::Triangle::sample() {
   intersection.emit = m_material->getEmission();
 
   /*Find a Point Randomly*/
-  intersection.coords =
-      b1 * vert[0].position + b2 * vert[1].position + b3 * vert[2].position;
-  intersection.normal = Tools::interpolateNormal(
-      b1, b2, b3, vert[0].normal, vert[1].normal, vert[2].normal);
+  intersection.coords = b1 * m_vertex[0] + b2 * m_vertex[1] + b3 * m_vertex[2];
+  intersection.normal = Tools::interpolateNormal(b1, b2, b3, m_normal[0],
+                                                 m_normal[1], m_normal[2]);
 
   return {intersection, 1.0f / calcArea()};
 }
@@ -279,8 +278,7 @@ const float SoftRasterizer::Triangle::calcArea() {
   /*
    *Calculate Area by 0.5 * |BA x CA|
    */
-  m_area = 0.5f * glm::cross(vert[1].position - vert[0].position,
-                             vert[2].position - vert[0].position)
-                      .length();
+  m_area = 0.5f * glm::length(glm::cross(m_vertex[1] - m_vertex[0],
+                                         m_vertex[2] - m_vertex[0]));
   return m_area;
 }
