@@ -620,6 +620,9 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
 
   /*  Sampling The Light*/
   auto [lightSample, lightAreaPdf] = sampleLight();
+  //spdlog::info("[ID = {}] LightSample Coords(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), lightSample.coords.x, lightSample.coords.y, lightSample.coords.z);
+  //spdlog::info("[ID = {}] LightSample Normal(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), lightSample.normal.x, lightSample.normal.y, lightSample.normal.z);
+
   if (std::isnan(lightAreaPdf) || lightAreaPdf < m_epsilon) {
             spdlog::warn("Warning: Light area PDF is too small!");
             return glm::vec3(0.0f);
@@ -634,41 +637,35 @@ glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
   // And the intersection point is NOT a self-illuminate light source
   auto intersection_status = traceScene(light2ShadingPoint);
 
-  float distToIntersection =
-      glm::length(lightSample.coords - intersection_status.coords);
-  float distToLight =
-      glm::length(lightSample.coords - shadeObjIntersection.coords);
+  //spdlog::info("[ID = {}] ShadingPoint Coords(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), shadeObjIntersection.coords.x, shadeObjIntersection.coords.y, shadeObjIntersection.coords.z);
+  //spdlog::info("[ID = {}] ShadingPoint Normal(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), shadeObjIntersection.normal.x, shadeObjIntersection.normal.y, shadeObjIntersection.normal.z);
+  //spdlog::info("[ID = {}] intersection_status Coords(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), intersection_status.coords.x, intersection_status.coords.y, intersection_status.coords.z);
+  //spdlog::info("[ID = {}] intersection_status Normal(x, y, z) = ({}, {}, {})", tbb::this_task_arena::current_thread_index(), intersection_status.normal.x, intersection_status.normal.y, intersection_status.normal.z);
 
-  if (!intersection_status.intersected || (intersection_status.intersected &&
-            std::abs(distToIntersection - distToLight) / (distToLight + m_epsilon) > 1e-3f)) {
+  float distToIntersection = glm::length(lightSample.coords - intersection_status.coords);
+  float distToLight = glm::length(lightSample.coords - shadeObjIntersection.coords);
 
-            spdlog::debug("Shadow miss: distToIntersection={}, distToLight={}, err={}", distToIntersection,
-                      distToLight, std::abs(distToIntersection - distToLight) / (distToLight + m_epsilon));
+  //if (!intersection_status.intersected || (intersection_status.intersected &&
+  //          std::abs(distToIntersection - distToLight) / (distToLight + m_epsilon) > 1e-3f)) {
 
-            return glm::vec3(0.f);
-  }
+  //          spdlog::debug("Shadow miss: distToIntersection={}, distToLight={}, err={}", distToIntersection,
+  //                    distToLight, std::abs(distToIntersection - distToLight) / (distToLight + m_epsilon));
+
+  //          return glm::vec3(0.f);
+  //}
 
   auto distanceSquare = distToIntersection * distToIntersection;
   if (distanceSquare < m_epsilon) {
     return glm::vec3(0.f);
   }
 
-  glm::vec3 ObjectNormal =
-      glm::faceforward(intersection_status.normal, light2ShadingPointDir,
-                       -intersection_status.normal); // Correct normal facing
+  auto object_theta = std::max(0.f, glm::dot(N, -light2ShadingPointDir));
+  auto light_theta = std::max(0.f, glm::dot(-lightSample.normal, light2ShadingPointDir));
+  //spdlog::info("[ID = {}] object_theta = {}, light_theta = {}", tbb::this_task_arena::current_thread_index(), object_theta, light_theta);
 
-  glm::vec3 LightNormal = 
-      glm::faceforward(lightSample.normal, light2ShadingPointDir,
-                       -lightSample.normal); // Light normal
-
-  auto object_theta =
-      std::max(0.f, glm::dot(ObjectNormal, light2ShadingPointDir));
-  auto light_theta =
-      std::max(0.f, glm::dot(LightNormal, light2ShadingPointDir));
-
-  auto Li = lightSample.emit * lightAreaPdf / distanceSquare;
+  auto Li = lightSample.emit / static_cast<float>(lightAreaPdf / distanceSquare);
   auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
-      light2ShadingPointDir, wo, ObjectNormal); /*BRDF*/
+      -light2ShadingPointDir, wo, N); /*BRDF*/
 
   return Li * Fr * object_theta * light_theta;
 }
