@@ -85,12 +85,11 @@ SoftRasterizer::BVHAcceleration::getBoundingBox() const {
   return root->box;
 }
 
-std::optional<float> 
-SoftRasterizer::BVHAcceleration::getTotalArea() const {
-          if (root == nullptr) {
-                    return std::nullopt;
-          }
-          return root->area;
+std::optional<float> SoftRasterizer::BVHAcceleration::getTotalArea() const {
+  if (root == nullptr) {
+    return std::nullopt;
+  }
+  return root->area;
 }
 
 SoftRasterizer::Intersection
@@ -209,9 +208,8 @@ void SoftRasterizer::BVHAcceleration::sample(BVHBuildNode *node,
   if (!node->left || !node->right) {
     auto [obj_intersection, obj_pdf] = node->obj->sample();
     intersect = obj_intersection;
-    pdf = obj_pdf * node->area / getTotalArea().value();
-    // pdf = obj_pdf * (node->area < std::numeric_limits<float>::epsilon()
-    // ? 1.0f : node->area);
+    pdf = obj_pdf * node->area;
+    // pdf = obj_pdf * node->area / getTotalArea().value();
     return;
   }
   if (area < node->left->area)
