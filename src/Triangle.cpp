@@ -207,6 +207,7 @@ SoftRasterizer::Triangle::sample() {
   float v = Tools::random_generator();
 
   /*Use Barycentric to do the calculation*/
+  u = std::sqrt(u);  
   float b1 = 1.0f - u;
   float b2 = u * (1.0f - v);
   float b3 = u * v;
@@ -225,27 +226,23 @@ SoftRasterizer::Triangle::sample() {
   return {intersection, 1.0f / calcArea()};
 }
 
-void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &NDC_MVP,
-                                              const glm::mat4x4 &Normal_M) {
+//Just World Space!!
+void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4& Model,
+          const glm::mat4x4& View,
+          const glm::mat4x4& Projection,
+          const glm::mat4x4& Ndc) {
 
-  vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[0], 1.0f));
-  vert[0].normal =
-      glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[0], 1.0f)));
+          auto MVP = Projection * View * Model;
+          auto Normal_M = glm::transpose(glm::inverse(glm::mat3(Model)));
 
-  vert[1].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[1], 1.0f));
-  vert[1].normal =
-      glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[1], 1.0f)));
+          /*Common Calculation*/
+          vert[0].position = Tools::to_vec3(MVP * glm::vec4(m_vertex[0], 1.0f));
+          vert[1].position = Tools::to_vec3(MVP * glm::vec4(m_vertex[1], 1.0f));
+          vert[2].position = Tools::to_vec3(MVP * glm::vec4(m_vertex[2], 1.0f));
 
-  vert[2].position = Tools::to_vec3(NDC_MVP * glm::vec4(m_vertex[2], 1.0f));
-  vert[2].normal =
-      glm::normalize(Tools::to_vec3(Normal_M * glm::vec4(m_normal[2], 1.0f)));
-
-  Tools::epsilonEqual(vert[0].normal);
-  Tools::epsilonEqual(vert[1].normal);
-  Tools::epsilonEqual(vert[2].normal);
-
-  /*because of position changed, then we have to recalcuate area*/
-  [[maybe_unused]] auto res = calcArea();
+          vert[0].normal = glm::normalize((Normal_M * m_normal[0]));
+          vert[1].normal = glm::normalize((Normal_M * m_normal[1]));
+          vert[2].normal = glm::normalize((Normal_M * m_normal[2]));
 }
 
 void SoftRasterizer::Triangle::bindShader2Mesh(std::shared_ptr<Shader> shader) {
