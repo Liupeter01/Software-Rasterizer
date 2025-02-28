@@ -70,8 +70,10 @@ const float SoftRasterizer::Mesh::getArea() {
       [](const float a, const float b) -> float { return a + b; });
 }
 
-void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4 &NDC_MVP,
-                                          const glm::mat4x4 &Normal_M) {
+void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4& Model,
+          const glm::mat4x4& View,
+          const glm::mat4x4& Projection,
+          const glm::mat4x4& Ndc) {
 
   tbb::parallel_for(tbb::blocked_range<long long>(0, m_triangles.size()),
                     [&](const tbb::blocked_range<long long> &r) {
@@ -79,7 +81,7 @@ void SoftRasterizer::Mesh::updatePosition(const glm::mat4x4 &NDC_MVP,
                            ++index) {
 
                         /*Update Triangle and Generate New Bounds3 Struct*/
-                        m_triangles[index]->updatePosition(NDC_MVP, Normal_M);
+                                m_triangles[index]->updatePosition(Model, View, Projection, Ndc);
                       }
                     });
 
