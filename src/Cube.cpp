@@ -39,10 +39,10 @@ std::tuple<SoftRasterizer::Intersection, float> SoftRasterizer::Cube::sample() {
 
 const float SoftRasterizer::Cube::getArea() { return {}; }
 
-void SoftRasterizer::Cube::updatePosition(const glm::mat4x4& Model,
-          const glm::mat4x4& View,
-          const glm::mat4x4& Projection,
-          const glm::mat4x4& Ndc) {}
+void SoftRasterizer::Cube::updatePosition(const glm::mat4x4 &Model,
+                                          const glm::mat4x4 &View,
+                                          const glm::mat4x4 &Projection,
+                                          const glm::mat4x4 &Ndc) {}
 
 void SoftRasterizer::Cube::bindShader2Mesh(std::shared_ptr<Shader> shader) {
   m_shader.reset();

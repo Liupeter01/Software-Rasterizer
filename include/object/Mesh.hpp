@@ -59,10 +59,9 @@ public:
   [[nodiscard]] std::tuple<Intersection, float> sample() override;
   [[nodiscard]] const float getArea() override;
 
-  void updatePosition(const glm::mat4x4& Model,
-            const glm::mat4x4& View,
-            const glm::mat4x4& Projection,
-            const glm::mat4x4& Ndc) override;
+  void updatePosition(const glm::mat4x4 &Model, const glm::mat4x4 &View,
+                      const glm::mat4x4 &Projection,
+                      const glm::mat4x4 &Ndc) override;
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 

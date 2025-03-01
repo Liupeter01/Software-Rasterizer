@@ -1,6 +1,7 @@
 ﻿#include <Tools.hpp>
 #include <base/Render.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtc/random.hpp>
 #include <glm/gtx/norm.hpp>
 #include <numeric> // For std::accumulate
 #include <scene/Scene.hpp>
@@ -9,7 +10,6 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
 #include <tbb/parallel_reduce.h>
-#include <glm/gtc/random.hpp>
 
 SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const glm::vec3 &center, const glm::vec3 &up,
@@ -582,7 +582,7 @@ SoftRasterizer::Scene::sampleLight() {
             for (auto i = range.begin(); i != range.end(); ++i) {
               /*Self self-illuminating object*/
               if (m_exportedObjs[i]->isSelfEmissiveObject()) {
-                        init += m_exportedObjs[i]->getArea();
+                init += m_exportedObjs[i]->getArea();
               }
             }
             return init;
@@ -606,7 +606,9 @@ SoftRasterizer::Scene::sampleLight() {
         pdf = obj_pdf;
 
         /*Coordinates Modifier*/
-        intersection.coords = glm::vec3(glm::inverse(m_projection * m_view * obj->modelMatrix) * glm::vec4(intersection.coords, 1.0f));
+        intersection.coords =
+            glm::vec3(glm::inverse(m_projection * m_view * obj->modelMatrix) *
+                      glm::vec4(intersection.coords, 1.0f));
         break;
       }
     }
@@ -616,142 +618,158 @@ SoftRasterizer::Scene::sampleLight() {
 }
 
 std::tuple<glm::vec3, float>
-SoftRasterizer::Scene::sampleLight(const glm::vec3& shadingPoint) {
-          // Collect all emissive objects and approximate their bounding spheres**
-          std::vector<std::pair<glm::vec3, float>> lightSpheres;
-          for (const auto& obj : m_exportedObjs) {
-                    if (obj->isSelfEmissiveObject()) {
-                              Bounds3 bbox = obj->getBounds();
-                              glm::vec3 center = (bbox.min + bbox.max) * 0.5f;
-                              float radius = glm::length(bbox.diagonal()) * 0.5f; // Approximate light source as a sphere
-                              lightSpheres.emplace_back(center, radius);
-                    }
-          }
+SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
+  // Collect all emissive objects and approximate their bounding spheres**
+  std::vector<std::pair<glm::vec3, float>> lightSpheres;
+  for (const auto &obj : m_exportedObjs) {
+    if (obj->isSelfEmissiveObject()) {
+      Bounds3 bbox = obj->getBounds();
+      glm::vec3 center = (bbox.min + bbox.max) * 0.5f;
+      float radius = glm::length(bbox.diagonal()) *
+                     0.5f; // Approximate light source as a sphere
+      lightSpheres.emplace_back(center, radius);
+    }
+  }
 
-          if (lightSpheres.empty()) {
-                    spdlog::warn("No emissive objects found in the scene!");
-                    return { glm::vec3(0.0f), 0.0f };
-          }
+  if (lightSpheres.empty()) {
+    spdlog::warn("No emissive objects found in the scene!");
+    return {glm::vec3(0.0f), 0.0f};
+  }
 
-          // Randomly select a light source
-          int randomIndex = Tools::random_generator() * lightSpheres.size();
-          glm::vec3 sphereCenter = lightSpheres[randomIndex].first;
-          float sphereRadius = lightSpheres[randomIndex].second;
+  // Randomly select a light source
+  int randomIndex = Tools::random_generator() * lightSpheres.size();
+  glm::vec3 sphereCenter = lightSpheres[randomIndex].first;
+  float sphereRadius = lightSpheres[randomIndex].second;
 
-          // Sample a random direction on the light source sphere
-          glm::vec3 sampleDir = glm::sphericalRand(1.0f); // Generate a random unit sphere direction
-          glm::vec3 samplePos = sphereCenter + sampleDir * sphereRadius; // Compute sampled point on light source
+  // Sample a random direction on the light source sphere
+  glm::vec3 sampleDir =
+      glm::sphericalRand(1.0f); // Generate a random unit sphere direction
+  glm::vec3 samplePos =
+      sphereCenter +
+      sampleDir * sphereRadius; // Compute sampled point on light source
 
-          // Compute direction from shading point to light source
-          glm::vec3 lightDir = glm::normalize(samplePos - shadingPoint);
+  // Compute direction from shading point to light source
+  glm::vec3 lightDir = glm::normalize(samplePos - shadingPoint);
 
-          // Compute probability density function (PDF)
-          float cosTheta = glm::dot(lightDir, glm::normalize(sphereCenter - shadingPoint));
-          float distanceSquared = glm::length2(samplePos - shadingPoint);
-          float pdf = 
-                     1.0f / (4.0f * glm::pi<float>() * sphereRadius * sphereRadius)* (distanceSquared / cosTheta)
-                    ;
+  // Compute probability density function (PDF)
+  float cosTheta =
+      glm::dot(lightDir, glm::normalize(sphereCenter - shadingPoint));
+  float distanceSquared = glm::length2(samplePos - shadingPoint);
+  float pdf = 1.0f / (4.0f * glm::pi<float>() * sphereRadius * sphereRadius) *
+              (distanceSquared / cosTheta);
 
-          return { lightDir, pdf };
+  return {lightDir, pdf};
 }
 
-//glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
-//          const Intersection& shadeObjIntersection, const glm::vec3& wo) {
+// glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
+//           const Intersection& shadeObjIntersection, const glm::vec3& wo) {
 //
-//          const glm::vec3 N = glm::normalize(shadeObjIntersection.normal);
+//           const glm::vec3 N = glm::normalize(shadeObjIntersection.normal);
 //
-//          /*Maybe this Ray Could hit the self-illuminateion Object directly*/
-//          if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
-//                    return shadeObjIntersection.color;
-//          }
+//           /*Maybe this Ray Could hit the self-illuminateion Object directly*/
+//           if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
+//                     return shadeObjIntersection.color;
+//           }
 //
-//          /*  Sampling The Light*/
-//          auto [shading2Light, lightAreaPdf] = sampleLight(shadeObjIntersection.coords);
-//          //if (std::isnan(lightAreaPdf) || lightAreaPdf < m_epsilon) {
-//          //  spdlog::warn("Warning: Light area PDF is too small!");
-//          //  return glm::vec3(0.0f);
-//          //}
+//           /*  Sampling The Light*/
+//           auto [shading2Light, lightAreaPdf] =
+//           sampleLight(shadeObjIntersection.coords);
+//           //if (std::isnan(lightAreaPdf) || lightAreaPdf < m_epsilon) {
+//           //  spdlog::warn("Warning: Light area PDF is too small!");
+//           //  return glm::vec3(0.0f);
+//           //}
 //
-//          Ray lightSampleRay(shadeObjIntersection.coords, shading2Light);
-//          Intersection lightSampleIntersection = traceScene(lightSampleRay);
-//          if (!lightSampleIntersection.intersected
-//                    || (lightSampleIntersection.intersected && glm::length(lightSampleIntersection.emit) < m_epsilon)) {
-//                    return glm::vec3(0.f);
-//          }
+//           Ray lightSampleRay(shadeObjIntersection.coords, shading2Light);
+//           Intersection lightSampleIntersection = traceScene(lightSampleRay);
+//           if (!lightSampleIntersection.intersected
+//                     || (lightSampleIntersection.intersected &&
+//                     glm::length(lightSampleIntersection.emit) < m_epsilon)) {
+//                     return glm::vec3(0.f);
+//           }
 //
-//          auto distance = glm::length(shadeObjIntersection.coords - lightSampleIntersection.coords);
-//          bool is_shadow = std::abs(lightSampleIntersection.intersect_time - distance);
-//          if (is_shadow || distance < m_epsilon) {
-//                    return glm::vec3(0.f);
-//          }
+//           auto distance = glm::length(shadeObjIntersection.coords -
+//           lightSampleIntersection.coords); bool is_shadow =
+//           std::abs(lightSampleIntersection.intersect_time - distance); if
+//           (is_shadow || distance < m_epsilon) {
+//                     return glm::vec3(0.f);
+//           }
 //
-//          auto object_theta = std::max(0.5f, glm::dot(N, shading2Light));
-//          auto light_theta = std::max(0.5f, glm::dot(lightSampleIntersection.normal, -shading2Light));
+//           auto object_theta = std::max(0.5f, glm::dot(N, shading2Light));
+//           auto light_theta = std::max(0.5f,
+//           glm::dot(lightSampleIntersection.normal, -shading2Light));
 //
-//          auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
-//                    shading2Light, wo, N); /*BRDF*/
+//           auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
+//                     shading2Light, wo, N); /*BRDF*/
 //
-//          return lightSampleIntersection.emit * Fr * object_theta * light_theta / lightAreaPdf / (distance * distance);
-//}
+//           return lightSampleIntersection.emit * Fr * object_theta *
+//           light_theta / lightAreaPdf / (distance * distance);
+// }
 
 // Calculate Points Direct light
 glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
-          const Intersection& shadeObjIntersection, const glm::vec3& wo) {
+    const Intersection &shadeObjIntersection, const glm::vec3 &wo) {
 
-          const glm::vec3 N = glm::normalize(shadeObjIntersection.normal);
+  const glm::vec3 N = glm::normalize(shadeObjIntersection.normal);
 
-          // If the shading point itself is emissive, return its color
-          if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
-                    return shadeObjIntersection.color;
-          }
+  // If the shading point itself is emissive, return its color
+  if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
+    return shadeObjIntersection.color;
+  }
 
-          // Sample a light source
-          auto [lightSample, lightAreaPdf] = sampleLight();
-          if (std::isnan(lightAreaPdf) || lightAreaPdf < m_epsilon) {
-                    spdlog::warn("Warning: Light area PDF is too small!");
-                    return glm::vec3(0.0f);
-          }
+  // Sample a light source
+  auto [lightSample, lightAreaPdf] = sampleLight();
+  if (std::isnan(lightAreaPdf) || lightAreaPdf < m_epsilon) {
+    spdlog::warn("Warning: Light area PDF is too small!");
+    return glm::vec3(0.0f);
+  }
 
-          // Compute shading-to-light vector with high precision
-          glm::dvec3 delta = glm::dvec3(shadeObjIntersection.coords) - glm::dvec3(lightSample.coords);
-          glm::vec3 light2ShadingPointDir = glm::normalize(delta);
+  // Compute shading-to-light vector with high precision
+  glm::dvec3 delta =
+      glm::dvec3(shadeObjIntersection.coords) - glm::dvec3(lightSample.coords);
+  glm::vec3 light2ShadingPointDir = glm::normalize(delta);
 
-          // Shift the shadow ray origin slightly to avoid self-shadowing
-          Ray light2ShadingPoint(lightSample.coords + light2ShadingPointDir * 1e-4f, light2ShadingPointDir);
+  // Shift the shadow ray origin slightly to avoid self-shadowing
+  Ray light2ShadingPoint(lightSample.coords + light2ShadingPointDir * 1e-4f,
+                         light2ShadingPointDir);
 
-          // Trace the shadow ray
-          auto intersection_status = traceScene(light2ShadingPoint);
+  // Trace the shadow ray
+  auto intersection_status = traceScene(light2ShadingPoint);
 
-          // Compute distances with double precision for accuracy
-          double distToIntersection = glm::length(glm::dvec3(lightSample.coords) - glm::dvec3(intersection_status.coords));
-          double distToLight = glm::length(glm::dvec3(lightSample.coords) - glm::dvec3(shadeObjIntersection.coords));
+  // Compute distances with double precision for accuracy
+  double distToIntersection = glm::length(
+      glm::dvec3(lightSample.coords) - glm::dvec3(intersection_status.coords));
+  double distToLight = glm::length(glm::dvec3(lightSample.coords) -
+                                   glm::dvec3(shadeObjIntersection.coords));
 
-          if (!intersection_status.intersected) {
-                    return glm::vec3(0.f);
-          }
+  if (!intersection_status.intersected) {
+    return glm::vec3(0.f);
+  }
 
-          // Use squared distance for better numerical stability
-          double distanceSquared = distToIntersection * distToIntersection;
-          if (distanceSquared < static_cast<double>(m_epsilon)) {
-                    return glm::vec3(0.f);
-          }
+  // Use squared distance for better numerical stability
+  double distanceSquared = distToIntersection * distToIntersection;
+  if (distanceSquared < static_cast<double>(m_epsilon)) {
+    return glm::vec3(0.f);
+  }
 
-          if (std::abs(distToIntersection - distToLight) < static_cast<double>(1e-4f)) {
-                    // Compute angles
-                    float object_theta = std::max(0.f, glm::dot(N, -light2ShadingPointDir));
-                    float light_theta = std::max(0.f, glm::dot(lightSample.normal, light2ShadingPointDir));
+  if (std::abs(distToIntersection - distToLight) < static_cast<double>(1e-4f)) {
+    // Compute angles
+    float object_theta = std::max(0.f, glm::dot(N, -light2ShadingPointDir));
+    float light_theta =
+        std::max(0.f, glm::dot(lightSample.normal, light2ShadingPointDir));
 
-                    // Check if the angles are valid
-                    if (object_theta < m_epsilon || light_theta < m_epsilon) {
-                              return glm::vec3(0.f);
-                    }
+    // Check if the angles are valid
+    if (object_theta < m_epsilon || light_theta < m_epsilon) {
+      return glm::vec3(0.f);
+    }
 
-                    auto Li = lightSample.emit;
-                    auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(-light2ShadingPointDir, wo, N); // BRDF
+    auto Li = lightSample.emit;
+    auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
+        -light2ShadingPointDir, wo, N); // BRDF
 
-                    return Li * Fr * object_theta * light_theta / static_cast<float>(lightAreaPdf * distanceSquared);
-          }
-          return glm::vec3(0.f);
+    return Li * Fr * object_theta * light_theta /
+           static_cast<float>(lightAreaPdf * distanceSquared);
+  }
+  return glm::vec3(0.f);
 }
 
 // Calculate Point From Indirect Light
@@ -773,15 +791,16 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
   Ray newray(shadeObjIntersection.coords, wi);
   Intersection nextObj = traceScene(newray);
   if (!nextObj.intersected) {
-            return glm::vec3(0.f);
+    return glm::vec3(0.f);
   }
 
   // if nextobj is a self-illumination object
   if (glm::length(nextObj.emit) > m_epsilon) {
-            return glm::vec3(0.0f);
+    return glm::vec3(0.0f);
   }
 
-  auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(wi, wo,N); // BRDF
+  auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(wi, wo,
+                                                                     N); // BRDF
   auto pdf = shadeObjIntersection.obj->getMaterial()->pdf(wi, wo, N);    // PDF
   auto object_theta = std::max(0.f, glm::dot(wi, N));
 
@@ -852,7 +871,8 @@ void SoftRasterizer::Scene::updatePosition() {
         for (auto i = range.begin(); i != range.end(); ++i) {
           const auto &modelMatrix = m_exportedObjs[i]->getModelMatrix();
 
-          m_exportedObjs[i]->updatePosition(modelMatrix, m_view, m_projection, m_ndcToScreenMatrix);
+          m_exportedObjs[i]->updatePosition(modelMatrix, m_view, m_projection,
+                                            m_ndcToScreenMatrix);
         }
       },
       ap);

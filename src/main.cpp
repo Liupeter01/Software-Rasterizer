@@ -123,16 +123,16 @@ int main() {
                           glm::vec3(0.25f));
     scene->setModelMatrix("light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
                           glm::vec3(0.25f));
-    scene->setModelMatrix("shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), 
-                              glm::vec3(0.25f));
+    scene->setModelMatrix("shortbox", glm::vec3(0, 1, 0), degree,
+                          glm::vec3(0.f), glm::vec3(0.25f));
     scene->setModelMatrix("tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
                           glm::vec3(0.25f));
 
     /*View Matrix*/
     scene->setViewMatrix(
-              /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
-              /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
-              /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
+        /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
+        /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
+        /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
 
     /*Projection Matrix*/
     scene->setProjectionMatrix(

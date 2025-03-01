@@ -117,27 +117,32 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
   // light and surface is parallel or not?
   glm::dvec3 pvec = glm::cross(glm::dvec3(ray.direction), e2);
   double det = glm::dot(e1, pvec);
-  if (std::abs(det) < 1e-6f) return {};
+  if (std::abs(det) < 1e-6f)
+    return {};
 
   double det_inv = 1.0 / det;
   glm::dvec3 tvec = glm::dvec3(ray.origin) - glm::dvec3(vert[0].position);
   double u = glm::dot(tvec, pvec) * det_inv;
-  if (u < 0.0 || u > 1.0) return {};
+  if (u < 0.0 || u > 1.0)
+    return {};
 
   glm::dvec3 qvec = glm::cross(tvec, e1);
   double v = glm::dot(glm::dvec3(ray.direction), qvec) * det_inv;
-  if (v < 0.0 || (u + v) > 1.0) return {};
+  if (v < 0.0 || (u + v) > 1.0)
+    return {};
 
   // calculate the intersect time
   double t0 = glm::dot(e2, qvec) * det_inv;
-  if (t0 < 1e-6f) return {};
+  if (t0 < 1e-6f)
+    return {};
 
   Intersection ret;
   ret.obj = this;
   ret.index = index;
   ret.material = m_material;
   ret.intersect_time = static_cast<float>(t0);
-  ret.coords = glm::vec3(glm::dvec3(ray.direction) * t0 + glm::dvec3(ray.origin));
+  ret.coords =
+      glm::vec3(glm::dvec3(ray.direction) * t0 + glm::dvec3(ray.origin));
   ret.uv = glm::vec2(static_cast<float>(u), static_cast<float>(v));
 
   // we could find a intersect time point
@@ -194,7 +199,7 @@ SoftRasterizer::Triangle::sample() {
   float v = Tools::random_generator();
 
   /*Use Barycentric to do the calculation*/
-  u = std::sqrt(u);  
+  u = std::sqrt(u);
   float b1 = 1.0f - u;
   float b2 = u * (1.0f - v);
   float b3 = u * v;
@@ -205,30 +210,31 @@ SoftRasterizer::Triangle::sample() {
   intersection.index = index;
   intersection.emit = m_material->getEmission();
 
-  //Use Projection Coordinates
-  intersection.coords = b1 * vert[0].position + b2 * vert[1].position + b3 * vert[2].position;
+  // Use Projection Coordinates
+  intersection.coords =
+      b1 * vert[0].position + b2 * vert[1].position + b3 * vert[2].position;
   intersection.normal = Tools::interpolateNormal(b1, b2, b3, m_normal[0],
                                                  m_normal[1], m_normal[2]);
 
   return {intersection, 1.0f / calcArea()};
 }
 
-void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4& Model,
-          const glm::mat4x4& View,
-          const glm::mat4x4& Projection,
-          const glm::mat4x4& Ndc) {
+void SoftRasterizer::Triangle::updatePosition(const glm::mat4x4 &Model,
+                                              const glm::mat4x4 &View,
+                                              const glm::mat4x4 &Projection,
+                                              const glm::mat4x4 &Ndc) {
 
-          auto MVP = Projection * View * Model;
-          auto Normal_M = glm::transpose(glm::inverse(glm::mat3(Model)));
+  auto MVP = Projection * View * Model;
+  auto Normal_M = glm::transpose(glm::inverse(glm::mat3(Model)));
 
-          /*Common Calculation*/
-          vert[0].position = Tools::to_vec3(MVP * glm::dvec4(m_vertex[0], 1.0f));
-          vert[1].position = Tools::to_vec3(MVP * glm::dvec4(m_vertex[1], 1.0f));
-          vert[2].position = Tools::to_vec3(MVP * glm::dvec4(m_vertex[2], 1.0f));
+  /*Common Calculation*/
+  vert[0].position = Tools::to_vec3(MVP * glm::dvec4(m_vertex[0], 1.0f));
+  vert[1].position = Tools::to_vec3(MVP * glm::dvec4(m_vertex[1], 1.0f));
+  vert[2].position = Tools::to_vec3(MVP * glm::dvec4(m_vertex[2], 1.0f));
 
-          vert[0].normal = glm::normalize((Normal_M * m_normal[0]));
-          vert[1].normal = glm::normalize((Normal_M * m_normal[1]));
-          vert[2].normal = glm::normalize((Normal_M * m_normal[2]));
+  vert[0].normal = glm::normalize((Normal_M * m_normal[0]));
+  vert[1].normal = glm::normalize((Normal_M * m_normal[1]));
+  vert[2].normal = glm::normalize((Normal_M * m_normal[2]));
 }
 
 void SoftRasterizer::Triangle::bindShader2Mesh(std::shared_ptr<Shader> shader) {

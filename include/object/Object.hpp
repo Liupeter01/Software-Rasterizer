@@ -62,10 +62,9 @@ struct Object {
   virtual const std::vector<glm::uvec3> &getFaces() const = 0;
 
   /*Perform (NDC) MVP Calculation*/
-  virtual void updatePosition(const glm::mat4x4& Model,
-            const glm::mat4x4& View,
-            const glm::mat4x4& Projection,
-            const glm::mat4x4& Ndc) = 0;
+  virtual void updatePosition(const glm::mat4x4 &Model, const glm::mat4x4 &View,
+                              const glm::mat4x4 &Projection,
+                              const glm::mat4x4 &Ndc) = 0;
 
   virtual void bindShader2Mesh(std::shared_ptr<Shader> shader) = 0;
 
