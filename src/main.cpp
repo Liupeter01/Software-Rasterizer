@@ -60,13 +60,13 @@ int main() {
       CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/light.obj",
       "light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  //scene->addGraphicObj(
-  //    CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/small.obj",
-  //    "shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/small.obj",
+      "shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
-  //scene->addGraphicObj(
-  //    CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/large.obj",
-  //    "tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+  scene->addGraphicObj(
+      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/large.obj",
+      "tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
 
   scene->startLoadingMesh("floor");
   scene->startLoadingMesh("back");
@@ -74,8 +74,8 @@ int main() {
   scene->startLoadingMesh("left");
   scene->startLoadingMesh("right");
   scene->startLoadingMesh("light");
-  //scene->startLoadingMesh("shortbox");
-  //scene->startLoadingMesh("tallbox");
+  scene->startLoadingMesh("shortbox");
+  scene->startLoadingMesh("tallbox");
 
   if (auto lightOpt = scene->getMeshObj("light"); lightOpt) {
     (*lightOpt)->setMaterial(light);
@@ -95,12 +95,12 @@ int main() {
   if (auto backOpt = scene->getMeshObj("back"); backOpt) {
     (*backOpt)->setMaterial(white);
   }
-  //if (auto shortboxOpt = scene->getMeshObj("shortbox"); shortboxOpt) {
-  //  (*shortboxOpt)->setMaterial(white);
-  //}
-  //if (auto tallboxOpt = scene->getMeshObj("tallbox"); tallboxOpt) {
-  //  (*tallboxOpt)->setMaterial(white);
-  //}
+  if (auto shortboxOpt = scene->getMeshObj("shortbox"); shortboxOpt) {
+    (*shortboxOpt)->setMaterial(white);
+  }
+  if (auto tallboxOpt = scene->getMeshObj("tallbox"); tallboxOpt) {
+    (*tallboxOpt)->setMaterial(white);
+  }
 
   /*Register Scene To Render Main Frame*/
   render->addScene(scene);
@@ -123,10 +123,10 @@ int main() {
                           glm::vec3(0.25f));
     scene->setModelMatrix("light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
                           glm::vec3(0.25f));
-    //scene->setModelMatrix("shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), 
-                              //glm::vec3(0.25f));
-    //scene->setModelMatrix("tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
-    //                      glm::vec3(0.25f));
+    scene->setModelMatrix("shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), 
+                              glm::vec3(0.25f));
+    scene->setModelMatrix("tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
+                          glm::vec3(0.25f));
 
     /*View Matrix*/
     scene->setViewMatrix(
