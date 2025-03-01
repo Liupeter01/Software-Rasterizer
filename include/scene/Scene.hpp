@@ -113,8 +113,11 @@ private:
   // intersected by the ray
   Intersection traceScene(Ray &ray);
 
-  // Uniformly sample the light
+  // Uniformly sample the light by area size(wrong)
   [[nodiscard]] std::tuple<Intersection, float> sampleLight();
+
+  //sample the light by sphere angle and generate glm::vec3 direction
+  [[nodiscard]] std::tuple<glm::vec3, float> sampleLight(const glm::vec3& shadingPoint);
 
   // Whitted Style Ray Tracing
   glm::vec3

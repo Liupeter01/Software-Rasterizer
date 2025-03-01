@@ -9,6 +9,7 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
 #include <tbb/parallel_reduce.h>
+#include <glm/gtc/random.hpp>
 
 SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
                              const glm::vec3 &center, const glm::vec3 &up,
@@ -580,8 +581,8 @@ SoftRasterizer::Scene::sampleLight() {
           [&](const tbb::blocked_range<std::size_t> &range, float init) {
             for (auto i = range.begin(); i != range.end(); ++i) {
               /*Self self-illuminating object*/
-              if (glm::(m_exportedObjs[i]->m_material->emission) {
-        init += m_exportedObjs[i]->getArea();
+              if (m_exportedObjs[i]->isSelfEmissiveObject()) {
+                        init += m_exportedObjs[i]->getArea();
               }
             }
             return init;
@@ -595,9 +596,7 @@ SoftRasterizer::Scene::sampleLight() {
   // Find a self-emission object according to a random area value
   for (const auto &obj : m_exportedObjs) {
     if (obj->isSelfEmissiveObject()) {
-
       area_sum += obj->getArea();
-
       if (random_area_size <= area_sum) {
 
         /* Sample A Point From An object:
@@ -612,6 +611,85 @@ SoftRasterizer::Scene::sampleLight() {
 
   return {intersection, pdf};
 }
+
+std::tuple<glm::vec3, float>
+SoftRasterizer::Scene::sampleLight(const glm::vec3& shadingPoint) {
+          // Collect all emissive objects and approximate their bounding spheres**
+          std::vector<std::pair<glm::vec3, float>> lightSpheres;
+          for (const auto& obj : m_exportedObjs) {
+                    if (obj->isSelfEmissiveObject()) {
+                              Bounds3 bbox = obj->getBounds();
+                              glm::vec3 center = (bbox.min + bbox.max) * 0.5f;
+                              float radius = glm::length(bbox.diagonal()) * 0.5f; // Approximate light source as a sphere
+                              lightSpheres.emplace_back(center, radius);
+                    }
+          }
+
+          if (lightSpheres.empty()) {
+                    spdlog::warn("No emissive objects found in the scene!");
+                    return { glm::vec3(0.0f), 0.0f };
+          }
+
+          // Randomly select a light source
+          int randomIndex = Tools::random_generator() * lightSpheres.size();
+          glm::vec3 sphereCenter = lightSpheres[randomIndex].first;
+          float sphereRadius = lightSpheres[randomIndex].second;
+
+          // Sample a random direction on the light source sphere
+          glm::vec3 sampleDir = glm::sphericalRand(1.0f); // Generate a random unit sphere direction
+          glm::vec3 samplePos = sphereCenter + sampleDir * sphereRadius; // Compute sampled point on light source
+
+          // Compute direction from shading point to light source
+          glm::vec3 lightDir = glm::normalize(samplePos - shadingPoint);
+
+          // Compute probability density function (PDF)
+          float cosTheta = glm::dot(lightDir, glm::normalize(sphereCenter - shadingPoint));
+          float distanceSquared = glm::length2(samplePos - shadingPoint);
+          float pdf = 
+                     1.0f / (4.0f * glm::pi<float>() * sphereRadius * sphereRadius)* (distanceSquared / cosTheta)
+                    ;
+
+          return { lightDir, pdf };
+}
+
+//glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
+//          const Intersection& shadeObjIntersection, const glm::vec3& wo) {
+//
+//          const glm::vec3 N = glm::normalize(shadeObjIntersection.normal);
+//
+//          /*Maybe this Ray Could hit the self-illuminateion Object directly*/
+//          if (glm::length(shadeObjIntersection.emit) > m_epsilon) {
+//                    return shadeObjIntersection.color;
+//          }
+//
+//          /*  Sampling The Light*/
+//          auto [shading2Light, lightAreaPdf] = sampleLight(shadeObjIntersection.coords);
+//          //if (std::isnan(lightAreaPdf) || lightAreaPdf < m_epsilon) {
+//          //  spdlog::warn("Warning: Light area PDF is too small!");
+//          //  return glm::vec3(0.0f);
+//          //}
+//
+//          Ray lightSampleRay(shadeObjIntersection.coords, shading2Light);
+//          Intersection lightSampleIntersection = traceScene(lightSampleRay);
+//          if (!lightSampleIntersection.intersected
+//                    || (lightSampleIntersection.intersected && glm::length(lightSampleIntersection.emit) < m_epsilon)) {
+//                    return glm::vec3(0.f);
+//          }
+//
+//          auto distance = glm::length(shadeObjIntersection.coords - lightSampleIntersection.coords);
+//          bool is_shadow = std::abs(lightSampleIntersection.intersect_time - distance);
+//          if (is_shadow || distance < m_epsilon) {
+//                    return glm::vec3(0.f);
+//          }
+//
+//          auto object_theta = std::max(0.5f, glm::dot(N, shading2Light));
+//          auto light_theta = std::max(0.5f, glm::dot(lightSampleIntersection.normal, -shading2Light));
+//
+//          auto Fr = shadeObjIntersection.obj->getMaterial()->fr_contribution(
+//                    shading2Light, wo, N); /*BRDF*/
+//
+//          return lightSampleIntersection.emit * Fr * object_theta * light_theta / lightAreaPdf / (distance * distance);
+//}
 
 // Calculate Points Direct light
 glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
@@ -722,7 +800,6 @@ glm::vec3 SoftRasterizer::Scene::pathTracingShading(
       maxRecursionDepth / 2) { // Parallelize only at early recursion levels
     tbb::task_group tg;
     tg.run([&] { direct = pathTracingDirectLight(shadeObjIntersection, wo); });
-
     tg.run([&] {
       indirect = pathTracingIndirectLight(shadeObjIntersection, wo,
                                           maxRecursionDepth, currentDepth + 1);
@@ -774,12 +851,7 @@ void SoftRasterizer::Scene::updatePosition() {
         for (auto i = range.begin(); i != range.end(); ++i) {
           const auto &modelMatrix = m_exportedObjs[i]->getModelMatrix();
 
-          auto NDC_MVP =
-              /*m_ndcToScreenMatrix **/ m_projection * m_view * modelMatrix;
-          auto Normal_M =
-              glm::mat4(glm::transpose(glm::inverse(glm::mat3(modelMatrix))));
-
-          m_exportedObjs[i]->updatePosition(NDC_MVP, Normal_M);
+          m_exportedObjs[i]->updatePosition(modelMatrix, m_view, m_projection, m_ndcToScreenMatrix);
         }
       },
       ap);
