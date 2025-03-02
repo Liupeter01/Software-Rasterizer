@@ -41,7 +41,9 @@ glm::vec3 SoftRasterizer::Material::sample(const glm::vec3 &wi,
 const float SoftRasterizer::Material::pdf(const glm::vec3 &wi,
                                           const glm::vec3 &wo,
                                           const glm::vec3 &N) {
-  return uniform_sampling_on_sphere;
+
+  auto angle = glm::dot(wi, N);
+  return angle > 0 ? uniform_sampling_on_sphere : 0.f;
 }
 
 /*
@@ -55,7 +57,7 @@ glm::vec3 SoftRasterizer::Material::fr_contribution(const glm::vec3 &wi,
   auto angle = glm::dot(wi, N);
 
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {
-    return Kd * Tools::PI_INV;
+    return angle > 0 ? Kd * Tools::PI_INV : glm::vec3(0.f);
   }
   return glm::vec3(0.f);
 }

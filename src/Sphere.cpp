@@ -17,9 +17,11 @@ SoftRasterizer::Sphere::Sphere(const glm::vec3 &_center, const float _radius)
 
 SoftRasterizer::Sphere::~Sphere() {}
 
-void SoftRasterizer::Sphere::updatePosition(const glm::mat4x4 &NDC_MVP,
-                                            const glm::mat4x4 &Normal_M) {
-  vert[0].position = Tools::to_vec3(NDC_MVP * glm::vec4(center, 1.0f));
+void SoftRasterizer::Sphere::updatePosition(const glm::mat4x4 &Model,
+                                            const glm::mat4x4 &View,
+                                            const glm::mat4x4 &Projection,
+                                            const glm::mat4x4 &Ndc) {
+  vert[0].position = Tools::to_vec3(Model * glm::vec4(center, 1.0f));
 }
 
 void SoftRasterizer::Sphere::bindShader2Mesh(std::shared_ptr<Shader> shader) {
