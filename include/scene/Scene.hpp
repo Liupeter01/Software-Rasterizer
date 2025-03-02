@@ -117,7 +117,7 @@ private:
   [[nodiscard]] std::tuple<Intersection, float> sampleLight();
 
   // sample the light by sphere angle and generate glm::vec3 direction
-  [[nodiscard]] std::tuple<glm::vec3, float>
+  [[nodiscard]] std::tuple<glm::dvec3, double>
   sampleLight(const glm::vec3 &shadingPoint);
 
   // Whitted Style Ray Tracing
