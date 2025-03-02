@@ -140,7 +140,7 @@ SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
   ret.obj = this;
   ret.index = index;
   ret.material = m_material;
-  ret.intersect_time = static_cast<float>(t0);
+  ret.intersect_time = t0;
   ret.coords =
       glm::vec3(glm::dvec3(ray.direction) * t0 + glm::dvec3(ray.origin));
   ret.uv = glm::vec2(static_cast<float>(u), static_cast<float>(v));
@@ -213,8 +213,8 @@ SoftRasterizer::Triangle::sample() {
   // Use Projection Coordinates
   intersection.coords =
       b1 * vert[0].position + b2 * vert[1].position + b3 * vert[2].position;
-  intersection.normal = Tools::interpolateNormal(b1, b2, b3, m_normal[0],
-                                                 m_normal[1], m_normal[2]);
+  intersection.normal = Tools::interpolateNormal(b1, b2, b3, vert[0].normal,
+            vert[1].normal, vert[2].normal);
 
   return {intersection, 1.0f / calcArea()};
 }
