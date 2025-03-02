@@ -213,8 +213,8 @@ SoftRasterizer::Triangle::sample() {
   // Use Projection Coordinates
   intersection.coords =
       b1 * vert[0].position + b2 * vert[1].position + b3 * vert[2].position;
-  intersection.normal = Tools::interpolateNormal(b1, b2, b3, vert[0].normal,
-            vert[1].normal, vert[2].normal);
+  intersection.normal = Tools::interpolateNormal(
+      b1, b2, b3, vert[0].normal, vert[1].normal, vert[2].normal);
 
   return {intersection, 1.0f / calcArea()};
 }

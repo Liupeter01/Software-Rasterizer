@@ -52,8 +52,8 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
 
               float x = (2 * (rx + 0.5f) / static_cast<float>(m_width) - 1) *
                         aspect_ratio * scale;
-              float y =
-                   (1.f -  2 * (ry + 0.5f) / static_cast<float>(m_height) ) * scale;
+              float y = (1.f - 2 * (ry + 0.5f) / static_cast<float>(m_height)) *
+                        scale;
 
               try {
                 Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
