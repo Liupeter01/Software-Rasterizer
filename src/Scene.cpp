@@ -291,15 +291,18 @@ void SoftRasterizer::Scene::setProjectionMatrix(float fovy, float zNear,
 std::vector<SoftRasterizer::light_struct> SoftRasterizer::Scene::loadLights() {
   std::vector<SoftRasterizer::light_struct> res(m_lights.size());
   std::transform(m_lights.begin(), m_lights.end(), res.begin(),
-                 [](const decltype(m_lights)::value_type &light) {
-                   return *light.second;
+                 [&](const decltype(m_lights)::value_type &light) {
+                      SoftRasterizer::light_struct lightObj = *(light.second);
+                      auto MVP = m_projection * m_view * light.second->getModelMatrix();
+                      lightObj.position = Tools::to_vec3(MVP * glm::vec4(light.second->position, 1.0f));
+                      return lightObj;
                  });
   return res;
 }
 
 void SoftRasterizer::Scene::initCameraLight() {
   m_cameraLight.reset();
-  m_cameraLight = std::make_shared<light_struct>(m_eye, glm::vec3(0.f));
+  m_cameraLight = std::make_shared<light_struct>(m_eye, glm::vec3(0.f), /*axis=*/glm::vec3(0, 1, 0));
 
   addLight("sys_camera", m_cameraLight);
 }
@@ -435,9 +438,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
         [&](const tbb::blocked_range<std::size_t> &range,
             glm::vec3 local_sum) -> glm::vec3 {
           for (std::size_t i = range.begin(); i < range.end(); ++i) {
-            glm::vec3 lightDir = lights[i].position - hitPoint;
-            float distance = glm::dot(lightDir, lightDir);
-            lightDir = glm::normalize(lightDir);
+            glm::vec3 lightDir = glm::normalize(lights[i].position - hitPoint);
 
             // Diffuse reflection (Lambertian)
             float diff = std::max(0.f, glm::dot(N, lightDir));
@@ -452,9 +453,16 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
             // Shadow test
             Ray shadow_ray(shadowCoord, lightDir);
             Intersection shadow_result = traceScene(shadow_ray);
-            bool is_shadow =
-                shadow_result.intersected &&
-                (std::pow(shadow_result.intersect_time, 2.f) < distance);
+            if (!shadow_result.intersected) {
+                      return glm::vec3{ 0.f };
+            }
+
+            double distance2Light = glm::length2(lights[i].position - hitPoint);
+            double shadowDistance = glm::length2(shadow_result.coords - shadowCoord);
+            bool is_shadow = std::abs(shadowDistance - distance2Light) > 1e-2f;
+
+            //spdlog::info("ShadowSquare = {}, distance = {}, delta = {}",
+            //          shadowDistance, distance2Light, shadowDistance - distance2Light);
 
             // Compute light contribution
             glm::vec3 ambient =
