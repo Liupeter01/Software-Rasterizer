@@ -645,7 +645,7 @@ SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
   }
 
   // Apply random perturbation for anti-aliasing and soft shadow
-  double perturbationStrength = 1e-6; // Adjust this value for different effects
+  double perturbationStrength = 1e-6; 
   glm::dvec3 randomPerturbation = glm::sphericalRand(perturbationStrength);
   sampleDir = glm::normalize(sampleDir + randomPerturbation);
 
@@ -655,13 +655,9 @@ SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
   glm::dvec3 lightDir = glm::normalize(samplePos - glm::dvec3(shadingPoint));
 
   // Compute probability density function (PDF)
-  // double cosTheta = glm::dot(lightDir, baselineDir);
-  // double distanceSquared = glm::length2(samplePos -
-  // glm::dvec3(shadingPoint)); double pdf = 1.0 / (2.0 * Tools::PI *
-  // sphereRadius * sphereRadius) * (distanceSquared / std::max(cosTheta,
-  // 1e-6)); pdf = std::max(pdf, 1e-4);  // Prevent PDF from being too small
-
-  return {lightDir, 0.5 * Tools::PI_INV};
+   double cosTheta = glm::dot(lightDir, baselineDir);
+   double pdf = 0.5 * Tools::PI_INV * cosTheta;
+  return {lightDir, pdf };
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
@@ -816,7 +812,7 @@ glm::vec3 SoftRasterizer::Scene::pathTracingIndirectLight(
   auto object_theta = std::max(0.0, glm::dot(wi, N));
 
   if (std::isnan(pdf) || pdf < m_epsilon) {
-    spdlog::warn("Warning: Light area PDF is too small!");
+    spdlog::debug("Warning: Light area PDF is too small!");
     return glm::vec3(0.0f);
   }
 
