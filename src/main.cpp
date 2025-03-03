@@ -6,154 +6,158 @@
 #include <scene/Scene.hpp>
 
 int main() {
-  int key = 0;
-  float degree = 0.f;
+          int key = 0;
+          float degree = 0.0f;
 
-  // Create Path Tracing Main Class
-  auto render =
-      std::make_shared<SoftRasterizer::PathTracing>(1024, 1024, /*SPP=*/16);
+          // Create Ray Tracing Main Class
+          auto render = std::make_shared<SoftRasterizer::RayTracing>(1024, 1024);
 
-  // Create A Scene
-  auto scene = std::make_shared<SoftRasterizer::Scene>(
-      "TestScene",
-      /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
-      /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
-      /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
-      /*background color*/ glm::vec3(0.f));
+          // Create A Scene
+          auto scene = std::make_shared<SoftRasterizer::Scene>(
+                    "TestScene",
+                    /*eye=*/glm::vec3(0.0f, 0.3f, -0.9f),
+                    /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
+                    /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
+                    /*background color*/ glm::vec3(0.235294, 0.67451, 0.843137));
 
-  std::shared_ptr<SoftRasterizer::Material> red =
-      std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material> green =
-      std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material> white =
-      std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material> light =
-      std::make_shared<SoftRasterizer::Material>();
+          /*Modify spot's Material Properties*/
+          std::shared_ptr<SoftRasterizer::Material> crate =
+                    std::make_shared<SoftRasterizer::Material>();
+          std::shared_ptr<SoftRasterizer::Material> spot =
+                    std::make_shared<SoftRasterizer::Material>();
+          std::shared_ptr<SoftRasterizer::Material> diffuse=
+                    std::make_shared<SoftRasterizer::Material>();
 
-  red->Kd = glm::vec3(0.f, 0.f, 1.0f);
-  green->Kd = glm::vec3(0.f, 1.0f, 0.f);
-  white->Kd = glm::vec3(0.68f, 0.71f, 0.725f);
-  light->Kd = glm::vec3(1.0f);
-  light->emission = glm::vec3(31.0808f, 38.5664f, 47.8848f);
+          diffuse->type = crate->type = spot->type = 
+                    SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
+          diffuse->Ka = crate->Ka = spot->Ka = glm::vec3(0.005f);
+          diffuse->Kd = crate->Kd = spot->Kd = glm::vec3(1.f);
+          diffuse->Ks = crate->Ks = spot->Ks = glm::vec3(0.7937f);
+          diffuse->specularExponent = crate->specularExponent = spot->specularExponent = 150.f;
 
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/floor.obj",
-      "floor", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+          std::shared_ptr<SoftRasterizer::Material> reflectrefract =
+                    std::make_shared<SoftRasterizer::Material>();
 
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/back.obj",
-      "back", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+          /*Set REFLECTION_AND_REFRACTION Material*/
+          reflectrefract->type = SoftRasterizer::MaterialType::REFLECTION_AND_REFRACTION;
+          reflectrefract->ior = 2.0f; /*Air to Glass*/
 
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/top.obj", "top",
-      glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+          /*Set Diffuse Color*/
+          auto diffuse_sphere = std::make_unique<SoftRasterizer::Sphere>(
+                    /*center=*/glm::vec3(-0.07f, 0.0f, 0.f),
+                    /*radius=*/0.1f);
 
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/left.obj",
-      "left", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+          /*Set Refrflect Sphere Object*/
+          auto refrflect_sphere = std::make_unique<SoftRasterizer::Sphere>(
+                    /*center=*/glm::vec3(-0.05f, 0.01f, 0.f),
+                    /*radius=*/0.1f);
 
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/right.obj",
-      "right", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+          //scene->addGraphicObj(std::move(refrflect_sphere), "refrflect");
+          //scene->addGraphicObj(std::move(diffuse_sphere), "diffuse");
 
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/light.obj",
-      "light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+          /*Add a spot object*/
+          scene->addGraphicObj(
+                    CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
+                    glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(0.3f));
+          scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
+                    glm::vec3(0.f, 1.f, 0.f), 0.f, glm::vec3(0.0f),
+                    glm::vec3(0.2f));
 
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/small.obj",
-      "shortbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+          scene->startLoadingMesh("spot");
+          scene->startLoadingMesh("Crate");
 
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/large.obj",
-      "tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f), glm::vec3(1.f));
+          if (auto spotOpt = scene->getMeshObj("spot"); spotOpt) 
+                    (*spotOpt)->setMaterial(spot);
+          if (auto CrateOpt = scene->getMeshObj("Crate"); CrateOpt) 
+                    (*CrateOpt)->setMaterial(crate);
+          //if (auto refrflectOpt = scene->getMeshObj("refrflect"); refrflectOpt) 
+          //          (*refrflectOpt)->setMaterial(reflectrefract);
+          //if (auto diffuseOpt = scene->getMeshObj("diffuse"); diffuseOpt) 
+          //          (*diffuseOpt)->setMaterial(diffuse);
 
-  scene->startLoadingMesh("floor");
-  scene->startLoadingMesh("back");
-  scene->startLoadingMesh("top");
-  scene->startLoadingMesh("left");
-  scene->startLoadingMesh("right");
-  scene->startLoadingMesh("light");
-  scene->startLoadingMesh("shortbox");
-  scene->startLoadingMesh("tallbox");
+          /*Add a texture shader for spot object!*/
+          scene->addShader("spot_shader",
+                    CONFIG_HOME "examples/models/spot/spot_texture.png",
+                    SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
-  if (auto lightOpt = scene->getMeshObj("light"); lightOpt) {
-    (*lightOpt)->setMaterial(light);
-  }
-  if (auto leftOpt = scene->getMeshObj("left"); leftOpt) {
-    (*leftOpt)->setMaterial(red);
-  }
-  if (auto rightOpt = scene->getMeshObj("right"); rightOpt) {
-    (*rightOpt)->setMaterial(green);
-  }
-  if (auto floorOpt = scene->getMeshObj("floor"); floorOpt) {
-    (*floorOpt)->setMaterial(white);
-  }
-  if (auto topOpt = scene->getMeshObj("top"); topOpt) {
-    (*topOpt)->setMaterial(white);
-  }
-  if (auto backOpt = scene->getMeshObj("back"); backOpt) {
-    (*backOpt)->setMaterial(white);
-  }
-  if (auto shortboxOpt = scene->getMeshObj("shortbox"); shortboxOpt) {
-    (*shortboxOpt)->setMaterial(white);
-  }
-  if (auto tallboxOpt = scene->getMeshObj("tallbox"); tallboxOpt) {
-    (*tallboxOpt)->setMaterial(white);
-  }
+          scene->addShader("crate_shader",
+                    CONFIG_HOME "examples/models/Crate/Crate1.png",
+                    SoftRasterizer::SHADERS_TYPE::TEXTURE);
 
-  /*Register Scene To Render Main Frame*/
-  render->addScene(scene);
+          scene->bindShader2Mesh("spot", "spot_shader");
+          scene->bindShader2Mesh("Crate", "crate_shader");
 
-  while (key != 27) {
+          /*Add Light To Scene*/
+          auto light1 = std::make_shared<SoftRasterizer::light_struct>(
+                    /*position=*/glm::vec3{ 0.05f, -0.1f, -0.1f },
+                    /*intensity=*/glm::vec3{ 1.f },
+                    /*axis=*/glm::vec3(0, 1, 0));
 
-    /*clear both shading and depth!*/
-    render->clear(SoftRasterizer::Buffers::Color |
-                  SoftRasterizer::Buffers::Depth);
+          auto light2 = std::make_shared<SoftRasterizer::light_struct>(
+                    /*position=*/glm::vec3{ -0.05f, -0.1f, +0.1f },
+                    /*intensity=*/glm::vec3{ 1.f },
+                    /*axis=*/glm::vec3(0, 1, 0));
 
-    scene->setModelMatrix("floor", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
-                          glm::vec3(0.25f));
-    scene->setModelMatrix("back", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
-                          glm::vec3(0.25f));
-    scene->setModelMatrix("top", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
-                          glm::vec3(0.25f));
-    scene->setModelMatrix("left", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
-                          glm::vec3(0.25f));
-    scene->setModelMatrix("right", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
-                          glm::vec3(0.25f));
-    scene->setModelMatrix("light", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
-                          glm::vec3(0.25f));
-    scene->setModelMatrix("shortbox", glm::vec3(0, 1, 0), degree,
-                          glm::vec3(0.f), glm::vec3(0.25f));
-    scene->setModelMatrix("tallbox", glm::vec3(0, 1, 0), degree, glm::vec3(0.f),
-                          glm::vec3(0.25f));
+          scene->addLight("Light1", light1);
+          scene->addLight("Light2", light2);
 
-    /*View Matrix*/
-    scene->setViewMatrix(
-        /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
-        /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
-        /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
+          /*Register Scene To Render Main Frame*/
+          render->addScene(scene);
 
-    /*Projection Matrix*/
-    scene->setProjectionMatrix(
-        /*fov=*/45.0f,
-        /*near=*/0.1f,
-        /*far=*/100.0f);
+          while (key != 27) {
 
-    render->display(SoftRasterizer::Primitive::TRIANGLES);
+                    /*clear both shading and depth!*/
+                    render->clear(SoftRasterizer::Buffers::Color |
+                              SoftRasterizer::Buffers::Depth);
 
-    key = cv::waitKey(0);
-    if (key == 'a' || key == 'A') {
-      degree += 10.0f;
-    } else if (key == 'd' || key == 'D') {
-      degree -= 10.0f;
-    }
+                    /*Model Matrix*/
+                    scene->setModelMatrix(
+                              "spot",
+                              /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+                              /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
+                              /*transform=*/glm::vec3(0.f, 0.f, 0.f),
+                              /*scale=*/glm::vec3(0.1f));
 
-    /*reset the degree*/
-    auto delta = degree - 360.f;
-    if (delta >= -0.00000001f && delta <= 0.00000001f) {
-      degree = 0.0f;
-    }
-  }
-  return 0;
+                    scene->setModelMatrix(
+                              "Crate",
+                              /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+                              /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
+                              /*transform=*/glm::vec3(0.f, -0.12f, 0.f),
+                              /*scale=*/glm::vec3(0.05f));
+
+                    //scene->setModelMatrix("reflect",
+                    //          /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+                    //          /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
+                    //          /*transform=*/glm::vec3(0.05f, -0.02f, -0.2f),
+                    //          /*scale=*/glm::vec3(0.05f));
+
+                    /*View Matrix*/
+                    scene->setViewMatrix(
+                              /*eye=*/glm::vec3(0.0f, 0.0f, -0.5f),
+                              /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
+                              /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
+
+                    /*Projection Matrix*/
+                    scene->setProjectionMatrix(
+                              /*fov=*/45.0f,
+                              /*near=*/0.1f,
+                              /*far=*/100.0f);
+
+                    render->display(SoftRasterizer::Primitive::TRIANGLES);
+
+                    key = cv::waitKey(0);
+                    if (key == 'a' || key == 'A') {
+                              degree += 10.0f;
+                    }
+                    else if (key == 'd' || key == 'D') {
+                              degree -= 10.0f;
+                    }
+
+                    /*reset the degree*/
+                    auto delta = degree - 360.f;
+                    if (delta >= -0.00000001f && delta <= 0.00000001f) {
+                              degree = 0.0f;
+                    }
+          }
+          return 0;
 }
