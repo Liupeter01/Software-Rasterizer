@@ -7,7 +7,7 @@
 
 int main() {
   int key = 0;
-  float degree = 180.0f;
+  float degree = 0.f;
 
   // Create Path Tracing Main Class
   auto render =
@@ -16,7 +16,7 @@ int main() {
   // Create A Scene
   auto scene = std::make_shared<SoftRasterizer::Scene>(
       "TestScene",
-      /*eye=*/glm::vec3(0.0f, 0.3f, -0.9f),
+      /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
       /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
       /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
       /*background color*/ glm::vec3(0.f));
@@ -30,12 +30,11 @@ int main() {
   std::shared_ptr<SoftRasterizer::Material> light =
       std::make_shared<SoftRasterizer::Material>();
 
-  red->Kd = glm::vec3(0.f, 0.f, 0.5f);
-  green->Kd = glm::vec3(0.f, 0.5f, 0.f);
+  red->Kd = glm::vec3(0.f, 0.f, 1.0f);
+  green->Kd = glm::vec3(0.f, 1.0f, 0.f);
   white->Kd = glm::vec3(0.68f, 0.71f, 0.725f);
   light->Kd = glm::vec3(1.0f);
-  light->emission =
-      glm::vec3(31.0808f / 50.f, 38.5664f / 50.f, 47.8848f / 50.f);
+  light->emission = glm::vec3(31.0808f, 38.5664f, 47.8848f);
 
   scene->addGraphicObj(
       CONFIG_HOME "examples/models/cornellbox/cornellbox_parts/floor.obj",
@@ -82,10 +81,10 @@ int main() {
     (*lightOpt)->setMaterial(light);
   }
   if (auto leftOpt = scene->getMeshObj("left"); leftOpt) {
-    (*leftOpt)->setMaterial(green);
+    (*leftOpt)->setMaterial(red);
   }
   if (auto rightOpt = scene->getMeshObj("right"); rightOpt) {
-    (*rightOpt)->setMaterial(red);
+    (*rightOpt)->setMaterial(green);
   }
   if (auto floorOpt = scene->getMeshObj("floor"); floorOpt) {
     (*floorOpt)->setMaterial(white);

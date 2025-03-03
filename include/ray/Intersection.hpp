@@ -13,12 +13,12 @@ struct Intersection {
   Intersection()
       : intersected(false), coords(glm::vec3(0.f)), normal(glm::vec3(0.f)),
         uv(glm::vec2(0.f)), index(0),
-        intersect_time(std::numeric_limits<float>::max()), color(1.0f),
+        intersect_time(std::numeric_limits<double>::max()), color(1.0f),
         emit(glm::vec3(0.f)), obj(nullptr), material(nullptr) {}
 
   std::size_t index;
   bool intersected;
-  float intersect_time;
+  double intersect_time;
   glm::vec3 coords;
   glm::vec3 normal;
   glm::vec3 color;

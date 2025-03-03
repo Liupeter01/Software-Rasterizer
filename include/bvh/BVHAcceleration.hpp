@@ -39,6 +39,7 @@ public:
   Intersection getIntersection(Ray &ray) const;
   void clearBVHAccel();
   std::optional<Bounds3> getBoundingBox() const;
+  std::optional<float> getTotalArea() const;
 
   /*Read Parameters from the object of sample*/
   [[nodiscard]] std::tuple<Intersection, float> sample();

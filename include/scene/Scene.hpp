@@ -113,27 +113,33 @@ private:
   // intersected by the ray
   Intersection traceScene(Ray &ray);
 
-  // Uniformly sample the light
+  // Uniformly sample the light by area size(wrong)
   [[nodiscard]] std::tuple<Intersection, float> sampleLight();
+
+  // sample the light by sphere angle and generate glm::vec3 direction
+  [[nodiscard]] std::tuple<glm::dvec3, double>
+  sampleLight(const glm::vec3 &shadingPoint);
 
   // Whitted Style Ray Tracing
   glm::vec3
   whittedRayTracing(Ray &ray, int depth,
                     const std::vector<SoftRasterizer::light_struct> &lights);
 
-  glm::vec3 pathTracingShading(Ray &ray, int maxRecursionDepth = 5,
+  glm::vec3 pathTracingShading(const Intersection &shadeObjIntersection,
+                               const glm::vec3 &wo, int maxRecursionDepth = 5,
                                int currentDepth = 0);
 
   // Calculate Points Direct light
   glm::vec3 pathTracingDirectLight(const Intersection &shadeObjIntersection,
-                                   Ray &ray);
+                                   const glm::vec3 &wo);
 
   // Calculate Point From Indirect Light
-  glm::vec3
-  pathTracingIndirectLight(const Intersection &shadeObjIntersection, Ray &ray,
-                           const std::size_t maxRecursionDepth =
-                               std::thread::hardware_concurrency() / 2,
-                           std::size_t currentDepth = 0);
+  glm::vec3 pathTracingIndirectLight(const Intersection &shadeObjIntersection,
+                                     const glm::vec3 &wo,
+                                     const std::size_t maxRecursionDepth =
+                                         std::thread::hardware_concurrency() /
+                                         2,
+                                     std::size_t currentDepth = 0);
 
 private:
   /*Russian Roulette*/

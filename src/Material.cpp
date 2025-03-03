@@ -15,23 +15,20 @@ glm::vec3 SoftRasterizer::Material::sample(const glm::vec3 &wi,
                                            const glm::vec3 &N) {
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {
 
-    float u = std::max(Tools::random_generator(),
-                       std::numeric_limits<float>::epsilon());
-    float v = std::max(Tools::random_generator(),
-                       std::numeric_limits<float>::epsilon());
+    float x_1 = Tools::random_generator();
+    float x_2 = Tools::random_generator();
 
     /* Generator 2D Random Sample Coordinates
      * x ^ 2 + y ^ 2 + z ^ 2 = 1 = r^2 + z^2 = 1 */
-    float phi = 2.0f * Tools::PI * v; // angle [0, 2PI]
-    float z = std::sqrt(1.0f - u);
-    float r = std::sqrt(u); // R of sphere
+    float z = std::fabs(1.0f - 2.0f * x_1);
+    float r = std::sqrt(1.0f - z * z), phi = 2 * Tools::PI * x_2;
 
     /*Generate a ray from (0, 0, 0) to (x, y, z)*/
-    glm::vec3 local(r * std::cos(phi), r * std::sin(phi), z);
+    glm::vec3 localRay(r * std::cos(phi), r * std::sin(phi), z);
 
     /* Mathematical Transformation Principle
      * localRay = (x, y, z) => worldRay = xT+yB+zN*/
-    return Tools::toWorld(local, N);
+    return Tools::toWorld(localRay, N);
   }
   return glm::vec3(0.f);
 }
@@ -44,7 +41,9 @@ glm::vec3 SoftRasterizer::Material::sample(const glm::vec3 &wi,
 const float SoftRasterizer::Material::pdf(const glm::vec3 &wi,
                                           const glm::vec3 &wo,
                                           const glm::vec3 &N) {
-  return glm::dot(wi, N) > 0 ? uniform_sampling_on_sphere : 0.f;
+
+  auto angle = glm::dot(wi, N);
+  return angle > 0 ? uniform_sampling_on_sphere : 0.f;
 }
 
 /*
@@ -58,7 +57,7 @@ glm::vec3 SoftRasterizer::Material::fr_contribution(const glm::vec3 &wi,
   auto angle = glm::dot(wi, N);
 
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {
-    return Kd * Tools::PI_INV;
+    return angle > 0 ? Kd * Tools::PI_INV : glm::vec3(0.f);
   }
   return glm::vec3(0.f);
 }

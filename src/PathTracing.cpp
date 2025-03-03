@@ -38,6 +38,9 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
 
     float scale = std::tan(glm::radians(SceneObj->m_fovy * 0.5));
 
+    // Start Time
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     oneapi::tbb::parallel_for(
         oneapi::tbb::blocked_range2d<std::size_t>(0, m_height, 16, 0, m_width,
                                                   16), // 16x16 Block
@@ -49,8 +52,8 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
 
               float x = (2 * (rx + 0.5f) / static_cast<float>(m_width) - 1) *
                         aspect_ratio * scale;
-              float y =
-                  (2 * (ry + 0.5f) / static_cast<float>(m_height) - 1) * scale;
+              float y = (1.f - 2 * (ry + 0.5f) / static_cast<float>(m_height)) *
+                        scale;
 
               try {
                 Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
@@ -83,5 +86,11 @@ void SoftRasterizer::PathTracing::draw(Primitive type) {
           }
         },
         ap);
+
+    // End Time
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+    spdlog::info("Path tracing took {:.3f} seconds for scene: {}",
+                 elapsed.count(), SceneName);
   }
 }
