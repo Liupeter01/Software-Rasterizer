@@ -14,12 +14,12 @@ int main() {
   float degree = 0.0f;
 
   // Create Ray Tracing Main Class
-  auto render = std::make_shared<SoftRasterizer::RayTracing>(1920, 1920);
+  auto render = std::make_shared<SoftRasterizer::RayTracing>(1024, 1024, 1);
 
   // Create A Scene
   auto scene = std::make_shared<SoftRasterizer::Scene>(
       "TestScene",
-      /*eye=*/glm::vec3(0.0f, 0.3f, -0.9f),
+      /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
       /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
       /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
       /*background color*/ glm::vec3(0.235294, 0.67451, 0.843137));
@@ -132,8 +132,8 @@ int main() {
     scene->setModelMatrix("refrflect",
                           /*axis=*/glm::vec3(0.f, 1.f, 0.f),
                           /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
-                          /*transform=*/glm::vec3(0.1f, 0.1f, 0.0f),
-                          /*scale=*/glm::vec3(0.8f));
+                          /*transform=*/glm::vec3(0.1f, 0.0f, 0.0f),
+                          /*scale=*/glm::vec3(1.0f));
 
     scene->setModelMatrix("diffuse",
                           /*axis=*/glm::vec3(0.f, 1.f, 0.f),
@@ -142,7 +142,7 @@ int main() {
                           /*scale=*/glm::vec3(1.0f));
 
     scene->setModelMatrix("spherelight", glm::vec3(0, 1, 0), 0,
-                          glm::vec3(-0.0, 0.1, -0.3f), glm::vec3(1.0f));
+                          glm::vec3(-0.0, 0.3, -0.3f), glm::vec3(1.0f));
 
     /*View Matrix*/
     scene->setViewMatrix(
