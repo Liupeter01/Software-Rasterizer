@@ -21,7 +21,6 @@ void SoftRasterizer::RayTracing::draw(Primitive type) {
      */
     SceneObj->updatePosition();
 
-    std::vector<SoftRasterizer::light_struct> lights = SceneObj->loadLights();
     const glm::vec3 eye = SceneObj->loadEyeVec();
 
     float scale = std::tan(glm::radians(SceneObj->m_fovy * 0.5));
@@ -42,7 +41,7 @@ void SoftRasterizer::RayTracing::draw(Primitive type) {
 
               try {
                 Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
-                glm::vec3 color = SceneObj->whittedRayTracing(ray, 0, lights);
+                glm::vec3 color = SceneObj->whittedRayTracing(ray, 0);
                 writePixel(rx, ry, Tools::normalizedToRGB(color));
               } catch (const std::exception &e) {
                 spdlog::error("RayTracing System Error! Message: {}", e.what());
