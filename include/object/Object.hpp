@@ -4,7 +4,6 @@
 #include <bvh/Bounds3.hpp>
 #include <memory>
 #include <object/Material.hpp>
-#include <optional>
 #include <ray/Intersection.hpp>
 #include <ray/Ray.hpp> //ray def
 #include <shader/Shader.hpp>
