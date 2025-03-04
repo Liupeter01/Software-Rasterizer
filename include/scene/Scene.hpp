@@ -100,9 +100,6 @@ protected:
   std::vector<SoftRasterizer::light_struct> loadLights();
 
 private:
-  /*The intensity is 0 by default*/
-  void initCameraLight();
-
   /*NDC Matrix Function is prepare for renderpipeline class!*/
   void setNDCMatrix(const std::size_t width, const std::size_t height);
 
@@ -121,9 +118,7 @@ private:
   sampleLight(const glm::vec3 &shadingPoint);
 
   // Whitted Style Ray Tracing
-  glm::vec3
-  whittedRayTracing(Ray &ray, int depth,
-                    const std::vector<SoftRasterizer::light_struct> &lights);
+  glm::vec3 whittedRayTracing(Ray &ray, int depth);
 
   glm::vec3 pathTracingShading(const Intersection &shadeObjIntersection,
                                const glm::vec3 &wo, int maxRecursionDepth = 5,

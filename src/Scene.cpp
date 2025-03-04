@@ -1,8 +1,13 @@
-﻿#include <Tools.hpp>
+﻿#include "glm/fwd.hpp"
+#include <Tools.hpp>
 #include <base/Render.hpp>
+#include <ctime>
 #include <glm/geometric.hpp>
 #include <glm/gtc/random.hpp>
 #include <glm/gtx/norm.hpp>
+#include <light/Light.hpp>
+#include <light/SphereLight.hpp>
+#include <memory>
 #include <numeric> // For std::accumulate
 #include <scene/Scene.hpp>
 #include <shader/Shader.hpp>
@@ -22,7 +27,6 @@ SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
       m_bvh(std::make_unique<BVHAcceleration>()) {
   try {
     setViewMatrix(eye, center, up);
-    initCameraLight();
   } catch (const std::exception &e) {
     spdlog::error("Scene Constructor Error! Reason: {}", e.what());
   }
@@ -290,21 +294,20 @@ void SoftRasterizer::Scene::setProjectionMatrix(float fovy, float zNear,
 
 std::vector<SoftRasterizer::light_struct> SoftRasterizer::Scene::loadLights() {
   std::vector<SoftRasterizer::light_struct> res(m_lights.size());
-  std::transform(m_lights.begin(), m_lights.end(), res.begin(),
-                 [&](const decltype(m_lights)::value_type &light) {
-                      SoftRasterizer::light_struct lightObj = *(light.second);
-                      auto MVP = m_projection * m_view * light.second->getModelMatrix();
-                      lightObj.position = Tools::to_vec3(MVP * glm::vec4(light.second->position, 1.0f));
-                      return lightObj;
-                 });
+  for (std::size_t index = 0; index < m_exportedObjs.size(); ++index) {
+    if (auto lightptr =
+            dynamic_cast<SphereLight *>(m_exportedObjs[index].get())) {
+      if (lightptr->isSelfEmissiveObject()) {
+        SoftRasterizer::light_struct ls;
+
+        ls.intensity = lightptr->getIntensity();
+        ls.position = lightptr->getCenter();
+
+        res.push_back(ls);
+      }
+    }
+  }
   return res;
-}
-
-void SoftRasterizer::Scene::initCameraLight() {
-  m_cameraLight.reset();
-  m_cameraLight = std::make_shared<light_struct>(m_eye, glm::vec3(0.f), /*axis=*/glm::vec3(0, 1, 0));
-
-  addLight("sys_camera", m_cameraLight);
 }
 
 void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
@@ -391,11 +394,12 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
   return ret;
 }
 
-glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
-    Ray &ray, int depth,
-    const std::vector<SoftRasterizer::light_struct> &lights) {
+glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth) {
 
   glm::vec3 final_color = this->m_backgroundColor;
+
+  /*DON NOT FORGET TO NORMALIZE THE NORMAL*/
+  auto rayDirection = glm::normalize(ray.direction);
 
   if (depth > m_maxDepth) {
     // Return black if the ray has reached the maximum depth
@@ -412,10 +416,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
 
   // Get the hit point
   auto hitPoint = intersection.coords;
-
-  /*DON NOT FORGET TO NORMALIZE THE NORMAL*/
-  auto rayDirection = glm::normalize(ray.direction);
-  auto hitNormal = glm::normalize(intersection.normal);
+  auto hitNormal = glm::normalize(glm::dvec3(intersection.normal));
 
   const float ior = intersection.material->ior;
   const glm::vec3 I = rayDirection;
@@ -428,61 +429,50 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
   if (intersection.material->getMaterialType() ==
       MaterialType::DIFFUSE_AND_GLOSSY) {
 
+    auto [shading2LightDir, lightAreaPdf] = sampleLight(hitPoint);
+
     /*Self-Intersection Problem Avoidance*/
-    glm::vec3 shadowCoord = glm::dot(I, N) < 0 ? hitPoint - N * m_epsilon
-                                               : hitPoint + N * m_epsilon;
+    glm::dvec3 perturbation = glm::dvec3(hitPoint) + 1e-6 * glm::dvec3(N);
+    Ray lightSampleRay(perturbation, shading2LightDir);
 
-    final_color = tbb::parallel_reduce(
-        tbb::blocked_range<std::size_t>(0, lights.size()),
-        glm::vec3(0.0f), // Initial value
-        [&](const tbb::blocked_range<std::size_t> &range,
-            glm::vec3 local_sum) -> glm::vec3 {
-          for (std::size_t i = range.begin(); i < range.end(); ++i) {
-            glm::vec3 lightDir = glm::normalize(lights[i].position - hitPoint);
+    Intersection lightSampleIntersection = traceScene(lightSampleRay);
+    if (!lightSampleIntersection.intersected) {
+      return glm::vec3(0.f);
+    }
 
-            // Diffuse reflection (Lambertian)
-            float diff = std::max(0.f, glm::dot(N, lightDir));
+    // Diffuse reflection (Lambertian)
+    double diff = std::max(0., glm::dot(glm::dvec3(N), shading2LightDir));
 
-            // Specular reflection (Blinn-Phong)
-            glm::vec3 reflectDir =
-                glm::normalize(glm::reflect(-lightDir, hitNormal));
-            float spec =
-                std::pow(std::max(0.f, -glm::dot(ray.direction, reflectDir)),
-                         intersection.material->specularExponent);
+    // Specular reflection (Blinn-Phong)
+    glm::dvec3 reflectDir =
+        glm::normalize(glm::reflect(-shading2LightDir, glm::dvec3(hitNormal)));
+    double spec =
+        std::pow(std::max(0., -glm::dot(glm::dvec3(ray.direction), reflectDir)),
+                 intersection.material->specularExponent);
 
-            // Shadow test
-            Ray shadow_ray(shadowCoord, lightDir);
-            Intersection shadow_result = traceScene(shadow_ray);
-            if (!shadow_result.intersected) {
-                      return glm::vec3{ 0.f };
-            }
+    double distanceSquare =
+        glm::length2(hitPoint - lightSampleIntersection.coords);
+    double timeSquare = lightSampleIntersection.intersect_time *
+                        lightSampleIntersection.intersect_time;
+    bool is_shadow = std::abs(timeSquare - distanceSquare) > 1e-6f;
 
-            double distance2Light = glm::length2(lights[i].position - hitPoint);
-            double shadowDistance = glm::length2(shadow_result.coords - shadowCoord);
-            bool is_shadow = std::abs(shadowDistance - distance2Light) > 1e-2f;
+    spdlog::debug("timeSquare={}, distanceSquare={},delta = {}, is_shadow={}",
+                  timeSquare, distanceSquare,
+                  std::abs(distanceSquare - timeSquare), is_shadow);
 
-            //spdlog::info("ShadowSquare = {}, distance = {}, delta = {}",
-            //          shadowDistance, distance2Light, shadowDistance - distance2Light);
+    // Compute light contribution
+    glm::vec3 ambient =
+        !is_shadow ? lightSampleIntersection.emit : glm::vec3(0.f);
+    glm::vec3 diffuse = !is_shadow
+                            ? glm::vec3(diff) * lightSampleIntersection.emit
+                            : glm::vec3(0.f);
+    glm::vec3 specular = spec * glm::dvec3(lightSampleIntersection.emit);
 
-            // Compute light contribution
-            glm::vec3 ambient =
-                !is_shadow ? lights[i].intensity : glm::vec3(0.f);
-            glm::vec3 diffuse = !is_shadow
-                                    ? glm::vec3(diff) * lights[i].intensity
-                                    : glm::vec3(0.f);
-            glm::vec3 specular = spec * lights[i].intensity;
+    // Accumulate to local sum
+    final_color = (ambient * intersection.material->Ka) +
+                  (intersection.color * diffuse) +
+                  (specular * intersection.material->Ks);
 
-            // Accumulate to local sum
-            local_sum += (ambient * intersection.material->Ka) +
-                         (intersection.color * diffuse) +
-                         (specular * intersection.material->Ks);
-          }
-          return local_sum;
-        },
-        [](const glm::vec3 &a, const glm::vec3 &b) {
-          return a + b;
-        } // Combine partial results
-    );
   }
 
   else if (intersection.material->getMaterialType() ==
@@ -528,14 +518,14 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
     if (glm::length(refractPath) < 1e-6f || std::abs(kr - 1.0f) < 1e-6f) {
       // prevent relfection and refraction from happening at the same time
       Ray reflectedRay(reflectCoord, reflectPath);
-      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+      reflectedColor = whittedRayTracing(reflectedRay, depth + 1);
       kr = 1.0f;
     } else {
       Ray reflectedRay(reflectCoord, reflectPath);
       Ray refractedRay(refractCoord, refractPath);
 
-      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
-      refractedColor = whittedRayTracing(refractedRay, depth + 1, lights);
+      reflectedColor = whittedRayTracing(reflectedRay, depth + 1);
+      refractedColor = whittedRayTracing(refractedRay, depth + 1);
     }
 
     final_color = glm::clamp(reflectedColor * kr + refractedColor * (1.f - kr),
@@ -558,7 +548,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
 
     Ray reflectedRay(reflectCoord, reflectPath);
 
-    reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
+    reflectedColor = whittedRayTracing(reflectedRay, depth + 1);
 
     final_color =
         glm::clamp(reflectedColor * kr, glm::vec3(0.0f), glm::vec3(1.0f));
@@ -653,7 +643,7 @@ SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
   }
 
   // Apply random perturbation for anti-aliasing and soft shadow
-  double perturbationStrength = 1e-6; 
+  double perturbationStrength = 1e-6;
   glm::dvec3 randomPerturbation = glm::sphericalRand(perturbationStrength);
   sampleDir = glm::normalize(sampleDir + randomPerturbation);
 
@@ -663,9 +653,9 @@ SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
   glm::dvec3 lightDir = glm::normalize(samplePos - glm::dvec3(shadingPoint));
 
   // Compute probability density function (PDF)
-   double cosTheta = glm::dot(lightDir, baselineDir);
-   double pdf = 0.5 * Tools::PI_INV * cosTheta;
-  return {lightDir, pdf };
+  double cosTheta = glm::dot(lightDir, baselineDir);
+  double pdf = 0.5 * Tools::PI_INV * cosTheta;
+  return {lightDir, pdf};
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
