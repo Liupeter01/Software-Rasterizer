@@ -394,7 +394,7 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
   return ret;
 }
 
-glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth) {
+glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth, const std::size_t sample) {
 
   glm::vec3 final_color = this->m_backgroundColor;
 
@@ -427,52 +427,65 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth) {
 
   /*Phong illumation model*/
   if (intersection.material->getMaterialType() ==
-      MaterialType::DIFFUSE_AND_GLOSSY) {
+            MaterialType::DIFFUSE_AND_GLOSSY) {
 
-    auto [shading2LightDir, lightAreaPdf] = sampleLight(hitPoint);
+            final_color = tbb::parallel_reduce(
+                      tbb::blocked_range<std::size_t>(0, sample),
+                      glm::vec3(0.0f), // Initial value
+                      [&](const tbb::blocked_range<std::size_t>& range,
+                                glm::vec3 local_sum) -> glm::vec3 {
+                                          for (std::size_t i = range.begin(); i < range.end(); ++i) {
+                                                    auto [shading2LightDir, lightAreaPdf] = sampleLightOnCenter(hitPoint);
 
-    /*Self-Intersection Problem Avoidance*/
-    glm::dvec3 perturbation = glm::dvec3(hitPoint) + 1e-6 * glm::dvec3(N);
-    Ray lightSampleRay(perturbation, shading2LightDir);
+                                                    Ray lightSampleRay(hitPoint, shading2LightDir);
 
-    Intersection lightSampleIntersection = traceScene(lightSampleRay);
-    if (!lightSampleIntersection.intersected) {
-      return glm::vec3(0.f);
-    }
+                                                    Intersection lightSampleIntersection = traceScene(lightSampleRay);
+                                                    if (!lightSampleIntersection.intersected){
+                                                          //    || (lightSampleIntersection.intersected && glm::length(lightSampleIntersection.emit) < m_epsilon)) {
+                                                              return glm::vec3(0.f);
+                                                    }
 
-    // Diffuse reflection (Lambertian)
-    double diff = std::max(0., glm::dot(glm::dvec3(N), shading2LightDir));
+                                                    // Diffuse reflection (Lambertian)
+                                                    double diff = std::max(0., glm::dot(glm::dvec3(N), shading2LightDir));
 
-    // Specular reflection (Blinn-Phong)
-    glm::dvec3 reflectDir =
-        glm::normalize(glm::reflect(-shading2LightDir, glm::dvec3(hitNormal)));
-    double spec =
-        std::pow(std::max(0., -glm::dot(glm::dvec3(ray.direction), reflectDir)),
-                 intersection.material->specularExponent);
+                                                    // Specular reflection (Blinn-Phong)
+                                                    glm::dvec3 reflectDir =
+                                                              glm::normalize(glm::reflect(-shading2LightDir, glm::dvec3(hitNormal)));
+                                                    double spec =
+                                                              std::pow(std::max(0., -glm::dot(glm::dvec3(ray.direction), reflectDir)),
+                                                                        intersection.material->specularExponent);
 
-    double distanceSquare =
-        glm::length2(hitPoint - lightSampleIntersection.coords);
-    double timeSquare = lightSampleIntersection.intersect_time *
-                        lightSampleIntersection.intersect_time;
-    bool is_shadow = std::abs(timeSquare - distanceSquare) > 1e-6f;
+                                                    double distanceSquare =
+                                                              glm::length2(hitPoint - lightSampleIntersection.coords);
+                                                    double timeSquare = lightSampleIntersection.intersect_time *
+                                                              lightSampleIntersection.intersect_time;
+                                                    bool is_shadow = std::abs(timeSquare - distanceSquare) > 1e-6f;
 
-    spdlog::debug("timeSquare={}, distanceSquare={},delta = {}, is_shadow={}",
-                  timeSquare, distanceSquare,
-                  std::abs(distanceSquare - timeSquare), is_shadow);
+                                                    spdlog::debug("timeSquare={}, distanceSquare={},delta = {}, is_shadow={}",
+                                                              timeSquare, distanceSquare,
+                                                              std::abs(distanceSquare - timeSquare), is_shadow);
 
-    // Compute light contribution
-    glm::vec3 ambient =
-        !is_shadow ? lightSampleIntersection.emit : glm::vec3(0.f);
-    glm::vec3 diffuse = !is_shadow
-                            ? glm::vec3(diff) * lightSampleIntersection.emit
-                            : glm::vec3(0.f);
-    glm::vec3 specular = spec * glm::dvec3(lightSampleIntersection.emit);
+                                                    // Compute light contribution
+                                                    glm::vec3 ambient =
+                                                              !is_shadow ? lightSampleIntersection.emit : glm::vec3(0.f);
+                                                    glm::vec3 diffuse = !is_shadow
+                                                              ? glm::vec3(diff) * lightSampleIntersection.emit
+                                                              : glm::vec3(0.f);
+                                                    glm::vec3 specular = spec * glm::dvec3(lightSampleIntersection.emit);
 
-    // Accumulate to local sum
-    final_color = (ambient * intersection.material->Ka) +
-                  (intersection.color * diffuse) +
-                  (specular * intersection.material->Ks);
+                                                    // Accumulate to local sum
+                                                    local_sum = (ambient * intersection.material->Ka) +
+                                                              (intersection.color * diffuse) +
+                                                              (specular * intersection.material->Ks);
+                                          }
+                                          return local_sum;
+                      },
+                      [](const glm::vec3& a, const glm::vec3& b) {
+                                return a + b;
+                      } // Combine partial results
+            ) ;
 
+            final_color /= sample;
   }
 
   else if (intersection.material->getMaterialType() ==
@@ -518,14 +531,14 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth) {
     if (glm::length(refractPath) < 1e-6f || std::abs(kr - 1.0f) < 1e-6f) {
       // prevent relfection and refraction from happening at the same time
       Ray reflectedRay(reflectCoord, reflectPath);
-      reflectedColor = whittedRayTracing(reflectedRay, depth + 1);
+      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
       kr = 1.0f;
     } else {
       Ray reflectedRay(reflectCoord, reflectPath);
       Ray refractedRay(refractCoord, refractPath);
 
-      reflectedColor = whittedRayTracing(reflectedRay, depth + 1);
-      refractedColor = whittedRayTracing(refractedRay, depth + 1);
+      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
+      refractedColor = whittedRayTracing(refractedRay, depth + 1, sample);
     }
 
     final_color = glm::clamp(reflectedColor * kr + refractedColor * (1.f - kr),
@@ -548,7 +561,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth) {
 
     Ray reflectedRay(reflectCoord, reflectPath);
 
-    reflectedColor = whittedRayTracing(reflectedRay, depth + 1);
+    reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
 
     final_color =
         glm::clamp(reflectedColor * kr, glm::vec3(0.0f), glm::vec3(1.0f));
@@ -607,6 +620,38 @@ SoftRasterizer::Scene::sampleLight() {
   }
 
   return {intersection, pdf};
+}
+
+[[nodiscard]] std::tuple<glm::dvec3, double>
+SoftRasterizer::Scene::sampleLightOnCenter(const glm::vec3& shadingPoint) {
+          // Collect all emissive objects and approximate their bounding spheres**
+          std::vector<std::pair<glm::dvec3, double>> lightSpheres;
+          for (const auto& obj : m_exportedObjs) {
+                    if (obj->isSelfEmissiveObject()) {
+                              Bounds3 bbox = obj->getBounds();
+                              glm::dvec3 center = (glm::dvec3(bbox.min) + glm::dvec3(bbox.max)) * 0.5;
+                              double radius = glm::length(glm::dvec3(bbox.diagonal())) * 0.5;
+                              lightSpheres.emplace_back(center, radius);
+                    }
+          }
+
+          if (lightSpheres.empty()) {
+                    spdlog::warn("No emissive objects found in the scene!");
+                    return { glm::dvec3(0.0), 0.0 };
+          }
+
+          // Randomly select a light source
+          int randomIndex =
+                    static_cast<int>(Tools::random_generator() * lightSpheres.size());
+          glm::dvec3 sphereCenter = lightSpheres[randomIndex].first;
+          double sphereRadius = lightSpheres[randomIndex].second;
+
+          // Compute direction from shading point to light source
+          glm::dvec3 lightDir = glm::normalize(sphereCenter - glm::dvec3(shadingPoint));
+
+          // Compute probability density function (PDF)
+          double pdf = 0.5 * Tools::PI_INV;
+          return { lightDir, pdf };
 }
 
 std::tuple<glm::dvec3, double>
