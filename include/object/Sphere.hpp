@@ -24,7 +24,7 @@ public:
   [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex,
                                                 const glm::vec3 &Point,
                                                 const glm::vec3 &viewDir,
-                                                const glm::vec2 &uv);
+                                                const glm::vec2 &uv) override;
 
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override {
     return glm::vec3(0.f);
@@ -55,10 +55,17 @@ public:
 
   void calcArea();
 
+  [[nodiscard]] const glm::vec3 &getCenter() const { return vert[0].position; }
+
 private:
+  // original data
   float radius;
   float square;
   float area;
+
+  // after converted
+  float new_radius;
+  float new_square;
 
   /*This is the original center*/
   glm::vec3 center;
@@ -69,4 +76,4 @@ private:
 };
 } // namespace SoftRasterizer
 
-#endif //_SPHERE_HPP_
+#endif //_SPHERE_HPP
