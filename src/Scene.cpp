@@ -7,6 +7,7 @@
 #include <glm/gtx/norm.hpp>
 #include <light/Light.hpp>
 #include <light/SphereLight.hpp>
+#include <limits>
 #include <memory>
 #include <numeric> // For std::accumulate
 #include <scene/Scene.hpp>
@@ -394,7 +395,88 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
   return ret;
 }
 
-glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth, const std::size_t sample) {
+[[nodiscard]] std::tuple<glm::dvec3, double>
+SoftRasterizer::Scene::sampleLightOnCenter(const glm::vec3 &shadingPoint) {
+  // Collect all emissive objects and approximate their bounding spheres**
+  std::vector<std::pair<glm::dvec3, double>> lightSpheres;
+  for (const auto &obj : m_exportedObjs) {
+    if (obj->isSelfEmissiveObject()) {
+      Bounds3 bbox = obj->getBounds();
+      glm::dvec3 center = (glm::dvec3(bbox.min) + glm::dvec3(bbox.max)) * 0.5;
+      double radius = glm::length(glm::dvec3(bbox.diagonal())) * 0.5;
+      lightSpheres.emplace_back(center, radius);
+    }
+  }
+
+  if (lightSpheres.empty()) {
+    spdlog::warn("No emissive objects found in the scene!");
+    return {glm::dvec3(0.0), 0.0};
+  }
+
+  // Randomly select a light source
+  int randomIndex =
+      static_cast<int>(Tools::random_generator() * lightSpheres.size());
+  glm::dvec3 sphereCenter = lightSpheres[randomIndex].first;
+  double sphereRadius = lightSpheres[randomIndex].second;
+
+  glm::dvec3 lightDir = glm::normalize(sphereCenter - glm::dvec3(shadingPoint));
+
+  // Compute probability density function (PDF)
+  double pdf = 0.5 * Tools::PI_INV;
+  return {lightDir, pdf};
+}
+
+std::tuple<glm::dvec3, double>
+SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
+  // Collect all emissive objects and approximate their bounding spheres**
+  std::vector<std::pair<glm::dvec3, double>> lightSpheres;
+  for (const auto &obj : m_exportedObjs) {
+    if (obj->isSelfEmissiveObject()) {
+      Bounds3 bbox = obj->getBounds();
+      glm::dvec3 center = (glm::dvec3(bbox.min) + glm::dvec3(bbox.max)) * 0.5;
+      double radius = glm::length(glm::dvec3(bbox.diagonal())) * 0.5;
+      lightSpheres.emplace_back(center, radius);
+    }
+  }
+
+  if (lightSpheres.empty()) {
+    spdlog::warn("No emissive objects found in the scene!");
+    return {glm::dvec3(0.0), 0.0};
+  }
+
+  // Randomly select a light source
+  int randomIndex =
+      static_cast<int>(Tools::random_generator() * lightSpheres.size());
+  glm::dvec3 sphereCenter = lightSpheres[randomIndex].first;
+  double sphereRadius = lightSpheres[randomIndex].second;
+
+  glm::dvec3 baselineDir =
+      glm::normalize(sphereCenter - glm::dvec3(shadingPoint));
+
+  // Sample a random direction on the light source sphere
+  glm::dvec3 sampleDir = glm::sphericalRand(1.0);
+  if (glm::dot(sampleDir, baselineDir) < 0.0) {
+    sampleDir = -sampleDir;
+  }
+
+  // Apply random perturbation for anti-aliasing and soft shadow
+  double perturbationStrength = 1e-6;
+  glm::dvec3 randomPerturbation = glm::sphericalRand(perturbationStrength);
+  sampleDir = glm::normalize(sampleDir + randomPerturbation);
+
+  glm::dvec3 samplePos = sphereCenter + sampleDir * sphereRadius;
+
+  // Compute direction from shading point to light source
+  glm::dvec3 lightDir = glm::normalize(samplePos - glm::dvec3(shadingPoint));
+
+  // Compute probability density function (PDF)
+  double cosTheta = glm::dot(lightDir, baselineDir);
+  double pdf = 0.5 * Tools::PI_INV * cosTheta;
+  return {lightDir, pdf};
+}
+
+glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
+                                                   const std::size_t sample) {
 
   glm::vec3 final_color = this->m_backgroundColor;
 
@@ -408,7 +490,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth, const st
   }
 
   Intersection intersection = traceScene(ray);
-  if (!intersection.intersected || !intersection.obj) {
+  if (!intersection.intersected) {
     // Return black if the ray does not intersect with any object
     spdlog::debug("Ray Intersection Not Found On Depth {}", depth);
     return this->m_backgroundColor;
@@ -427,65 +509,70 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth, const st
 
   /*Phong illumation model*/
   if (intersection.material->getMaterialType() ==
-            MaterialType::DIFFUSE_AND_GLOSSY) {
+      MaterialType::DIFFUSE_AND_GLOSSY) {
 
-            final_color = tbb::parallel_reduce(
-                      tbb::blocked_range<std::size_t>(0, sample),
-                      glm::vec3(0.0f), // Initial value
-                      [&](const tbb::blocked_range<std::size_t>& range,
-                                glm::vec3 local_sum) -> glm::vec3 {
-                                          for (std::size_t i = range.begin(); i < range.end(); ++i) {
-                                                    auto [shading2LightDir, lightAreaPdf] = sampleLightOnCenter(hitPoint);
+    final_color = tbb::parallel_reduce(
+        tbb::blocked_range<std::size_t>(0, sample),
+        glm::vec3(0.0f), // Initial value
+        [&](const tbb::blocked_range<std::size_t> &range,
+            glm::vec3 local_sum) -> glm::vec3 {
+          for (std::size_t i = range.begin(); i < range.end(); ++i) {
 
-                                                    Ray lightSampleRay(hitPoint, shading2LightDir);
+            auto [shading2LightDir, lightAreaPdf] =
+                sampleLightOnCenter(hitPoint);
 
-                                                    Intersection lightSampleIntersection = traceScene(lightSampleRay);
-                                                    if (!lightSampleIntersection.intersected){
-                                                          //    || (lightSampleIntersection.intersected && glm::length(lightSampleIntersection.emit) < m_epsilon)) {
-                                                              return glm::vec3(0.f);
-                                                    }
+            Ray lightSampleRay(hitPoint, shading2LightDir);
+            Intersection lightSampleIntersection = traceScene(lightSampleRay);
+            if (!lightSampleIntersection.intersected ||
+                (lightSampleIntersection.intersected &&
+                 glm::length(lightSampleIntersection.emit) < m_epsilon)) {
+              return glm::vec3(0.f);
+            }
 
-                                                    // Diffuse reflection (Lambertian)
-                                                    double diff = std::max(0., glm::dot(glm::dvec3(N), shading2LightDir));
+            // Diffuse reflection (Lambertian)
+            double diff =
+                std::max(0., glm::dot(glm::dvec3(N), shading2LightDir));
 
-                                                    // Specular reflection (Blinn-Phong)
-                                                    glm::dvec3 reflectDir =
-                                                              glm::normalize(glm::reflect(-shading2LightDir, glm::dvec3(hitNormal)));
-                                                    double spec =
-                                                              std::pow(std::max(0., -glm::dot(glm::dvec3(ray.direction), reflectDir)),
-                                                                        intersection.material->specularExponent);
+            // Specular reflection (Blinn-Phong)
+            glm::dvec3 reflectDir = glm::normalize(
+                glm::reflect(-shading2LightDir, glm::dvec3(hitNormal)));
+            double spec = std::pow(
+                std::max(0., -glm::dot(glm::dvec3(ray.direction), reflectDir)),
+                intersection.material->specularExponent);
 
-                                                    double distanceSquare =
-                                                              glm::length2(hitPoint - lightSampleIntersection.coords);
-                                                    double timeSquare = lightSampleIntersection.intersect_time *
-                                                              lightSampleIntersection.intersect_time;
-                                                    bool is_shadow = std::abs(timeSquare - distanceSquare) > 1e-6f;
+            double distanceSquare =
+                glm::length2(hitPoint - lightSampleIntersection.coords);
+            double timeSquare = lightSampleIntersection.intersect_time *
+                                lightSampleIntersection.intersect_time;
+            bool is_shadow = std::abs(timeSquare - distanceSquare) > 1e-6f;
 
-                                                    spdlog::debug("timeSquare={}, distanceSquare={},delta = {}, is_shadow={}",
-                                                              timeSquare, distanceSquare,
-                                                              std::abs(distanceSquare - timeSquare), is_shadow);
+            spdlog::debug(
+                "timeSquare={}, distanceSquare={},delta = {}, is_shadow={}",
+                timeSquare, distanceSquare,
+                std::abs(distanceSquare - timeSquare), is_shadow);
 
-                                                    // Compute light contribution
-                                                    glm::vec3 ambient =
-                                                              !is_shadow ? lightSampleIntersection.emit : glm::vec3(0.f);
-                                                    glm::vec3 diffuse = !is_shadow
-                                                              ? glm::vec3(diff) * lightSampleIntersection.emit
-                                                              : glm::vec3(0.f);
-                                                    glm::vec3 specular = spec * glm::dvec3(lightSampleIntersection.emit);
+            // Compute light contribution
+            glm::vec3 ambient =
+                !is_shadow ? lightSampleIntersection.emit : glm::vec3(0.f);
+            glm::vec3 diffuse =
+                !is_shadow ? glm::vec3(diff) * lightSampleIntersection.emit
+                           : glm::vec3(0.f);
+            glm::vec3 specular =
+                spec * glm::dvec3(lightSampleIntersection.emit);
 
-                                                    // Accumulate to local sum
-                                                    local_sum = (ambient * intersection.material->Ka) +
-                                                              (intersection.color * diffuse) +
-                                                              (specular * intersection.material->Ks);
-                                          }
-                                          return local_sum;
-                      },
-                      [](const glm::vec3& a, const glm::vec3& b) {
-                                return a + b;
-                      } // Combine partial results
-            ) ;
+            // Accumulate to local sum
+            local_sum = (ambient * intersection.material->Ka) +
+                        (intersection.color * diffuse) +
+                        (specular * intersection.material->Ks);
+          }
+          return local_sum;
+        },
+        [](const glm::vec3 &a, const glm::vec3 &b) {
+          return a + b;
+        } // Combine partial results
+    );
 
-            final_color /= sample;
+    final_color /= sample;
   }
 
   else if (intersection.material->getMaterialType() ==
@@ -620,87 +707,6 @@ SoftRasterizer::Scene::sampleLight() {
   }
 
   return {intersection, pdf};
-}
-
-[[nodiscard]] std::tuple<glm::dvec3, double>
-SoftRasterizer::Scene::sampleLightOnCenter(const glm::vec3& shadingPoint) {
-          // Collect all emissive objects and approximate their bounding spheres**
-          std::vector<std::pair<glm::dvec3, double>> lightSpheres;
-          for (const auto& obj : m_exportedObjs) {
-                    if (obj->isSelfEmissiveObject()) {
-                              Bounds3 bbox = obj->getBounds();
-                              glm::dvec3 center = (glm::dvec3(bbox.min) + glm::dvec3(bbox.max)) * 0.5;
-                              double radius = glm::length(glm::dvec3(bbox.diagonal())) * 0.5;
-                              lightSpheres.emplace_back(center, radius);
-                    }
-          }
-
-          if (lightSpheres.empty()) {
-                    spdlog::warn("No emissive objects found in the scene!");
-                    return { glm::dvec3(0.0), 0.0 };
-          }
-
-          // Randomly select a light source
-          int randomIndex =
-                    static_cast<int>(Tools::random_generator() * lightSpheres.size());
-          glm::dvec3 sphereCenter = lightSpheres[randomIndex].first;
-          double sphereRadius = lightSpheres[randomIndex].second;
-
-          // Compute direction from shading point to light source
-          glm::dvec3 lightDir = glm::normalize(sphereCenter - glm::dvec3(shadingPoint));
-
-          // Compute probability density function (PDF)
-          double pdf = 0.5 * Tools::PI_INV;
-          return { lightDir, pdf };
-}
-
-std::tuple<glm::dvec3, double>
-SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
-  // Collect all emissive objects and approximate their bounding spheres**
-  std::vector<std::pair<glm::dvec3, double>> lightSpheres;
-  for (const auto &obj : m_exportedObjs) {
-    if (obj->isSelfEmissiveObject()) {
-      Bounds3 bbox = obj->getBounds();
-      glm::dvec3 center = (glm::dvec3(bbox.min) + glm::dvec3(bbox.max)) * 0.5;
-      double radius = glm::length(glm::dvec3(bbox.diagonal())) * 0.5;
-      lightSpheres.emplace_back(center, radius);
-    }
-  }
-
-  if (lightSpheres.empty()) {
-    spdlog::warn("No emissive objects found in the scene!");
-    return {glm::dvec3(0.0), 0.0};
-  }
-
-  // Randomly select a light source
-  int randomIndex =
-      static_cast<int>(Tools::random_generator() * lightSpheres.size());
-  glm::dvec3 sphereCenter = lightSpheres[randomIndex].first;
-  double sphereRadius = lightSpheres[randomIndex].second;
-
-  glm::dvec3 baselineDir =
-      glm::normalize(sphereCenter - glm::dvec3(shadingPoint));
-
-  // Sample a random direction on the light source sphere
-  glm::dvec3 sampleDir = glm::sphericalRand(1.0);
-  if (glm::dot(sampleDir, baselineDir) < 0.0) {
-    sampleDir = -sampleDir;
-  }
-
-  // Apply random perturbation for anti-aliasing and soft shadow
-  double perturbationStrength = 1e-6;
-  glm::dvec3 randomPerturbation = glm::sphericalRand(perturbationStrength);
-  sampleDir = glm::normalize(sampleDir + randomPerturbation);
-
-  glm::dvec3 samplePos = sphereCenter + sampleDir * sphereRadius;
-
-  // Compute direction from shading point to light source
-  glm::dvec3 lightDir = glm::normalize(samplePos - glm::dvec3(shadingPoint));
-
-  // Compute probability density function (PDF)
-  double cosTheta = glm::dot(lightDir, baselineDir);
-  double pdf = 0.5 * Tools::PI_INV * cosTheta;
-  return {lightDir, pdf};
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(
