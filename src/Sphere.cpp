@@ -1,4 +1,6 @@
-﻿#include <Tools.hpp>
+﻿#define GLM_ENABLE_EXPERIMENTAL
+#include <Tools.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <object/Sphere.hpp>
 
 SoftRasterizer::Sphere::Sphere() : Sphere(glm::vec3(0.f), 1.f) {}
@@ -22,13 +24,20 @@ void SoftRasterizer::Sphere::updatePosition(const glm::mat4x4 &Model,
                                             const glm::mat4x4 &Projection,
                                             const glm::mat4x4 &Ndc) {
 
+  glm::vec3 scale, translation, skew;
+  glm::quat rotation;
+  glm::vec4 perspective;
+  glm::decompose(Model, scale, rotation, translation, skew, perspective);
+
   // update center points location
   vert[0].position =
       Tools::to_vec3(Projection * View * Model * glm::vec4(center, 1.0f));
 
   // update radius length
-  glm::vec3 scale = glm::vec3(Model[0][0], Model[1][1], Model[2][2]);
-  new_radius = radius * glm::length(scale);
+  new_radius = radius * glm::max(scale.x, glm::max(scale.y, scale.z));
+
+  /*bad news, its wrong!!!!*/
+  // new_radius = radius * glm::length(scale);
   new_square = new_radius * new_radius;
 }
 
