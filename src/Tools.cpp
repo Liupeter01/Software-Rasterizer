@@ -1,7 +1,8 @@
-#include <random>
 #include <Tools.hpp>
-#include <spdlog/spdlog.h>
+#include <cmath>
 #include <object/Triangle.hpp>
+#include <random>
+#include <spdlog/spdlog.h>
 
 #if defined(__x86_64__) || defined(_WIN64)
 SoftRasterizer::NormalSIMD::NormalSIMD(const __m256 &_x, const __m256 &_y,
@@ -271,9 +272,39 @@ float SoftRasterizer::Tools::fresnel(const glm::vec3 &rayDirection,
 }
 
 const float SoftRasterizer::Tools::random_generator() {
-          /*Random Generator*/
-          std::random_device rnd;
-          std::mt19937 mt(rnd());
-          std::uniform_real_distribution<float> unf(0.f, 1.0f);
-          return unf(mt);
+  /*Random Generator*/
+  static std::mt19937 mt(std::random_device{}());
+  static std::uniform_real_distribution<double> dist(0.f, 1.f);
+  return dist(mt);
+}
+
+void SoftRasterizer::Tools::epsilonEqual(glm::vec3 &transformedNormal) {
+  if (glm::abs(transformedNormal.x) < 1e-6)
+    transformedNormal.x = 0.f;
+  if (glm::abs(transformedNormal.y) < 1e-6)
+    transformedNormal.y = 0.f;
+  if (glm::abs(transformedNormal.z) < 1e-6)
+    transformedNormal.z = 0.f;
+};
+
+/*
+ * Mathematical Transformation Principle
+ * localRay = (x, y, z) => worldRay = xT+yB+zN
+ */
+glm::vec3 SoftRasterizer::Tools::toWorld(const glm::vec3 &local,
+                                         const glm::vec3 &N) {
+  glm::vec3 B, C;
+  if (std::fabs(N.x) > std::fabs(N.y)) {
+    float invLen = 1.0f / std::sqrt(N.x * N.x + N.z * N.z);
+    C = glm::vec3(N.z * invLen, 0.0f, -N.x * invLen);
+  } else {
+    float invLen = 1.0f / std::sqrt(N.y * N.y + N.z * N.z);
+    C = glm::vec3(0.0f, N.z * invLen, -N.y * invLen);
+  }
+  B = glm::cross(C, N);
+  return local.x * B + local.y * C + local.z * N;
+}
+
+bool SoftRasterizer::Tools::isfinite(const glm::vec3 &v) {
+  return std::isfinite(v.x) || std::isfinite(v.y) || std::isfinite(v.z);
 }

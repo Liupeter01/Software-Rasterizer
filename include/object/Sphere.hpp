@@ -24,7 +24,7 @@ public:
   [[nodiscard]] Properties getSurfaceProperties(const std::size_t faceIndex,
                                                 const glm::vec3 &Point,
                                                 const glm::vec3 &viewDir,
-                                                const glm::vec2 &uv);
+                                                const glm::vec2 &uv) override;
 
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override {
     return glm::vec3(0.f);
@@ -41,14 +41,31 @@ public:
     return faces;
   }
 
-  void updatePosition(const glm::mat4x4 &NDC_MVP,
-                      const glm::mat4x4 &Normal_M) override;
+  /*Generate A Random Intersection Point on the Object*/
+  [[nodiscard]] std::tuple<Intersection, float> sample() override;
+  [[nodiscard]] const float getArea() override { return area; }
+
+  void updatePosition(const glm::mat4x4 &Model, const glm::mat4x4 &View,
+                      const glm::mat4x4 &Projection,
+                      const glm::mat4x4 &Ndc) override;
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
+  void setMaterial(std::shared_ptr<Material> material) override;
+
+  void calcArea();
+
+  [[nodiscard]] const glm::vec3 &getCenter() const { return vert[0].position; }
+
 private:
+  // original data
   float radius;
   float square;
+  float area;
+
+  // after converted
+  float new_radius;
+  float new_square;
 
   /*This is the original center*/
   glm::vec3 center;
@@ -59,4 +76,4 @@ private:
 };
 } // namespace SoftRasterizer
 
-#endif //_SPHERE_HPP_
+#endif //_SPHERE_HPP

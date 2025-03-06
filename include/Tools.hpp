@@ -73,6 +73,7 @@ struct Triangle;
 struct Tools {
   static constexpr float PI = 3.14159265358979323846f;
   static constexpr float PI_INV = 1.0f / PI;
+  static constexpr float epsilon = 1e-5f;
 
   // Base case: min with two arguments
   template <typename T> static T min(T a, T b) { return (a < b) ? a : b; }
@@ -155,6 +156,16 @@ struct Tools {
                        const float &refractiveIndex);
 
   static const float random_generator();
+
+  static void epsilonEqual(glm::vec3 &transformedNormal);
+
+  /*
+   * Mathematical Transformation Principle
+   * localRay = (x, y, z) => worldRay = xT+yB+zN
+   */
+  static glm::vec3 toWorld(const glm::vec3 &local, const glm::vec3 &N);
+
+  static bool isfinite(const glm::vec3 &v);
 
   template <size_t Begin, size_t End, typename F> static void static_for(F f) {
     if constexpr (Begin < End) {

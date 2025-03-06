@@ -26,10 +26,30 @@ glm::vec3 SoftRasterizer::Cube::getDiffuseColor(const glm::vec2 &uv) {
   return glm::vec3(0.5f);
 }
 
-void SoftRasterizer::Cube::updatePosition(const glm::mat4x4 &NDC_MVP,
-                                          const glm::mat4x4 &Normal_M) {}
+std::tuple<SoftRasterizer::Intersection, float> SoftRasterizer::Cube::sample() {
+
+  float pdf = {1.f};
+  SoftRasterizer::Intersection intersection;
+  intersection.intersected = true;
+  intersection.obj = this;
+  intersection.emit = m_material->getEmission();
+
+  return {intersection, 1.0f / pdf};
+}
+
+const float SoftRasterizer::Cube::getArea() { return {}; }
+
+void SoftRasterizer::Cube::updatePosition(const glm::mat4x4 &Model,
+                                          const glm::mat4x4 &View,
+                                          const glm::mat4x4 &Projection,
+                                          const glm::mat4x4 &Ndc) {}
 
 void SoftRasterizer::Cube::bindShader2Mesh(std::shared_ptr<Shader> shader) {
   m_shader.reset();
   m_shader = shader;
+}
+
+void SoftRasterizer::Cube::setMaterial(std::shared_ptr<Material> material) {
+  m_material.reset();
+  m_material = material;
 }

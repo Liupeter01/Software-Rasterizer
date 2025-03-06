@@ -20,6 +20,8 @@ public:
                                                 const glm::vec3 &viewDir,
                                                 const glm::vec2 &uv) override;
 
+  void setMaterial(std::shared_ptr<Material> material) override;
+
   [[nodiscard]] std::shared_ptr<Material> &getMaterial() override {
     return m_material;
   }
@@ -33,12 +35,18 @@ public:
   }
 
   /*Perform (NDC) MVP Calculation*/
-  [[nodiscard]] void updatePosition(const glm::mat4x4 &NDC_MVP,
-                                    const glm::mat4x4 &Normal_M) override;
+  [[nodiscard]] void updatePosition(const glm::mat4x4 &Model,
+                                    const glm::mat4x4 &View,
+                                    const glm::mat4x4 &Projection,
+                                    const glm::mat4x4 &Ndc) override;
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
 
+  [[nodiscard]] std::tuple<Intersection, float> sample() override;
+  [[nodiscard]] const float getArea() override;
+
 private:
+  float area = 0.f;
   std::vector<SoftRasterizer::Vertex> vert;
   std::vector<glm::uvec3> faces;
 };

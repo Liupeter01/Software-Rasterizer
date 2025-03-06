@@ -39,11 +39,13 @@ public:
     return {};
   }
 
+  // GetMaterial Can only modify mesh's material variable, triangles are not
+  // included!
   [[nodiscard]] std::shared_ptr<Material> &getMaterial() override {
     return m_material;
   }
   [[nodiscard]] glm::vec3 getDiffuseColor(const glm::vec2 &uv) override {
-    return glm::vec3(1.0f);
+    return m_material->Kd;
   }
 
   /*Compatible Consideration!*/
@@ -54,10 +56,16 @@ public:
     return faces;
   }
 
-  void updatePosition(const glm::mat4x4 &NDC_MVP,
-                      const glm::mat4x4 &Normal_M) override;
+  [[nodiscard]] std::tuple<Intersection, float> sample() override;
+  [[nodiscard]] const float getArea() override;
+
+  void updatePosition(const glm::mat4x4 &Model, const glm::mat4x4 &View,
+                      const glm::mat4x4 &Projection,
+                      const glm::mat4x4 &Ndc) override;
 
   void bindShader2Mesh(std::shared_ptr<Shader> shader) override;
+
+  void setMaterial(std::shared_ptr<Material> material) override;
 
   /*Rebuild BVH Structure, When Points position moved!*/
   void rebuildBVHAccel();
@@ -85,6 +93,9 @@ public:
   std::string meshname;
   std::vector<Vertex> vertices;
   std::vector<glm::uvec3> faces;
+
+  // Mesh Area Calculation
+  float area = 0.f;
 
   // Bounding Box
   Bounds3 bounding_box;

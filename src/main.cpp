@@ -1,5 +1,10 @@
+#include "glm/fwd.hpp"
+#include "object/Material.hpp"
+#include <light/SphereLight.hpp>
+#include <memory>
 #include <object/Sphere.hpp>
 #include <opencv2/opencv.hpp>
+#include <render/PathTracing.hpp>
 #include <render/Rasterizer.hpp>
 #include <render/RayTracing.hpp>
 #include <scene/Scene.hpp>
@@ -9,92 +14,98 @@ int main() {
   float degree = 0.0f;
 
   // Create Ray Tracing Main Class
-  auto render = std::make_shared<SoftRasterizer::RayTracing>(1024, 1024);
+  auto render = std::make_shared<SoftRasterizer::RayTracing>(1920, 1920, 1);
 
   // Create A Scene
   auto scene = std::make_shared<SoftRasterizer::Scene>(
       "TestScene",
-      /*eye=*/glm::vec3(0.0f, 0.3f, -0.9f),
+      /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
       /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
       /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
       /*background color*/ glm::vec3(0.235294, 0.67451, 0.843137));
 
-  /*Set Diffuse Color*/
-  auto diffuse_sphere = std::make_unique<SoftRasterizer::Sphere>(
-      /*center=*/glm::vec3(-0.07f, 0.0f, 0.f),
-      /*radius=*/0.1f);
+  /*Modify spot's Material Properties*/
+  std::shared_ptr<SoftRasterizer::Material> crate =
+      std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material> spot =
+      std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material> diffuse =
+      std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material> light =
+      std::make_shared<SoftRasterizer::Material>();
+  std::shared_ptr<SoftRasterizer::Material> reflectrefract =
+      std::make_shared<SoftRasterizer::Material>();
 
-  diffuse_sphere->getMaterial()->type =
+  diffuse->type = crate->type = spot->type =
       SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  diffuse_sphere->getMaterial()->Kd = glm::vec3(0.6f, 0.7f, 0.8f);
-  diffuse_sphere->getMaterial()->Ka = glm::vec3(0.105f);
-  diffuse_sphere->getMaterial()->Ks = glm::vec3(0.7937f);
-  diffuse_sphere->getMaterial()->specularExponent = 150.f;
+  diffuse->Ka = crate->Ka = spot->Ka = glm::vec3(0.005f);
+  diffuse->Kd = crate->Kd = spot->Kd = glm::vec3(1.f);
+  diffuse->Ks = crate->Ks = spot->Ks = glm::vec3(0.7937f);
+  crate->specularExponent = 150.f; // no specular
+  diffuse->specularExponent = spot->specularExponent = 150.f;
 
-  /*Set Reflect Sphere Object*/
-  auto reflect_sphere = std::make_unique<SoftRasterizer::Sphere>(
-      /*center=*/glm::vec3(-0.05f, 0.01f, 0.f),
-      /*radius=*/0.1f);
+  /*Only self-illumination object gets emission*/
+  light->type = SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
+  light->Kd = glm::vec3(1.0f);
+  light->emission = glm::vec3(1.f); // and also intensity of the light
 
   /*Set REFLECTION_AND_REFRACTION Material*/
-  reflect_sphere->getMaterial()->type =
+  reflectrefract->type =
       SoftRasterizer::MaterialType::REFLECTION_AND_REFRACTION;
-  reflect_sphere->getMaterial()->ior = 2.0f; /*Air to Glass*/
+  reflectrefract->ior = 1.49f; /*Air to Glass*/
 
-  scene->addGraphicObj(std::move(reflect_sphere), "reflect");
+  /*Set Diffuse Color*/
+  auto diffuse_sphere = std::make_unique<SoftRasterizer::Sphere>(
+      /*center=*/glm::vec3(0.f),
+      /*radius=*/1.0f);
+
+  /*Set Refrflect Sphere Object*/
+  auto refrflect_sphere = std::make_unique<SoftRasterizer::Sphere>(
+      /*center=*/glm::vec3(0.f),
+      /*radius=*/1.0f);
+
+  /*Add Light To Scene*/
+  auto spherelight = std::make_unique<SoftRasterizer::SphereLight>(
+      /*pos=*/glm::vec3(0.f),
+      /*intense=*/glm::vec3(1.f),
+      /*radius*/ 5.f);
+
+  scene->addGraphicObj(std::move(refrflect_sphere), "refrflect");
   scene->addGraphicObj(std::move(diffuse_sphere), "diffuse");
+  scene->addGraphicObj(std::move(spherelight), "spherelight");
 
   /*Add a spot object*/
   scene->addGraphicObj(
       CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
       glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(0.3f));
-
   scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
                        glm::vec3(0.f, 1.f, 0.f), 0.f, glm::vec3(0.0f),
                        glm::vec3(0.2f));
+
+  scene->startLoadingMesh("spot");
+  scene->startLoadingMesh("Crate");
+
+  if (auto spotOpt = scene->getMeshObj("spot"); spotOpt)
+    (*spotOpt)->setMaterial(spot);
+  if (auto CrateOpt = scene->getMeshObj("Crate"); CrateOpt)
+    (*CrateOpt)->setMaterial(crate);
+  if (auto refrflectOpt = scene->getMeshObj("refrflect"); refrflectOpt)
+    (*refrflectOpt)->setMaterial(reflectrefract);
+  if (auto diffuseOpt = scene->getMeshObj("diffuse"); diffuseOpt)
+    (*diffuseOpt)->setMaterial(diffuse);
+  if (auto sperelightOpt = scene->getMeshObj("spherelight"); sperelightOpt)
+    (*sperelightOpt)->setMaterial(light);
 
   /*Add a texture shader for spot object!*/
   scene->addShader("spot_shader",
                    CONFIG_HOME "examples/models/spot/spot_texture.png",
                    SoftRasterizer::SHADERS_TYPE::TEXTURE);
-
   scene->addShader("crate_shader",
-                   CONFIG_HOME "examples/models/Crate/crate1.png",
+                   CONFIG_HOME "examples/models/Crate/Crate1.png",
                    SoftRasterizer::SHADERS_TYPE::TEXTURE);
-
-  scene->startLoadingMesh("spot");
-  scene->startLoadingMesh("Crate");
-
-  /*Modify spot's Material Properties*/
-  auto spot_obj = scene->getMeshObj("spot");
-  spot_obj.value()->getMaterial()->type =
-      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  spot_obj.value()->getMaterial()->Ka = glm::vec3(0.005f);
-  spot_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
-  spot_obj.value()->getMaterial()->specularExponent = 150.f;
-
-  /*Modify Crate's Material Properties*/
-  auto crate_obj = scene->getMeshObj("Crate");
-  crate_obj.value()->getMaterial()->type =
-      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  crate_obj.value()->getMaterial()->Ka = glm::vec3(0.005f);
-  crate_obj.value()->getMaterial()->Ks = glm::vec3(0.7937f);
-  crate_obj.value()->getMaterial()->specularExponent = 150.f;
 
   scene->bindShader2Mesh("spot", "spot_shader");
   scene->bindShader2Mesh("Crate", "crate_shader");
-
-  /*Add Light To Scene*/
-  auto light1 = std::make_shared<SoftRasterizer::light_struct>();
-  light1->position = glm::vec3{0.5f, -0.4f, -0.9f};
-  light1->intensity = glm::vec3{1, 1, 1};
-
-  auto light2 = std::make_shared<SoftRasterizer::light_struct>();
-  light2->position = glm::vec3{-0.5f, -0.4f, -0.9f};
-  light2->intensity = glm::vec3{1, 1, 1};
-
-  // scene->addLight("Light1", light1);
-  scene->addLight("Light2", light2);
 
   /*Register Scene To Render Main Frame*/
   render->addScene(scene);
@@ -110,25 +121,34 @@ int main() {
         "spot",
         /*axis=*/glm::vec3(0.f, 1.f, 0.f),
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.1f, 0.f, 0.f),
-        /*scale=*/glm::vec3(0.1f));
+        /*transform=*/glm::vec3(0.25f, 0.1f, 0.20f),
+        /*scale=*/glm::vec3(0.2f));
 
     scene->setModelMatrix(
         "Crate",
         /*axis=*/glm::vec3(0.f, 1.f, 0.f),
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.1f, -0.12f, 0.f),
-        /*scale=*/glm::vec3(0.05f));
+        /*transform=*/glm::vec3(0.25f, -0.13f, 0.15f),
+        /*scale=*/glm::vec3(0.1f));
 
-    scene->setModelMatrix("reflect",
+    scene->setModelMatrix("refrflect",
                           /*axis=*/glm::vec3(0.f, 1.f, 0.f),
                           /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
-                          /*transform=*/glm::vec3(0.05f, -0.02f, -0.2f),
-                          /*scale=*/glm::vec3(1.f));
+                          /*transform=*/glm::vec3(0.0f, 0.0f, 0.15f),
+                          /*scale=*/glm::vec3(0.2f));
+
+    scene->setModelMatrix("diffuse",
+                          /*axis=*/glm::vec3(0.f, 1.f, 0.f),
+                          /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
+                          /*transform=*/glm::vec3(-0.25f, 0.1f, 0.15f),
+                          /*scale=*/glm::vec3(0.1f));
+
+    scene->setModelMatrix("spherelight", glm::vec3(0, 1, 0), 0,
+                          glm::vec3(0.f, 0.3, -0.7f), glm::vec3(0.3f));
 
     /*View Matrix*/
     scene->setViewMatrix(
-        /*eye=*/glm::vec3(0.0f, 0.0f, -0.5f),
+        /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
         /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
         /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
 
