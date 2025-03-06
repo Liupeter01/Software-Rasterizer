@@ -603,8 +603,8 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
     } else if (insideToOutside) {
       reflectPath = glm::normalize(
           glm::reflect(I, -N)); // Reflecting against the opposite normal
-      refractPath =
-          glm::refract(I, -N, ior); // Adjust refraction for material to air
+      refractPath = glm::normalize(glm::refract(
+          I, -N, 1.0f / ior)); // Adjust refraction for material to air
     }
 
     // calculate offset
