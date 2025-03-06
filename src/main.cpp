@@ -14,7 +14,7 @@ int main() {
   float degree = 0.0f;
 
   // Create Ray Tracing Main Class
-  auto render = std::make_shared<SoftRasterizer::RayTracing>(1024, 1024, 1);
+  auto render = std::make_shared<SoftRasterizer::RayTracing>(1920, 1920, 1);
 
   // Create A Scene
   auto scene = std::make_shared<SoftRasterizer::Scene>(
@@ -47,26 +47,28 @@ int main() {
   /*Only self-illumination object gets emission*/
   light->type = SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
   light->Kd = glm::vec3(1.0f);
-  light->emission = glm::vec3(2.f); // and also intensity of the light
+  light->emission = glm::vec3(1.f); // and also intensity of the light
 
   /*Set REFLECTION_AND_REFRACTION Material*/
   reflectrefract->type =
       SoftRasterizer::MaterialType::REFLECTION_AND_REFRACTION;
-  reflectrefract->ior = 2.0f; /*Air to Glass*/
+  reflectrefract->ior = 1.49f; /*Air to Glass*/
 
   /*Set Diffuse Color*/
   auto diffuse_sphere = std::make_unique<SoftRasterizer::Sphere>(
-      /*center=*/glm::vec3(-0.07f, 0.0f, 0.f),
-      /*radius=*/0.1f);
+      /*center=*/glm::vec3(0.f),
+      /*radius=*/1.0f);
 
   /*Set Refrflect Sphere Object*/
   auto refrflect_sphere = std::make_unique<SoftRasterizer::Sphere>(
-      /*center=*/glm::vec3(-0.05f, 0.01f, 0.f),
-      /*radius=*/0.1f);
+      /*center=*/glm::vec3(0.f),
+      /*radius=*/1.0f);
 
   /*Add Light To Scene*/
   auto spherelight = std::make_unique<SoftRasterizer::SphereLight>(
-      /*pos=*/glm::vec3(-0, 0.1, -0.5));
+      /*pos=*/glm::vec3(0.f),
+      /*intense=*/glm::vec3(1.f),
+      /*radius*/ 5.f);
 
   scene->addGraphicObj(std::move(refrflect_sphere), "refrflect");
   scene->addGraphicObj(std::move(diffuse_sphere), "diffuse");
@@ -132,17 +134,17 @@ int main() {
     scene->setModelMatrix("refrflect",
                           /*axis=*/glm::vec3(0.f, 1.f, 0.f),
                           /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
-                          /*transform=*/glm::vec3(0.1f, 0.0f, 0.0f),
-                          /*scale=*/glm::vec3(1.0f));
+                          /*transform=*/glm::vec3(0.0f, 0.0f, 0.15f),
+                          /*scale=*/glm::vec3(0.2f));
 
     scene->setModelMatrix("diffuse",
                           /*axis=*/glm::vec3(0.f, 1.f, 0.f),
                           /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
-                          /*transform=*/glm::vec3(-0.25f, 0.1f, 0.5f),
-                          /*scale=*/glm::vec3(1.0f));
+                          /*transform=*/glm::vec3(-0.25f, 0.1f, 0.15f),
+                          /*scale=*/glm::vec3(0.1f));
 
     scene->setModelMatrix("spherelight", glm::vec3(0, 1, 0), 0,
-                          glm::vec3(-0.0, 0.3, -0.3f), glm::vec3(1.0f));
+                          glm::vec3(0.f, 0.3, -0.7f), glm::vec3(0.3f));
 
     /*View Matrix*/
     scene->setViewMatrix(
