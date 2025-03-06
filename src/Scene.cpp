@@ -603,16 +603,16 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
     } else if (insideToOutside) {
       reflectPath = glm::normalize(
           glm::reflect(I, -N)); // Reflecting against the opposite normal
-      refractPath = glm::normalize(glm::refract(
-          I, -N, 1.0f / ior)); // Adjust refraction for material to air
+      refractPath = glm::normalize(
+          glm::refract(I, -N, ior)); // Adjust refraction for material to air
     }
 
     // calculate offset
-    auto offset = glm::dot(I, N) < 0 ? -N * m_epsilon : N * m_epsilon;
+    auto offset = glm::dot(I, -N) < 0 ? -N * m_epsilon : N * m_epsilon;
 
     // prevent relfection and refraction from happening at the same time
     auto reflectCoord = hitPoint + offset;
-    auto refractCoord = hitPoint + offset;
+    auto refractCoord = hitPoint - offset;
 
     /* Total Internal Reflection, TIR */
     if (glm::length(refractPath) < 1e-6f || std::abs(kr - 1.0f) < 1e-6f) {
@@ -628,8 +628,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
       refractedColor = whittedRayTracing(refractedRay, depth + 1, sample);
     }
 
-    final_color = glm::clamp(reflectedColor * kr + refractedColor * (1.f - kr),
-                             glm::vec3(0.0f), glm::vec3(1.0f));
+    final_color = reflectedColor * kr + refractedColor * (1.0f - kr);
 
   }
 
@@ -639,10 +638,30 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
     glm::vec3 reflectPath = glm::vec3(0.0f);
     glm::vec3 reflectedColor = glm::vec3(0.0f);
 
-    reflectPath = glm::normalize(glm::reflect(I, N));
+    // Calculate the dot product of I and N (to determine the angle between
+    // them)
+    const float dot = std::clamp(glm::dot(I, N), -1.f, 1.f);
+
+    // Check if the ray origin is inside the object
+    const bool isInside = intersection.obj->getBounds().inside(ray.origin);
+
+    // Determine if the light is coming from inside to outside or outside to
+    // inside
+    const bool insideToOutside =
+        isInside && dot >= 0; // Inside to outside, normal direction
+    const bool outsideToInside =
+        !isInside && dot < 0; // Outside to inside, normal direction
+
+    // Light is coming from outside to inside
+    if (outsideToInside) {
+      reflectPath = glm::normalize(glm::reflect(I, N));
+    } else if (insideToOutside) {
+      reflectPath = glm::normalize(
+          glm::reflect(I, -N)); // Reflecting against the opposite normal
+    }
 
     // calculate offset
-    auto offset = glm::dot(I, N) < 0 ? -N * m_epsilon : N * m_epsilon;
+    auto offset = glm::dot(I, -N) < 0 ? -N * m_epsilon : N * m_epsilon;
 
     auto reflectCoord = hitPoint + offset;
 
@@ -650,8 +669,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
 
     reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
 
-    final_color =
-        glm::clamp(reflectedColor * kr, glm::vec3(0.0f), glm::vec3(1.0f));
+    final_color = reflectedColor * kr;
   }
 
   return final_color;
