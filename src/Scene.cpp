@@ -505,8 +505,6 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
   const glm::vec3 N =
       hitNormal; // We consider it as the surface normal by default
 
-  float kr = std::clamp(Tools::fresnel(I, N, ior), 0.f, 1.f);
-
   /*Phong illumation model*/
   if (intersection.material->getMaterialType() ==
       MaterialType::DIFFUSE_AND_GLOSSY) {
@@ -578,98 +576,40 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
   else if (intersection.material->getMaterialType() ==
            MaterialType::REFLECTION_AND_REFRACTION) {
 
-    glm::vec3 reflectPath = glm::vec3(0.0f), refractPath = glm::vec3(0.0f);
-    glm::vec3 reflectedColor = glm::vec3(0.0f),
-              refractedColor = glm::vec3(0.0f);
+            glm::vec3 reflectedColor{}, refractedColor{};
+            float kr = Tools::fresnel(I, N, ior);
 
-    // Calculate the dot product of I and N (to determine the angle between
-    // them)
-    const float dot = std::clamp(glm::dot(I, N), -1.f, 1.f);
+            //Reflect Calculation
+            glm::vec3 reflectPath = glm::normalize(glm::reflect(I, N));
 
-    // Check if the ray origin is inside the object
-    const bool isInside = intersection.obj->getBounds().inside(ray.origin);
+            // prevent relfection and refraction from happening at the same time
+            glm::vec3 reflectCoord = hitPoint + (glm::dot(reflectPath, N) > 0 ? N : -N) * m_epsilon;
+            Ray reflectedRay(reflectCoord, reflectPath);
+            reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
 
-    // Determine if the light is coming from inside to outside or outside to
-    // inside
-    const bool insideToOutside =
-        isInside && dot >= 0; // Inside to outside, normal direction
-    const bool outsideToInside =
-        !isInside && dot < 0; // Outside to inside, normal direction
+            //Refract Calculation
+            glm::vec3 refractPath = Tools::refract(I, N, ior);
+            if (glm::length(refractPath) > m_epsilon) {
+                      refractPath = glm::normalize(refractPath);
 
-    // Light is coming from outside to inside
-    if (outsideToInside) {
-      reflectPath = glm::normalize(glm::reflect(I, N));
-      refractPath = glm::refract(I, N, 1.0f / ior);
-    } else if (insideToOutside) {
-      reflectPath = glm::normalize(
-          glm::reflect(I, -N)); // Reflecting against the opposite normal
-      refractPath = glm::normalize(
-          glm::refract(I, -N, ior)); // Adjust refraction for material to air
-    }
+                      glm::vec3 refractCoord = hitPoint + (glm::dot(refractPath, N) > 0 ? N : -N) * m_epsilon;
+                      Ray refractedRay(refractCoord, refractPath);
+                      refractedColor = whittedRayTracing(refractedRay, depth + 1, sample);
+            }
 
-    // calculate offset
-    auto offset = glm::dot(I, -N) < 0 ? -N * m_epsilon : N * m_epsilon;
-
-    // prevent relfection and refraction from happening at the same time
-    auto reflectCoord = hitPoint + offset;
-    auto refractCoord = hitPoint - offset;
-
-    /* Total Internal Reflection, TIR */
-    if (glm::length(refractPath) < 1e-6f || std::abs(kr - 1.0f) < 1e-6f) {
-      // prevent relfection and refraction from happening at the same time
-      Ray reflectedRay(reflectCoord, reflectPath);
-      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
-      kr = 1.0f;
-    } else {
-      Ray reflectedRay(reflectCoord, reflectPath);
-      Ray refractedRay(refractCoord, refractPath);
-
-      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
-      refractedColor = whittedRayTracing(refractedRay, depth + 1, sample);
-    }
-
-    final_color = reflectedColor * kr + refractedColor * (1.0f - kr);
-
+            final_color = reflectedColor * kr + refractedColor * (1.0f - kr);
   }
 
   else if (intersection.material->getMaterialType() ==
            MaterialType::REFLECTION) {
 
-    glm::vec3 reflectPath = glm::vec3(0.0f);
-    glm::vec3 reflectedColor = glm::vec3(0.0f);
+            //Reflect Calculation
+            glm::vec3 reflectPath = glm::normalize(glm::reflect(I, N));
 
-    // Calculate the dot product of I and N (to determine the angle between
-    // them)
-    const float dot = std::clamp(glm::dot(I, N), -1.f, 1.f);
-
-    // Check if the ray origin is inside the object
-    const bool isInside = intersection.obj->getBounds().inside(ray.origin);
-
-    // Determine if the light is coming from inside to outside or outside to
-    // inside
-    const bool insideToOutside =
-        isInside && dot >= 0; // Inside to outside, normal direction
-    const bool outsideToInside =
-        !isInside && dot < 0; // Outside to inside, normal direction
-
-    // Light is coming from outside to inside
-    if (outsideToInside) {
-      reflectPath = glm::normalize(glm::reflect(I, N));
-    } else if (insideToOutside) {
-      reflectPath = glm::normalize(
-          glm::reflect(I, -N)); // Reflecting against the opposite normal
-    }
-
-    // calculate offset
-    auto offset = glm::dot(I, -N) < 0 ? -N * m_epsilon : N * m_epsilon;
-
-    auto reflectCoord = hitPoint + offset;
-
-    Ray reflectedRay(reflectCoord, reflectPath);
-
-    reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
-
-    final_color = reflectedColor * kr;
+            // prevent relfection and refraction from happening at the same time
+            glm::vec3 reflectCoord = hitPoint + (glm::dot(reflectPath, N) > 0 ? N : -N) * m_epsilon;
+            Ray reflectedRay(reflectCoord, reflectPath);
+            final_color = whittedRayTracing(reflectedRay, depth + 1, sample);
   }
 
   return final_color;
