@@ -1,8 +1,14 @@
-﻿#include <Tools.hpp>
+﻿#include "glm/fwd.hpp"
+#include <Tools.hpp>
 #include <base/Render.hpp>
+#include <ctime>
 #include <glm/geometric.hpp>
 #include <glm/gtc/random.hpp>
 #include <glm/gtx/norm.hpp>
+#include <light/Light.hpp>
+#include <light/SphereLight.hpp>
+#include <limits>
+#include <memory>
 #include <numeric> // For std::accumulate
 #include <scene/Scene.hpp>
 #include <shader/Shader.hpp>
@@ -22,7 +28,6 @@ SoftRasterizer::Scene::Scene(const std::string &sceneName, const glm::vec3 &eye,
       m_bvh(std::make_unique<BVHAcceleration>()) {
   try {
     setViewMatrix(eye, center, up);
-    initCameraLight();
   } catch (const std::exception &e) {
     spdlog::error("Scene Constructor Error! Reason: {}", e.what());
   }
@@ -290,18 +295,20 @@ void SoftRasterizer::Scene::setProjectionMatrix(float fovy, float zNear,
 
 std::vector<SoftRasterizer::light_struct> SoftRasterizer::Scene::loadLights() {
   std::vector<SoftRasterizer::light_struct> res(m_lights.size());
-  std::transform(m_lights.begin(), m_lights.end(), res.begin(),
-                 [](const decltype(m_lights)::value_type &light) {
-                   return *light.second;
-                 });
+  for (std::size_t index = 0; index < m_exportedObjs.size(); ++index) {
+    if (auto lightptr =
+            dynamic_cast<SphereLight *>(m_exportedObjs[index].get())) {
+      if (lightptr->isSelfEmissiveObject()) {
+        SoftRasterizer::light_struct ls;
+
+        ls.intensity = lightptr->getIntensity();
+        ls.position = lightptr->getCenter();
+
+        res.push_back(ls);
+      }
+    }
+  }
   return res;
-}
-
-void SoftRasterizer::Scene::initCameraLight() {
-  m_cameraLight.reset();
-  m_cameraLight = std::make_shared<light_struct>(m_eye, glm::vec3(0.f));
-
-  addLight("sys_camera", m_cameraLight);
 }
 
 void SoftRasterizer::Scene::setNDCMatrix(const std::size_t width,
@@ -388,11 +395,93 @@ SoftRasterizer::Intersection SoftRasterizer::Scene::traceScene(Ray &ray) {
   return ret;
 }
 
-glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
-    Ray &ray, int depth,
-    const std::vector<SoftRasterizer::light_struct> &lights) {
+[[nodiscard]] std::tuple<glm::dvec3, double>
+SoftRasterizer::Scene::sampleLightOnCenter(const glm::vec3 &shadingPoint) {
+  // Collect all emissive objects and approximate their bounding spheres**
+  std::vector<std::pair<glm::dvec3, double>> lightSpheres;
+  for (const auto &obj : m_exportedObjs) {
+    if (obj->isSelfEmissiveObject()) {
+      Bounds3 bbox = obj->getBounds();
+      glm::dvec3 center = (glm::dvec3(bbox.min) + glm::dvec3(bbox.max)) * 0.5;
+      double radius = glm::length(glm::dvec3(bbox.diagonal())) * 0.5;
+      lightSpheres.emplace_back(center, radius);
+    }
+  }
+
+  if (lightSpheres.empty()) {
+    spdlog::warn("No emissive objects found in the scene!");
+    return {glm::dvec3(0.0), 0.0};
+  }
+
+  // Randomly select a light source
+  int randomIndex =
+      static_cast<int>(Tools::random_generator() * lightSpheres.size());
+  glm::dvec3 sphereCenter = lightSpheres[randomIndex].first;
+  double sphereRadius = lightSpheres[randomIndex].second;
+
+  glm::dvec3 lightDir = glm::normalize(sphereCenter - glm::dvec3(shadingPoint));
+
+  // Compute probability density function (PDF)
+  double pdf = 0.5 * Tools::PI_INV;
+  return {lightDir, pdf};
+}
+
+std::tuple<glm::dvec3, double>
+SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
+  // Collect all emissive objects and approximate their bounding spheres**
+  std::vector<std::pair<glm::dvec3, double>> lightSpheres;
+  for (const auto &obj : m_exportedObjs) {
+    if (obj->isSelfEmissiveObject()) {
+      Bounds3 bbox = obj->getBounds();
+      glm::dvec3 center = (glm::dvec3(bbox.min) + glm::dvec3(bbox.max)) * 0.5;
+      double radius = glm::length(glm::dvec3(bbox.diagonal())) * 0.5;
+      lightSpheres.emplace_back(center, radius);
+    }
+  }
+
+  if (lightSpheres.empty()) {
+    spdlog::warn("No emissive objects found in the scene!");
+    return {glm::dvec3(0.0), 0.0};
+  }
+
+  // Randomly select a light source
+  int randomIndex =
+      static_cast<int>(Tools::random_generator() * lightSpheres.size());
+  glm::dvec3 sphereCenter = lightSpheres[randomIndex].first;
+  double sphereRadius = lightSpheres[randomIndex].second;
+
+  glm::dvec3 baselineDir =
+      glm::normalize(sphereCenter - glm::dvec3(shadingPoint));
+
+  // Sample a random direction on the light source sphere
+  glm::dvec3 sampleDir = glm::sphericalRand(1.0);
+  if (glm::dot(sampleDir, baselineDir) < 0.0) {
+    sampleDir = -sampleDir;
+  }
+
+  // Apply random perturbation for anti-aliasing and soft shadow
+  double perturbationStrength = 1e-6;
+  glm::dvec3 randomPerturbation = glm::sphericalRand(perturbationStrength);
+  sampleDir = glm::normalize(sampleDir + randomPerturbation);
+
+  glm::dvec3 samplePos = sphereCenter + sampleDir * sphereRadius;
+
+  // Compute direction from shading point to light source
+  glm::dvec3 lightDir = glm::normalize(samplePos - glm::dvec3(shadingPoint));
+
+  // Compute probability density function (PDF)
+  double cosTheta = glm::dot(lightDir, baselineDir);
+  double pdf = 0.5 * Tools::PI_INV * cosTheta;
+  return {lightDir, pdf};
+}
+
+glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
+                                                   const std::size_t sample) {
 
   glm::vec3 final_color = this->m_backgroundColor;
+
+  /*DON NOT FORGET TO NORMALIZE THE NORMAL*/
+  auto rayDirection = glm::normalize(ray.direction);
 
   if (depth > m_maxDepth) {
     // Return black if the ray has reached the maximum depth
@@ -401,7 +490,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
   }
 
   Intersection intersection = traceScene(ray);
-  if (!intersection.intersected || !intersection.obj) {
+  if (!intersection.intersected) {
     // Return black if the ray does not intersect with any object
     spdlog::debug("Ray Intersection Not Found On Depth {}", depth);
     return this->m_backgroundColor;
@@ -409,65 +498,70 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
 
   // Get the hit point
   auto hitPoint = intersection.coords;
-
-  /*DON NOT FORGET TO NORMALIZE THE NORMAL*/
-  auto rayDirection = glm::normalize(ray.direction);
-  auto hitNormal = glm::normalize(intersection.normal);
+  auto hitNormal = glm::normalize(glm::dvec3(intersection.normal));
 
   const float ior = intersection.material->ior;
   const glm::vec3 I = rayDirection;
   const glm::vec3 N =
       hitNormal; // We consider it as the surface normal by default
 
-  float kr = std::clamp(Tools::fresnel(I, N, ior), 0.f, 1.f);
-
   /*Phong illumation model*/
   if (intersection.material->getMaterialType() ==
       MaterialType::DIFFUSE_AND_GLOSSY) {
 
-    /*Self-Intersection Problem Avoidance*/
-    glm::vec3 shadowCoord = glm::dot(I, N) < 0 ? hitPoint - N * m_epsilon
-                                               : hitPoint + N * m_epsilon;
-
     final_color = tbb::parallel_reduce(
-        tbb::blocked_range<std::size_t>(0, lights.size()),
+        tbb::blocked_range<std::size_t>(0, sample),
         glm::vec3(0.0f), // Initial value
         [&](const tbb::blocked_range<std::size_t> &range,
             glm::vec3 local_sum) -> glm::vec3 {
           for (std::size_t i = range.begin(); i < range.end(); ++i) {
-            glm::vec3 lightDir = lights[i].position - hitPoint;
-            float distance = glm::dot(lightDir, lightDir);
-            lightDir = glm::normalize(lightDir);
+
+            auto [shading2LightDir, lightAreaPdf] =
+                sampleLightOnCenter(hitPoint);
+
+            Ray lightSampleRay(hitPoint, shading2LightDir);
+            Intersection lightSampleIntersection = traceScene(lightSampleRay);
+            if (!lightSampleIntersection.intersected ||
+                (lightSampleIntersection.intersected &&
+                 glm::length(lightSampleIntersection.emit) < m_epsilon)) {
+              return glm::vec3(0.f);
+            }
 
             // Diffuse reflection (Lambertian)
-            float diff = std::max(0.f, glm::dot(N, lightDir));
+            double diff =
+                std::max(0., glm::dot(glm::dvec3(N), shading2LightDir));
 
             // Specular reflection (Blinn-Phong)
-            glm::vec3 reflectDir =
-                glm::normalize(glm::reflect(-lightDir, hitNormal));
-            float spec =
-                std::pow(std::max(0.f, -glm::dot(ray.direction, reflectDir)),
-                         intersection.material->specularExponent);
+            glm::dvec3 reflectDir = glm::normalize(
+                glm::reflect(-shading2LightDir, glm::dvec3(hitNormal)));
+            double spec = std::pow(
+                std::max(0., -glm::dot(glm::dvec3(ray.direction), reflectDir)),
+                intersection.material->specularExponent);
 
-            // Shadow test
-            Ray shadow_ray(shadowCoord, lightDir);
-            Intersection shadow_result = traceScene(shadow_ray);
-            bool is_shadow =
-                shadow_result.intersected &&
-                (std::pow(shadow_result.intersect_time, 2.f) < distance);
+            double distanceSquare =
+                glm::length2(hitPoint - lightSampleIntersection.coords);
+            double timeSquare = lightSampleIntersection.intersect_time *
+                                lightSampleIntersection.intersect_time;
+            bool is_shadow = std::abs(timeSquare - distanceSquare) > 1e-6f;
+
+            spdlog::debug(
+                "timeSquare={}, distanceSquare={},delta = {}, is_shadow={}",
+                timeSquare, distanceSquare,
+                std::abs(distanceSquare - timeSquare), is_shadow);
 
             // Compute light contribution
             glm::vec3 ambient =
-                !is_shadow ? lights[i].intensity : glm::vec3(0.f);
-            glm::vec3 diffuse = !is_shadow
-                                    ? glm::vec3(diff) * lights[i].intensity
-                                    : glm::vec3(0.f);
-            glm::vec3 specular = spec * lights[i].intensity;
+                !is_shadow ? lightSampleIntersection.emit : glm::vec3(0.f);
+            glm::vec3 diffuse =
+                !is_shadow ? glm::vec3(diff) * lightSampleIntersection.emit
+                           : glm::vec3(0.f);
+            glm::vec3 specular =
+                spec * glm::dvec3(lightSampleIntersection.emit);
 
             // Accumulate to local sum
-            local_sum += (ambient * intersection.material->Ka) +
-                         (intersection.color * diffuse) +
-                         (specular * intersection.material->Ks);
+            local_sum = (ambient * intersection.material->Ka) +
+                        (intersection.color * diffuse) +
+                        (specular * intersection.material->Ks);
           }
           return local_sum;
         },
@@ -475,85 +569,47 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(
           return a + b;
         } // Combine partial results
     );
+
+    final_color /= sample;
   }
 
   else if (intersection.material->getMaterialType() ==
            MaterialType::REFLECTION_AND_REFRACTION) {
 
-    glm::vec3 reflectPath = glm::vec3(0.0f), refractPath = glm::vec3(0.0f);
-    glm::vec3 reflectedColor = glm::vec3(0.0f),
-              refractedColor = glm::vec3(0.0f);
+            glm::vec3 reflectedColor{}, refractedColor{};
+            float kr = Tools::fresnel(I, N, ior);
 
-    // Calculate the dot product of I and N (to determine the angle between
-    // them)
-    const float dot = std::clamp(glm::dot(I, N), -1.f, 1.f);
+            //Reflect Calculation
+            glm::vec3 reflectPath = glm::normalize(glm::reflect(I, N));
 
-    // Check if the ray origin is inside the object
-    const bool isInside = intersection.obj->getBounds().inside(ray.origin);
+            // prevent relfection and refraction from happening at the same time
+            glm::vec3 reflectCoord = hitPoint + (glm::dot(reflectPath, N) > 0 ? N : -N) * m_epsilon;
+            Ray reflectedRay(reflectCoord, reflectPath);
+            reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
 
-    // Determine if the light is coming from inside to outside or outside to
-    // inside
-    const bool insideToOutside =
-        isInside && dot >= 0; // Inside to outside, normal direction
-    const bool outsideToInside =
-        !isInside && dot < 0; // Outside to inside, normal direction
+            //Refract Calculation
+            glm::vec3 refractPath = Tools::refract(I, N, ior);
+            if (glm::length(refractPath) > m_epsilon) {
+                      refractPath = glm::normalize(refractPath);
 
-    // Light is coming from outside to inside
-    if (outsideToInside) {
-      reflectPath = glm::normalize(glm::reflect(I, N));
-      refractPath = glm::refract(I, N, 1.0f / ior);
-    } else if (insideToOutside) {
-      reflectPath = glm::normalize(
-          glm::reflect(I, -N)); // Reflecting against the opposite normal
-      refractPath =
-          glm::refract(I, -N, ior); // Adjust refraction for material to air
-    }
+                      glm::vec3 refractCoord = hitPoint + (glm::dot(refractPath, N) > 0 ? N : -N) * m_epsilon;
+                      Ray refractedRay(refractCoord, refractPath);
+                      refractedColor = whittedRayTracing(refractedRay, depth + 1, sample);
+            }
 
-    // calculate offset
-    auto offset = glm::dot(I, N) < 0 ? -N * m_epsilon : N * m_epsilon;
-
-    // prevent relfection and refraction from happening at the same time
-    auto reflectCoord = hitPoint + offset;
-    auto refractCoord = hitPoint + offset;
-
-    /* Total Internal Reflection, TIR */
-    if (glm::length(refractPath) < 1e-6f || std::abs(kr - 1.0f) < 1e-6f) {
-      // prevent relfection and refraction from happening at the same time
-      Ray reflectedRay(reflectCoord, reflectPath);
-      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
-      kr = 1.0f;
-    } else {
-      Ray reflectedRay(reflectCoord, reflectPath);
-      Ray refractedRay(refractCoord, refractPath);
-
-      reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
-      refractedColor = whittedRayTracing(refractedRay, depth + 1, lights);
-    }
-
-    final_color = glm::clamp(reflectedColor * kr + refractedColor * (1.f - kr),
-                             glm::vec3(0.0f), glm::vec3(1.0f));
-
+            final_color = reflectedColor * kr + refractedColor * (1.0f - kr);
   }
 
   else if (intersection.material->getMaterialType() ==
            MaterialType::REFLECTION) {
 
-    glm::vec3 reflectPath = glm::vec3(0.0f);
-    glm::vec3 reflectedColor = glm::vec3(0.0f);
+            //Reflect Calculation
+            glm::vec3 reflectPath = glm::normalize(glm::reflect(I, N));
 
-    reflectPath = glm::normalize(glm::reflect(I, N));
-
-    // calculate offset
-    auto offset = glm::dot(I, N) < 0 ? -N * m_epsilon : N * m_epsilon;
-
-    auto reflectCoord = hitPoint + offset;
-
-    Ray reflectedRay(reflectCoord, reflectPath);
-
-    reflectedColor = whittedRayTracing(reflectedRay, depth + 1, lights);
-
-    final_color =
-        glm::clamp(reflectedColor * kr, glm::vec3(0.0f), glm::vec3(1.0f));
+            // prevent relfection and refraction from happening at the same time
+            glm::vec3 reflectCoord = hitPoint + (glm::dot(reflectPath, N) > 0 ? N : -N) * m_epsilon;
+            Ray reflectedRay(reflectCoord, reflectPath);
+            final_color = whittedRayTracing(reflectedRay, depth + 1, sample);
   }
 
   return final_color;
@@ -609,55 +665,6 @@ SoftRasterizer::Scene::sampleLight() {
   }
 
   return {intersection, pdf};
-}
-
-std::tuple<glm::dvec3, double>
-SoftRasterizer::Scene::sampleLight(const glm::vec3 &shadingPoint) {
-  // Collect all emissive objects and approximate their bounding spheres**
-  std::vector<std::pair<glm::dvec3, double>> lightSpheres;
-  for (const auto &obj : m_exportedObjs) {
-    if (obj->isSelfEmissiveObject()) {
-      Bounds3 bbox = obj->getBounds();
-      glm::dvec3 center = (glm::dvec3(bbox.min) + glm::dvec3(bbox.max)) * 0.5;
-      double radius = glm::length(glm::dvec3(bbox.diagonal())) * 0.5;
-      lightSpheres.emplace_back(center, radius);
-    }
-  }
-
-  if (lightSpheres.empty()) {
-    spdlog::warn("No emissive objects found in the scene!");
-    return {glm::dvec3(0.0), 0.0};
-  }
-
-  // Randomly select a light source
-  int randomIndex =
-      static_cast<int>(Tools::random_generator() * lightSpheres.size());
-  glm::dvec3 sphereCenter = lightSpheres[randomIndex].first;
-  double sphereRadius = lightSpheres[randomIndex].second;
-
-  glm::dvec3 baselineDir =
-      glm::normalize(sphereCenter - glm::dvec3(shadingPoint));
-
-  // Sample a random direction on the light source sphere
-  glm::dvec3 sampleDir = glm::sphericalRand(1.0);
-  if (glm::dot(sampleDir, baselineDir) < 0.0) {
-    sampleDir = -sampleDir;
-  }
-
-  // Apply random perturbation for anti-aliasing and soft shadow
-  double perturbationStrength = 1e-6; 
-  glm::dvec3 randomPerturbation = glm::sphericalRand(perturbationStrength);
-  sampleDir = glm::normalize(sampleDir + randomPerturbation);
-
-  glm::dvec3 samplePos = sphereCenter + sampleDir * sphereRadius;
-
-  // Compute direction from shading point to light source
-  glm::dvec3 lightDir = glm::normalize(samplePos - glm::dvec3(shadingPoint));
-
-  // Compute probability density function (PDF)
-   double cosTheta = glm::dot(lightDir, baselineDir);
-   double pdf = 0.5 * Tools::PI_INV * cosTheta;
-  return {lightDir, pdf };
 }
 
 glm::vec3 SoftRasterizer::Scene::pathTracingDirectLight(

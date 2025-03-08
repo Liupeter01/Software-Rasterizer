@@ -1,15 +1,17 @@
-﻿#include <Tools.hpp>
+﻿#define GLM_ENABLE_EXPERIMENTAL
+#include <Tools.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <object/Sphere.hpp>
 
-SoftRasterizer::Sphere::Sphere() : Sphere(glm::vec3(0.f), 1.f) {
-
-  /*Calculate Area*/
-  calcArea();
-}
+SoftRasterizer::Sphere::Sphere() : Sphere(glm::vec3(0.f), 1.f) {}
 
 SoftRasterizer::Sphere::Sphere(const glm::vec3 &_center, const float _radius)
     : vert(1), center(_center), radius(_radius), square(radius * radius),
       Object(std::make_shared<Material>(), nullptr) {
+
+  // Might Changed Due to mvp;
+  new_radius = radius;
+  new_square = radius * radius;
 
   /*Calculate Area*/
   calcArea();
@@ -21,7 +23,22 @@ void SoftRasterizer::Sphere::updatePosition(const glm::mat4x4 &Model,
                                             const glm::mat4x4 &View,
                                             const glm::mat4x4 &Projection,
                                             const glm::mat4x4 &Ndc) {
-  vert[0].position = Tools::to_vec3(Model * glm::vec4(center, 1.0f));
+
+  glm::vec3 scale, translation, skew;
+  glm::quat rotation;
+  glm::vec4 perspective;
+  glm::decompose(Model, scale, rotation, translation, skew, perspective);
+
+  // update center points location
+  vert[0].position =
+      Tools::to_vec3(Projection * View * Model * glm::vec4(center, 1.0f));
+
+  // update radius length
+  new_radius = radius * glm::max(scale.x, glm::max(scale.y, scale.z));
+
+  /*bad news, its wrong!!!!*/
+  // new_radius = radius * glm::length(scale);
+  new_square = new_radius * new_radius;
 }
 
 void SoftRasterizer::Sphere::bindShader2Mesh(std::shared_ptr<Shader> shader) {
@@ -34,14 +51,16 @@ void SoftRasterizer::Sphere::setMaterial(std::shared_ptr<Material> material) {
   m_material = material;
 }
 
-void SoftRasterizer::Sphere::calcArea() { area = 4 * Tools::PI * square; }
+void SoftRasterizer::Sphere::calcArea() { area = 4 * Tools::PI * new_square; }
 
 SoftRasterizer::Bounds3 SoftRasterizer::Sphere::getBounds() {
   Bounds3 ret;
-  ret.min = glm::vec3(vert[0].position.x - radius, vert[0].position.y - radius,
-                      vert[0].position.z - radius);
-  ret.max = glm::vec3(vert[0].position.x + radius, vert[0].position.y + radius,
-                      vert[0].position.z + radius);
+  ret.min = glm::vec3(vert[0].position.x - new_radius,
+                      vert[0].position.y - new_radius,
+                      vert[0].position.z - new_radius);
+  ret.max = glm::vec3(vert[0].position.x + new_radius,
+                      vert[0].position.y + new_radius,
+                      vert[0].position.z + new_radius);
   return ret;
 }
 
@@ -51,7 +70,7 @@ bool SoftRasterizer::Sphere::intersect(const Ray &ray) {
   auto L = ray.origin - vert[0].position;
   auto a = glm::dot(ray.direction, ray.direction);
   auto b = 2.f * glm::dot(ray.direction, L);
-  auto c = glm::dot(L, L) - square;
+  auto c = glm::dot(L, L) - new_square;
 
   auto res = b * b - 4.f * a * c;
   return res < 0 ? false : true;
@@ -61,7 +80,7 @@ bool SoftRasterizer::Sphere::intersect(const Ray &ray, float &tNear) {
   auto L = ray.origin - vert[0].position;
   auto a = glm::dot(ray.direction, ray.direction);
   auto b = 2.f * glm::dot(ray.direction, L);
-  auto c = glm::dot(L, L) - square;
+  auto c = glm::dot(L, L) - new_square;
 
   auto res = b * b - 4.f * a * c;
   if (res < 0) {
@@ -89,7 +108,7 @@ SoftRasterizer::Intersection SoftRasterizer::Sphere::getIntersect(Ray &ray) {
   auto L = ray.origin - vert[0].position;
   auto a = glm::dot(ray.direction, ray.direction);
   auto b = 2.f * glm::dot(ray.direction, L);
-  auto c = glm::dot(L, L) - square;
+  auto c = glm::dot(L, L) - new_square;
 
   auto res = b * b - 4.f * a * c;
 
@@ -118,10 +137,11 @@ SoftRasterizer::Intersection SoftRasterizer::Sphere::getIntersect(Ray &ray) {
   ret.coords = ray.direction * t0 + ray.origin;
 
   /*Normal of a sphere!*/
-  ret.normal = glm::normalize(ret.coords - center);
+  ret.normal = glm::normalize(ret.coords - vert[0].position);
 
   // we could find a intersect time point
   ret.intersected = true;
+  ret.emit = m_material->getEmission();
   return ret;
 }
 
@@ -152,9 +172,11 @@ SoftRasterizer::Sphere::sample() {
 
   intersection.intersected = true;
   intersection.obj = this;
-  intersection.coords = center + radius * dir;
+  intersection.coords = vert[0].position + new_radius * dir;
   intersection.normal = dir;
   intersection.emit = m_material->getEmission();
+
+  calcArea();
 
   return {/*intersection = */ intersection,
           /*pdf = */ 1.0f / area};

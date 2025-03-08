@@ -40,9 +40,6 @@ SoftRasterizer::Triangle::Triangle(
   vert[0].texCoord = m_texCoords[0] = texCoordA;
   vert[1].texCoord = m_texCoords[1] = texCoordB;
   vert[2].texCoord = m_texCoords[2] = texCoordC;
-
-  /*Calculate Area of Triangle*/
-  [[maybe_unused]] auto res = calcArea();
 }
 
 void SoftRasterizer::Triangle::setVertex(
@@ -54,8 +51,6 @@ void SoftRasterizer::Triangle::setVertex(
   vert[0].position = m_vertex[0];
   vert[1].position = m_vertex[1];
   vert[2].position = m_vertex[2];
-
-  [[maybe_unused]] auto res = calcArea();
 }
 
 void SoftRasterizer::Triangle::setNormal(
@@ -107,8 +102,6 @@ SoftRasterizer::Bounds3 SoftRasterizer::Triangle::getBounds() {
 
 // Moller Trumbore Algorithm
 SoftRasterizer::Intersection SoftRasterizer::Triangle::getIntersect(Ray &ray) {
-
-  glm::vec3 normal = getFaceNormal();
 
   // Caculate Edge Vectors
   glm::dvec3 e1 = glm::dvec3(vert[1].position) - glm::dvec3(vert[0].position);

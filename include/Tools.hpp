@@ -152,6 +152,10 @@ struct Tools {
                                              const glm::vec3 &pb,
                                              const glm::vec3 &pc);
 
+  static glm::vec3 reflect(const glm::vec3& I, const glm::vec3& N);
+
+  static glm::vec3 refract(const glm::vec3& I, const glm::vec3& N, const float& ior);
+
   static float fresnel(const glm::vec3 &rayDirection, const glm::vec3 &normal,
                        const float &refractiveIndex);
 
