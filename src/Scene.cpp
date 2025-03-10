@@ -576,24 +576,24 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
   else if (intersection.material->getMaterialType() ==
            MaterialType::REFLECTION_AND_REFRACTION) {
 
-            glm::vec3 reflectedColor{}, refractedColor{};
-            float kr = Tools::fresnel(I, N, ior);
-
-            //Reflect Calculation
-            glm::vec3 reflectPath = glm::normalize(glm::reflect(I, N));
+            glm::vec3 reflectedColor{0.f}, refractedColor{0.f};
+            float kr = glm::clamp(Tools::fresnel(I, N, ior), 0.f, 1.f);
+            glm::vec3 reflectPath = glm::normalize(glm::reflect(I, N));         //Reflect
+            glm::vec3 refractPath = Tools::refract(I, N, ior);
 
             // prevent relfection and refraction from happening at the same time
-            glm::vec3 reflectCoord = hitPoint + (glm::dot(reflectPath, N) > 0 ? N : -N) * m_epsilon;
+            auto reflectOffset = glm::dot(I, -N) > 0 ? N * m_epsilon : -N * m_epsilon;
+            auto refractOffset = glm::dot(refractPath, N) > 0 ? N * m_epsilon : -N * m_epsilon;
+
+            glm::vec3 reflectCoord = hitPoint + reflectOffset;
+            glm::vec3 refractCoord = hitPoint + refractOffset;
+
             Ray reflectedRay(reflectCoord, reflectPath);
             reflectedColor = whittedRayTracing(reflectedRay, depth + 1, sample);
 
-            //Refract Calculation
-            glm::vec3 refractPath = Tools::refract(I, N, ior);
-            if (glm::length(refractPath) > m_epsilon) {
-                      refractPath = glm::normalize(refractPath);
+            if (glm::length(refractPath) > 1e-6f && std::abs(kr - 1.f) > 1e-6f) {
 
-                      glm::vec3 refractCoord = hitPoint + (glm::dot(refractPath, N) > 0 ? N : -N) * m_epsilon;
-                      Ray refractedRay(refractCoord, refractPath);
+                      Ray refractedRay(refractCoord, glm::normalize(refractPath));
                       refractedColor = whittedRayTracing(refractedRay, depth + 1, sample);
             }
 
