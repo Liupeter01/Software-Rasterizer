@@ -6,23 +6,19 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
 
-SoftRasterizer::RayTracing::RayTracing()
-          : RenderingPipeline() 
-{}
+SoftRasterizer::RayTracing::RayTracing() : RenderingPipeline() {}
 
-SoftRasterizer::RayTracing::RayTracing(const std::size_t width, const std::size_t height)
-          : RenderingPipeline(width, height) {
-}
+SoftRasterizer::RayTracing::RayTracing(const std::size_t width,
+                                       const std::size_t height)
+    : RenderingPipeline(width, height) {}
 
-SoftRasterizer::RayTracing::RayTracing(const std::size_t width, const std::size_t height,
-          const std::size_t spp)
-          : sample(spp), RenderingPipeline(width, height) 
-{}
+SoftRasterizer::RayTracing::RayTracing(const std::size_t width,
+                                       const std::size_t height,
+                                       const std::size_t spp)
+    : sample(spp), RenderingPipeline(width, height) {}
 
 // Sample Per Pixel
-void SoftRasterizer::RayTracing::setSPP(const std::size_t spp) {
-          sample = spp;
-}
+void SoftRasterizer::RayTracing::setSPP(const std::size_t spp) { sample = spp; }
 
 void SoftRasterizer::RayTracing::draw(Primitive type) {
   if ((type != SoftRasterizer::Primitive::LINES) &&
@@ -60,28 +56,29 @@ void SoftRasterizer::RayTracing::draw(Primitive type) {
 
               try {
                 Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
-                //glm::vec3 color = SceneObj->whittedRayTracing(ray, 0, sample);
-                //writePixel(rx, ry, Tools::normalizedToRGB(color));
+                // glm::vec3 color = SceneObj->whittedRayTracing(ray, 0,
+                // sample); writePixel(rx, ry, Tools::normalizedToRGB(color));
 
                 glm::vec3 color = oneapi::tbb::parallel_reduce(
-                          oneapi::tbb::blocked_range<std::size_t>(0, sample),
-                          glm::vec3(0.f),
-                          [&](const oneapi::tbb::blocked_range<std::size_t>& r,
-                                    glm::vec3 partialColor) -> glm::vec3 {
-                                              for (std::size_t i = r.begin(); i < r.end(); ++i) {
-                                                        partialColor += SceneObj->whittedRayTracing(ray, 0, sample);
-                                              }
-                                              return partialColor;
-                          },
-                          std::plus<glm::vec3>() // Reduce with addition
-                          ,
-                          oneapi::tbb::auto_partitioner()
-                          /*Consume lots of memory!!!! If you are going to use
-                             affinity_partitioner (ap)*/
+                    oneapi::tbb::blocked_range<std::size_t>(0, sample),
+                    glm::vec3(0.f),
+                    [&](const oneapi::tbb::blocked_range<std::size_t> &r,
+                        glm::vec3 partialColor) -> glm::vec3 {
+                      for (std::size_t i = r.begin(); i < r.end(); ++i) {
+                        partialColor +=
+                            SceneObj->whittedRayTracing(ray, 0, sample);
+                      }
+                      return partialColor;
+                    },
+                    std::plus<glm::vec3>() // Reduce with addition
+                    ,
+                    oneapi::tbb::auto_partitioner()
+                    /*Consume lots of memory!!!! If you are going to use
+                       affinity_partitioner (ap)*/
                 );
 
                 writePixel(rx, ry,
-                          Tools::normalizedToRGB(color / glm::vec3(sample)));
+                           Tools::normalizedToRGB(color / glm::vec3(sample)));
 
               } catch (const std::exception &e) {
                 spdlog::error("RayTracing System Error! Message: {}", e.what());

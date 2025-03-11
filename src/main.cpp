@@ -14,7 +14,7 @@ int main() {
   float degree = 0.0f;
 
   // Create Ray Tracing Main Class
-  auto render = std::make_shared<SoftRasterizer::RayTracing>(1920, 1920, 1);
+  auto render = std::make_shared<SoftRasterizer::RayTracing>(1024, 1024, 1);
 
   // Create A Scene
   auto scene = std::make_shared<SoftRasterizer::Scene>(
