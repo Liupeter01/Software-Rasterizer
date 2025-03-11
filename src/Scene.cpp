@@ -583,8 +583,7 @@ glm::vec3 SoftRasterizer::Scene::whittedRayTracing(Ray &ray, int depth,
 
     // prevent relfection and refraction from happening at the same time
     auto reflectOffset = glm::dot(I, N) < 0 ? N * m_epsilon : -N * m_epsilon;
-    auto refractOffset =
-        glm::dot(refractPath, N) > 0 ? N * m_epsilon : -N * m_epsilon;
+    auto refractOffset = glm::dot(I, N) > 0 ? N * m_epsilon : -N * m_epsilon;
 
     glm::vec3 reflectCoord = hitPoint + reflectOffset;
     glm::vec3 refractCoord = hitPoint + refractOffset;
