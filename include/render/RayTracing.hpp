@@ -6,10 +6,10 @@
 namespace SoftRasterizer {
 class RayTracing : public RenderingPipeline {
 public:
-          RayTracing();
+  RayTracing();
   RayTracing(const std::size_t width, const std::size_t height);
   RayTracing(const std::size_t width, const std::size_t height,
-            const std::size_t spp = 16);
+             const std::size_t spp = 16);
 
   // Sample Per Pixel
   void setSPP(const std::size_t spp);
@@ -18,8 +18,8 @@ private:
   void draw(Primitive type) override;
 
 private:
-          /*Path Tracing Sample Variable*/
-          std::size_t sample = 16;
+  /*Path Tracing Sample Variable*/
+  std::size_t sample = 16;
 };
 } // namespace SoftRasterizer
 

@@ -121,20 +121,20 @@ int main() {
         "spot",
         /*axis=*/glm::vec3(0.f, 1.f, 0.f),
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.25f, 0.1f, 0.20f),
+        /*transform=*/glm::vec3(0.28f, 0.1f, 0.20f),
         /*scale=*/glm::vec3(0.2f));
 
     scene->setModelMatrix(
         "Crate",
         /*axis=*/glm::vec3(0.f, 1.f, 0.f),
         /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.25f, -0.13f, 0.15f),
+        /*transform=*/glm::vec3(0.28f, -0.13f, 0.15f),
         /*scale=*/glm::vec3(0.1f));
 
     scene->setModelMatrix("refrflect",
                           /*axis=*/glm::vec3(0.f, 1.f, 0.f),
                           /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
-                          /*transform=*/glm::vec3(0.05f, 0.0f, 0.15f),
+                          /*transform=*/glm::vec3(0.f, 0.0f, 0.15f),
                           /*scale=*/glm::vec3(0.2f));
 
     scene->setModelMatrix("diffuse",
