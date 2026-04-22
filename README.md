@@ -598,15 +598,58 @@ Every Scene could contains multiple objects, and all object should be added by u
 
   ![image-20250302133411756](./assets/path-tracing-16spp.png)
   
-  
 
-## 0x05 License
+
+
+## 0x05 Benchmarks
+
+### 1. Overall
+
+Measured on i7-12800HX (Windows, MSVC Release, -O2 /arch:AVX2).
+
+| Workload      | Config                           | Result                                           |
+| ------------- | -------------------------------- | ------------------------------------------------ |
+| Rasterization | 1024×1024, ~6K tri, 5 meshes     | 17.1 ms/frame (p10 16.1 / p90 18.3, 1000 frames) |
+| Path tracing  | Cornell Box, 1024×1024, 2048 SPP | ~14 min                                          |
+
+Measurement: `std::chrono::high_resolution_clock`, `draw()` only (display excluded).
+
+
+
+### 2. Rasterization performance
+
+Measured on Intel i7-12800HX (Windows, MSVC Release, /O2 /arch:AVX2),
+using `std::chrono::high_resolution_clock`, display composition excluded.
+
+**Workload:** 1024×1024, ~6K triangles across 5 meshes (spot, crate, diffuse/reflect/spherelight).
+**Sample size:** 1000 frames after 100-frame warmup.
+
+| Metric | Time (ms) |
+| ------ | --------- |
+| Median | 17.06     |
+| p10    | 16.09     |
+| p90    | 18.28     |
+| min    | 15.25     |
+| max    | 23.49     |
+
+Tight p10/p90 spread (~2.2 ms) indicates stable per-frame cost with
+no significant scheduling jitter.
+
+**Measurement notes:**
+- `render->draw()` only — `cv::merge` / `cv::imshow` excluded to avoid display compositor and refresh-rate coupling.
+- z-buffer + color channels reset per frame via `render->clear()`.
+- `degree` rotated each frame to avoid cache / branch prediction artifacts
+  from repeated identical frames.
+
+
+
+## 0x06 License
 
 This project is licensed under the MIT License.
 
 
 
-## 0x06 Reference
+## 0x07 Reference
 
 ### Bresenham algorithm
 
@@ -615,10 +658,6 @@ This project is licensed under the MIT License.
 ### TinyObjLoader
 
 [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)
-
-### SSE2NEON
-
-[sse2neon](https://github.com/DLTcollab/sse2neon)
 
 ### simde
 
