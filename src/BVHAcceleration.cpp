@@ -1,232 +1,122 @@
-#include <algorithm>
 #include <bvh/BVHAcceleration.hpp>
-#include <chrono>
-#include <spdlog/spdlog.h>
-#include <tbb/parallel_for.h>
 
-SoftRasterizer::BVHAcceleration::BVHAcceleration() : root(nullptr), objs(0) {}
-
-SoftRasterizer::BVHAcceleration::BVHAcceleration(
-    const tbb::concurrent_vector<std::shared_ptr<Object>> &stream) {
-  loadNewObjects(stream);
+void SoftRasterizer::BVHAcceleration::rebuild(
+    std::vector<std::shared_ptr<Object>> primitives) {
+  if (primitives.size() > std::numeric_limits<std::uint32_t>::max() / 2) {
+    throw std::length_error("too many BVH primitives");
+  }
+  m_objects = std::move(primitives);
+  m_nodes.reset();
+  m_nodeCount = 0;
+  m_objects.erase(std::remove_if(m_objects.begin(), m_objects.end(),
+                                 [](const auto &object) {
+                                   return !object ||
+                                          object->getBounds().empty();
+                                 }),
+                  m_objects.end());
+  if (!m_objects.empty()) {
+    // N primitives give at most N leaves, hence at most 2*N-1 nodes.
+    m_nodes = std::make_unique<Node[]>(m_objects.size() * 2 - 1);
+    recursive(0, static_cast<std::uint32_t>(m_objects.size()));
+  }
 }
 
-SoftRasterizer::BVHAcceleration::~BVHAcceleration() { clearBVHAccel(root); }
-
-void SoftRasterizer::BVHAcceleration::loadNewObjects(
-    const tbb::concurrent_vector<std::shared_ptr<Object>> &stream) {
-  objs.clear();
-  objs.resize(stream.size());
-
-  tbb::parallel_for(tbb::blocked_range<long long>(0, stream.size()),
-                    [&](const tbb::blocked_range<long long> &r) {
-                      for (long long index = r.begin(); index < r.end();
-                           ++index) {
-                        objs[index] = stream[index].get();
-                      }
-                    });
-}
-
-void SoftRasterizer::BVHAcceleration::clearBVHAccel() { clearBVHAccel(root); }
-
-void SoftRasterizer::BVHAcceleration::clearBVHAccel(
-    std::unique_ptr<BVHBuildNode> &node) {
-  if (node == nullptr) {
-    return;
+SoftRasterizer::BVHAcceleration::Node *
+SoftRasterizer::BVHAcceleration::recursive(std::uint32_t begin,
+                                           std::uint32_t end) {
+  // Take the next node from the fixed pool; child pointers remain stable.
+  Node *node = &m_nodes[m_nodeCount++];
+  /*Collect primitive bounds and choose the longest centroid axis.*/
+  Bounds3 bounds, centroids;
+  for (auto i = begin; i < end; ++i) {
+    auto objectBounds = m_objects[i]->getBounds();
+    bounds.expand(objectBounds);
+    centroids.expand(objectBounds.centroid());
   }
-
-  if (node->left != nullptr) {
-    clearBVHAccel(node->left);
-  }
-
-  if (node->right != nullptr) {
-    clearBVHAccel(node->right);
-  }
-
-  node.reset();
-}
-
-void SoftRasterizer::BVHAcceleration::rebuildBVHAccel() {
-  clearBVHAccel(root);
-  startBuilding();
-}
-
-void SoftRasterizer::BVHAcceleration::startBuilding() { buildBVH(); }
-
-void SoftRasterizer::BVHAcceleration::buildBVH() {
-
-  if (objs.empty()) {
-    spdlog::info("Build BVH List Error, No Objects Found!");
-    return;
-  }
-
-  /*Start Time Point*/
-  std::chrono::high_resolution_clock::time_point start =
-      std::chrono::high_resolution_clock::now();
-
-  /*Start Building BVH Structure*/
-  root = recursive(objs);
-
-  /*End Time Point*/
-  std::chrono::high_resolution_clock::time_point end =
-      std::chrono::high_resolution_clock::now();
-
-  spdlog::debug(
-      "Start BVH Generation complete: {}ms",
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-          .count());
-}
-
-std::optional<SoftRasterizer::Bounds3>
-SoftRasterizer::BVHAcceleration::getBoundingBox() const {
-  if (root == nullptr) {
-    return std::nullopt;
-  }
-  return root->box;
-}
-
-std::optional<float> SoftRasterizer::BVHAcceleration::getTotalArea() const {
-  if (root == nullptr) {
-    return std::nullopt;
-  }
-  return root->area;
-}
-
-SoftRasterizer::Intersection
-SoftRasterizer::BVHAcceleration::getIntersection(Ray &ray) const {
-  if (root == nullptr) {
-    return {};
-  }
-  return intersection(root.get(), ray);
-}
-
-SoftRasterizer::Intersection
-SoftRasterizer::BVHAcceleration::intersection(BVHBuildNode *node,
-                                              Ray &ray) const {
-  if (!node)
-    return {};
-
-  /*BoundingBox Test, Optimize Calculation*/
-  if (!node->box.intersect(ray)) {
-    return {};
-  }
-
-  /*Every Obj is on leaf node!*/
-  if (node->left == nullptr && node->right == nullptr) {
-    if (node->obj) {
-
-      // Return intersection if object exists
-      return node->obj->getIntersect(ray);
-    }
-    return {}; // Return empty intersection if no object in leaf node
-  }
-
-  // Check left and right child nodes recursively
-  Intersection left = intersection(node->left.get(), ray);
-  Intersection right = intersection(node->right.get(), ray);
-
-  // Determine which intersection is closer
-  if (left.intersected && right.intersected) {
-    return left.intersect_time < right.intersect_time ? left : right;
-  }
-  // If one of them is not intersected, return the one that is
-  else if (left.intersected && !right.intersected) {
-    return left;
-  } else if (!left.intersected && right.intersected) {
-    return right;
-  }
-  // No Intersect At ALL
-  return {};
-}
-
-std::unique_ptr<SoftRasterizer::BVHBuildNode>
-SoftRasterizer::BVHAcceleration::recursive(
-    tbb::concurrent_vector<SoftRasterizer::Object *> objs) {
-  auto node = std::make_unique<SoftRasterizer::BVHBuildNode>();
-
-  Bounds3 box;
-  for (const auto &obj : objs) {
-    box = BoundsUnion(box, obj->getBounds());
-  }
-
-  /*I'm the Leaf Node*/
-  if (objs.size() == 1) {
-    auto obj = (*objs.begin());
-    node->left = nullptr;
-    node->right = nullptr;
-    node->box = obj->getBounds();
-    node->obj = std::shared_ptr<Object>(obj, [](auto T) {});
-    node->area = obj->getArea();
+  node->box = bounds;
+  if (end - begin <= 4) {
+    node->begin = begin;
+    node->count = end - begin;
     return node;
   }
-  /*I am The Root Node*/
-  else if (objs.size() == 2) {
-    node->left = std::make_unique<BVHBuildNode>();
-    node->right = std::make_unique<BVHBuildNode>();
-    node->left->obj = std::shared_ptr<Object>(objs[0], [](auto) {});
-    node->right->obj = std::shared_ptr<Object>(objs[1], [](auto) {});
-    node->left->box = objs[0]->getBounds();
-    node->right->box = objs[1]->getBounds();
-    node->left->area = objs[0]->getArea();
-    node->right->area = objs[1]->getArea();
-  }
-  /*Other Condition*/
-  else {
-
-    // Calculate centroids and partition objects along the longest axis
-    Bounds3 centric;
-    for (const auto &obj : objs) {
-      centric = BoundsUnion(centric, obj->getBounds().centroid());
-    }
-
-    std::sort(objs.begin(), objs.end(),
-              [dim = centric.maxExtent()](auto f1, auto f2) {
-                return f1->getBounds().centroid()[dim] <
-                       f2->getBounds().centroid()[dim];
-              });
-
-    /*Seperate The vector in half, by using the longest axis*/
-    auto middle = objs.size() / 2;
-    node->left = recursive(
-        tbb::concurrent_vector<Object *>(objs.begin(), objs.begin() + middle));
-    node->right = recursive(
-        tbb::concurrent_vector<Object *>(objs.begin() + middle, objs.end()));
-  }
-  node->box = BoundsUnion(node->left->box, node->right->box);
-  node->area = node->left->area + node->right->area;
+  auto diagonal = centroids.diagonal();
+  int axis = diagonal.x > diagonal.y ? (diagonal.x > diagonal.z ? 0 : 2)
+                                     : (diagonal.y > diagonal.z ? 1 : 2);
+  auto mid = begin + (end - begin) / 2;
+  /*Median splits keep the tree balanced and recursion depth bounded.*/
+  std::nth_element(m_objects.begin() + begin, m_objects.begin() + mid,
+                   m_objects.begin() + end,
+                   [axis](const auto &leftEntry, const auto &rightEntry) {
+                     return leftEntry->getBounds().centroid()[axis] <
+                            rightEntry->getBounds().centroid()[axis];
+                   });
+  node->left = recursive(begin, mid);
+  node->right = recursive(mid, end);
   return node;
 }
 
-void SoftRasterizer::BVHAcceleration::sample(BVHBuildNode *node,
-                                             const float area,
-                                             Intersection &intersect,
-                                             float &pdf) {
-  if (!node)
-    return;
-
-  /*Every Obj is on leaf node!*/
-  if (!node->left || !node->right) {
-    auto [obj_intersection, obj_pdf] = node->obj->sample();
-    intersect = obj_intersection;
-    pdf = obj_pdf * node->area;
-    // pdf = obj_pdf * node->area / getTotalArea().value();
-    return;
+SoftRasterizer::Intersection
+SoftRasterizer::BVHAcceleration::getIntersection(const Ray &ray) const {
+  Intersection nearest;
+  if (empty()) {
+    return nearest;
   }
-  if (area < node->left->area)
-    sample(node->left.get(), area, intersect, pdf);
-  else
-    sample(node->right.get(), area - node->left->area, intersect, pdf);
+  // One local ray shares the nearest-hit limit across all recursive calls.
+  Ray queryRay = ray;
+  intersection(m_nodes.get(), queryRay, nearest);
+  return nearest;
 }
 
-/*Read Parameters from the object of sample*/
-std::tuple<SoftRasterizer::Intersection, float>
-SoftRasterizer::BVHAcceleration::sample() {
-  Intersection intersect{};
-  float pdf = 0.f;
+void SoftRasterizer::BVHAcceleration::intersection(
+    const Node *node, Ray &ray, Intersection &nearest) const {
+  if (!node || !node->box.intersect(ray, ray.tMax)) {
+    return;
+  }
+  if (node->count) {
+    for (auto i = node->begin; i < node->begin + node->count; ++i) {
+      auto hit = m_objects[i]->getIntersect(ray);
+      if (hit.intersected) {
+        nearest = hit;
+        ray.tMax = hit.intersect_time;
+      }
+    }
+    return;
+  }
+  float leftEntry, rightEntry;
+  bool leftHit = node->left->box.intersect(ray, ray.tMax, &leftEntry),
+       rightHit = node->right->box.intersect(ray, ray.tMax, &rightEntry);
+  if (leftHit && rightHit) {
+    // Visit the nearer child first; the other call sees the updated tMax.
+    const Node *nearChild = node->left, *farChild = node->right;
+    if (rightEntry <= leftEntry) {
+      std::swap(nearChild, farChild);
+    }
+    intersection(nearChild, ray, nearest);
+    intersection(farChild, ray, nearest);
+  } else if (leftHit) {
+    intersection(node->left, ray, nearest);
+  } else if (rightHit) {
+    intersection(node->right, ray, nearest);
+  }
+}
 
-  /*Use Total Area Value and a ratio to do sample*/
-  const float area = Tools::random_generator() * root->area;
+bool SoftRasterizer::BVHAcceleration::occluded(const Ray &ray) const {
+  return occludedNode(m_nodes.get(), ray);
+}
 
-  sample(root.get(), area, intersect, pdf);
-  return {intersect, pdf / root->area};
+bool SoftRasterizer::BVHAcceleration::occludedNode(const Node *node,
+                                                   const Ray &ray) const {
+  if (!node || !node->box.intersect(ray, ray.tMax)) {
+    return false;
+  }
+  if (node->count) {
+    for (auto i = node->begin; i < node->begin + node->count; ++i) {
+      if (m_objects[i]->getIntersect(ray).intersected) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // Match the previous right-first order; || stops at the first occluder.
+  return occludedNode(node->right, ray) || occludedNode(node->left, ray);
 }
