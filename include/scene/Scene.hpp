@@ -39,6 +39,7 @@ public:
                      const glm::vec3 &axis = {0, 1, 0}, float degrees = 0,
                      const glm::vec3 &translation = {0, 0, 0},
                      const glm::vec3 &scale = {1, 1, 1});
+  /*Load once and register the mesh; prepare() clears the loaders.*/
   bool startLoadingMesh(const std::string &name);
   std::optional<std::shared_ptr<Object>>
   getMeshObj(const std::string &name) const;
