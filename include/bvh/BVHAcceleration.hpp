@@ -1,64 +1,35 @@
 #pragma once
-#ifndef _BVH_HPP_
-#define _BVH_HPP_
-#include <bvh/Bounds3.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <object/Object.hpp>
-#include <object/Triangle.hpp>
-#include <optional>
-#include <tbb/concurrent_vector.h>
 
 namespace SoftRasterizer {
-class Scene;
-
-struct BVHBuildNode {
-  BVHBuildNode()
-      : left(nullptr), right(nullptr), box(), obj(nullptr), area(0.f) {}
-
-  Bounds3 box;
-  std::unique_ptr<BVHBuildNode> left;
-  std::unique_ptr<BVHBuildNode> right;
-  std::shared_ptr<Object> obj;
-  float area;
-};
-
 class BVHAcceleration {
-  friend class Scene;
-
 public:
-  BVHAcceleration();
-  BVHAcceleration(
-      const tbb::concurrent_vector<std::shared_ptr<Object>> &stream);
-  virtual ~BVHAcceleration();
+  void rebuild(std::vector<std::shared_ptr<Object>> primitives);
+  Intersection getIntersection(const Ray &ray) const;
+  bool occluded(const Ray &ray) const;
 
-public:
-  void
-  loadNewObjects(const tbb::concurrent_vector<std::shared_ptr<Object>> &stream);
-  void startBuilding();
-  void rebuildBVHAccel();
-  Intersection getIntersection(Ray &ray) const;
-  void clearBVHAccel();
-  std::optional<Bounds3> getBoundingBox() const;
-  std::optional<float> getTotalArea() const;
-
-  /*Read Parameters from the object of sample*/
-  [[nodiscard]] std::tuple<Intersection, float> sample();
-
-protected:
-  void clearBVHAccel(std::unique_ptr<BVHBuildNode> &node);
-  void buildBVH();
-  [[nodiscard]] std::unique_ptr<BVHBuildNode>
-  recursive(tbb::concurrent_vector<Object *> objs);
-  [[nodiscard]] Intersection intersection(BVHBuildNode *node, Ray &ray) const;
-
-  [[nodiscard]] void sample(BVHBuildNode *node, const float area,
-                            Intersection &intersect, float &pdf);
+  bool empty() const {
+    return !m_nodes;
+  }
 
 private:
-  /*BVH Head Node*/
-  std::unique_ptr<BVHBuildNode> root;
-  tbb::concurrent_vector<Object *> objs;
+  struct Node {
+    Bounds3 box;
+    Node *left = nullptr, *right = nullptr;
+    std::uint32_t begin = 0, count = 0;
+  };
+
+  /*Build in place over [begin, end); no per-child object arrays.*/
+  Node *recursive(std::uint32_t begin, std::uint32_t end);
+  void intersection(const Node *node, Ray &ray, Intersection &nearest) const;
+  bool occludedNode(const Node *node, const Ray &ray) const;
+
+  /*One owning pool; children only point into it. The first node is the root.*/
+  std::unique_ptr<Node[]> m_nodes;
+  std::size_t m_nodeCount = 0;
+  std::vector<std::shared_ptr<Object>> m_objects;
 };
 } // namespace SoftRasterizer
-
-#endif //_BVH_HPP_
