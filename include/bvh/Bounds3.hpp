@@ -37,8 +37,8 @@ struct Bounds3 {
     return max - min;
   }
 
-  inline bool Bounds3::intersect(const Ray &ray, float limit,
-                                          float *entry) const {
+  inline bool intersect(const Ray &ray, float limit,
+                        float *entry = nullptr) const {
     if (empty() || !finite(ray.origin) || !finite(ray.direction)) {
       return false;
     }
