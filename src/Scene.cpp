@@ -37,12 +37,14 @@ bool SoftRasterizer::Scene::addGraphicObj(const std::string &path,
 }
 
 bool SoftRasterizer::Scene::startLoadingMesh(const std::string &meshName) {
+  if (m_loadedObjs.count(meshName)) {
+    return true;
+  }
   auto loaderIter = m_objLoaders.find(meshName);
   if (loaderIter == m_objLoaders.end()) {
     return false;
   }
   auto mesh = loaderIter->second->load();
-  m_objLoaders.erase(loaderIter);
   m_loadedObjs.emplace(meshName, ObjData{std::move(mesh), 0});
   m_geometryDirty = true;
   return true;
@@ -108,9 +110,10 @@ void SoftRasterizer::Scene::addLight(const std::string &name,
 
 /*Load pending meshes, then update geometry caches only when objects change.*/
 void SoftRasterizer::Scene::prepare() {
-  while (!m_objLoaders.empty()) {
-    startLoadingMesh(m_objLoaders.begin()->first);
+  for (const auto &[meshName, loader] : m_objLoaders) {
+    startLoadingMesh(meshName);
   }
+  m_objLoaders.clear();
   for (const auto &[name, objData] : m_loadedObjs) {
     if (objData.preparedRevision != objData.mesh->revision()) {
       m_geometryDirty = true;
