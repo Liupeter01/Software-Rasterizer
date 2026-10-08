@@ -1,15 +1,18 @@
 #pragma once
-#ifndef _RAY_HPP_
-#define _RAY_HPP_
 #include <glm/glm.hpp>
+#include <limits>
+
+namespace SoftRasterizer {
 struct Ray {
-  Ray(const glm::vec3 &_origin, const glm::vec3 &_direction,
-      const double time = 0.0)
-      : origin(_origin), direction(_direction), transport_time(time) {}
+  glm::vec3 origin, direction;
+  float tMin = 0.f, tMax = std::numeric_limits<float>::infinity();
 
-  double transport_time;
-  glm::vec3 origin;    // ray source
-  glm::vec3 direction; // ray direction
+  Ray(const glm::vec3 &o, const glm::vec3 &d, float nearT = 0.f,
+      float farT = std::numeric_limits<float>::infinity())
+      : origin(o), direction(d), tMin(nearT), tMax(farT) {}
+
+  glm::vec3 at(float t) const {
+    return origin + t * direction;
+  }
 };
-
-#endif //_RAY_HPP_
+} // namespace SoftRasterizer
