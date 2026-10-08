@@ -75,7 +75,8 @@ void SoftRasterizer::BVHAcceleration::intersection(
   if (node->count) {
     for (auto i = node->begin; i < node->begin + node->count; ++i) {
       auto hit = m_objects[i]->getIntersect(ray);
-      if (hit.intersected) {
+      if (hit.intersected && hit.intersect_time > ray.tMin &&
+          hit.intersect_time < ray.tMax) {
         nearest = hit;
         ray.tMax = hit.intersect_time;
       }
