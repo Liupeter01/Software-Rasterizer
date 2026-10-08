@@ -1,40 +1,72 @@
 #pragma once
-#ifndef _BOUNDS3_HPP_
-#define _BOUNDS3_HPP_
 #include <Tools.hpp>
-#include <cmath>
-#include <glm/glm.hpp>
-#include <limits>
 #include <ray/Ray.hpp>
 
 namespace SoftRasterizer {
 struct Bounds3 {
-  Bounds3();
-  Bounds3(const glm::vec3 &p);
-  Bounds3(const glm::vec3 &p1, const glm::vec3 &p2);
+  glm::vec3 min{std::numeric_limits<float>::infinity()};
+  glm::vec3 max{-std::numeric_limits<float>::infinity()};
+  Bounds3() = default;
 
-  glm::vec3 diagonal() const;
-  glm::vec3 centroid() const;
-  Bounds3 intersect(const Bounds3 &b);
+  explicit Bounds3(const glm::vec3 &p) : min(p), max(p) {}
 
-  /*Calculate is there any intersects between BoundingBox and Ray*/
-  bool intersect(const Ray &ray);
+  Bounds3(const glm::vec3 &a, const glm::vec3 &b)
+      : min(glm::min(a, b)), max(glm::max(a, b)) {}
 
-  bool overlaps(const Bounds3 &box1, const Bounds3 &box2);
-  bool inside(const glm::vec3 &point);
-  bool inside(const glm::vec3 &point, const Bounds3 &box);
+  inline bool empty() const {
+    return glm::any(glm::greaterThan(min, max));
+  }
 
-  int maxExtent();
+  inline void expand(const Bounds3 &b) {
+    if (!b.empty()) {
+      min = glm::min(min, b.min);
+      max = glm::max(max, b.max);
+    }
+  }
 
-  double surfaceArea();
+  inline void expand(const glm::vec3 &p) {
+    min = glm::min(min, p);
+    max = glm::max(max, p);
+  }
 
-  // two points to specify the bounding box
-  glm::vec3 min, max;
+  inline glm::vec3 centroid() const {
+    return 0.5f * (min + max);
+  }
+
+  inline glm::vec3 diagonal() const {
+    return max - min;
+  }
+
+  inline bool Bounds3::intersect(const Ray &ray, float limit,
+                                          float *entry) const {
+    if (empty() || !finite(ray.origin) || !finite(ray.direction)) {
+      return false;
+    }
+    double intervalNear = ray.tMin, intervalFar = std::min(limit, ray.tMax);
+    for (int i = 0; i < 3; ++i) {
+      // Exact zero is parallel; tiny nonzero directions still have a valid
+      // interval.
+      if (ray.direction[i] == 0) {
+        if (ray.origin[i] < min[i] || ray.origin[i] > max[i]) {
+          return false;
+        }
+        continue;
+      }
+      double slabNear = (double(min[i]) - ray.origin[i]) / ray.direction[i];
+      double slabFar = (double(max[i]) - ray.origin[i]) / ray.direction[i];
+      if (slabNear > slabFar) {
+        std::swap(slabNear, slabFar);
+      }
+      intervalNear = std::max(intervalNear, slabNear);
+      intervalFar = std::min(intervalFar, slabFar);
+      if (intervalNear > intervalFar) {
+        return false;
+      }
+    }
+    if (entry) {
+      *entry = static_cast<float>(intervalNear);
+    }
+    return intervalNear <= intervalFar;
+  }
 };
-
-Bounds3 BoundsUnion(const Bounds3 &box1, const Bounds3 &box2);
-Bounds3 BoundsUnion(const glm::vec3 &point, const Bounds3 &box);
-
 } // namespace SoftRasterizer
-
-#endif //_BOUNDS3_HPP_
