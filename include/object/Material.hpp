@@ -1,76 +1,48 @@
 #pragma once
-#ifndef _MATERIAL_HPP_
-#define _MATERIAL_HPP_
-#include <Tools.hpp>
-#include <glm/glm.hpp>
-#include <string>
+#include <hpc/Sampler.hpp>
+#include <loader/TextureLoader.hpp>
+#include <memory>
 
 namespace SoftRasterizer {
-
 enum class MaterialType {
-  DIFFUSE_AND_GLOSSY,
-  REFLECTION_AND_REFRACTION,
-  REFLECTION
+  Diffuse,
+  Mirror,
+  Dielectric,
+  // Source-compatible aliases. Diffuse is Lambertian in the path tracer.
+  DIFFUSE_AND_GLOSSY = Diffuse,
+  REFLECTION = Mirror,
+  REFLECTION_AND_REFRACTION = Dielectric
+};
+
+struct BsdfSample {
+  glm::vec3 direction{0}, weight{0};
+  bool delta = false, transmitted = false;
 };
 
 struct Material {
-  Material(MaterialType _type = MaterialType::DIFFUSE_AND_GLOSSY,
-           const glm::vec3 &_Ka = glm::vec3(0.0f),
-           const glm::vec3 &_Kd = glm::vec3(0.0f),
-           const glm::vec3 &_Ks = glm::vec3(0.0f),
-           const float _specularExponent = 0.0f,
-           const glm::vec3 &_emission = glm::vec3(0.f));
+  MaterialType type = MaterialType::DIFFUSE_AND_GLOSSY;
+  glm::vec3 Kd{0.7f}, emission{0}, Ks{0};
+  float ior = 1.5f, specularExponent = 32;
+  std::shared_ptr<TextureLoader> texture;
 
-  MaterialType getMaterialType() const { return type; }
+  explicit Material(MaterialType t = MaterialType::DIFFUSE_AND_GLOSSY)
+      : type(t) {}
 
-  // uniform sample on the hemisphere
-  glm::vec3 sample(const glm::vec3 &wi, const glm::vec3 &N);
+  glm::vec3 albedo(const glm::vec2 &uv) const {
+    return glm::clamp(
+        Kd * (texture ? texture->getTextureColor(uv) : glm::vec3(1)),
+        glm::vec3(0), glm::vec3(1));
+  }
 
-  /*
-   * Given an incident direction, an outgoing direction, and a normal vector,
-   * calculate the probability density of obtaining the outgoing direction using
-   * the sampling method. uniform sample probability 1 / (2 * PI) = 0.5f *
-   * PI_INV
-   */
-  const float pdf(const glm::vec3 &wi, const glm::vec3 &wo, const glm::vec3 &N);
+  bool hasEmission() const {
+    return maxComponent(emission) > 0;
+  }
 
-  /*
-   * Given an incident direction, an outgoing direction, and a normal vector,
-   *  calculate the contribution of this ray , which is Fr(P, wi, wo)
-   */
-  glm::vec3 fr_contribution(const glm::vec3 &wi, const glm::vec3 &wo,
-                            const glm::vec3 &N);
+  bool isDelta() const {
+    return type != MaterialType::DIFFUSE_AND_GLOSSY;
+  }
 
-  const glm::vec3 &getEmission() const { return emission; }
-  [[nodiscard]] const bool hasEmission();
-
-  std::string name;       // Material Name
-  MaterialType type;      // Material Type
-  glm::vec3 Ka;           // Ambient Color
-  glm::vec3 Kd;           // Diffuse Color
-  glm::vec3 Ks;           // Specular Color
-  float Ns;               // Specular Exponent
-  float Ni;               // Optical Density
-  float d;                // Dissolve
-  int illum;              // Illumination
-  float ior;              // Index of Refraction
-  float specularExponent; // Specular Exponent
-  std::string map_Ka;     // Ambient Texture Map
-  std::string map_Kd;     // Diffuse Texture Map
-  std::string map_Ks;     // Specular Texture Map
-  std::string map_Ns;     // Specular Hightlight Map
-  std::string map_d;      // Alpha Texture Map
-  std::string map_bump;   // Bump Map
-
-  // Self Emissive object
-  glm::vec3 emission;
-
-  // Unit Sphere's radius
-  static constexpr float radius = 1.0f;
-
-  // Uniform Random Sphere Sampling Variable
-  static constexpr float uniform_sampling_on_sphere = 0.5f * Tools::PI_INV;
+  BsdfSample sample(const glm::vec3 &incoming, const glm::vec3 &normal,
+                    bool frontFace, const glm::vec2 &uv, Sampler &rng) const;
 };
 } // namespace SoftRasterizer
-
-#endif //_MATERIAL_HPP_
