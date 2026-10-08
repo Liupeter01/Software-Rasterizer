@@ -1,208 +1,82 @@
 #pragma once
-#ifndef _TOOLS_HPP_
-#define _TOOLS_HPP_
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <glm/glm.hpp>
-#include <hpc/Simd.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <stdexcept>
 
 namespace SoftRasterizer {
-#if defined(__x86_64__) || defined(_WIN64)
-struct PointSIMD {
-  __m256 x, y, z;
-};
+inline constexpr float Pi = 3.14159265358979323846f;
 
-struct NormalSIMD {
-  __m256 x, y, z;
-  NormalSIMD() = default;
-  NormalSIMD(const __m256 &_x, const __m256 &_y, const __m256 &_z);
+inline bool finite(const glm::vec3 &v) {
+  return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+}
 
-  // Normalizing all the vector components
-  NormalSIMD normalized();
+inline glm::vec3 unit(const glm::vec3 &v,
+                      const glm::vec3 &fallback = {0, 1, 0}) {
+  const double l2 = glm::dot(glm::dvec3(v), glm::dvec3(v));
+  return finite(v) && l2 > 1e-20f ? glm::vec3(glm::dvec3(v) / std::sqrt(l2))
+                                  : fallback;
+}
 
-  __m256 zero = _mm256_set1_ps(0.0f);
-};
+inline float maxComponent(const glm::vec3 &v) {
+  return std::max({v.x, v.y, v.z});
+}
 
-struct TexCoordSIMD {
-  __m256 u, v;
-};
-
-struct ColorSIMD {
-  ColorSIMD();
-  ColorSIMD(const __m256 &_r, const __m256 &_g, const __m256 &_b);
-  __m256 r, g, b;
-  const __m256 zero = _mm256_set1_ps(0.f);
-  const __m256 one = _mm256_set1_ps(1.f);
-};
-
-#elif defined(__arm__) || defined(__aarch64__)
-#include <arm/neon.h>
-struct PointSIMD {
-  simde__m256 x, y, z;
-};
-
-struct NormalSIMD {
-  simde__m256 x, y, z;
-  NormalSIMD() = default;
-  NormalSIMD(const simde__m256 &_x, const simde__m256 &_y,
-             const simde__m256 &_z);
-
-  // Normalizing all the vector components
-  NormalSIMD normalized();
-
-  simde__m256 zero = simde_mm256_set1_ps(0.0f);
-};
-
-struct TexCoordSIMD {
-  simde__m256 u, v;
-};
-
-struct ColorSIMD {
-  ColorSIMD();
-  ColorSIMD(const simde__m256 &_r, const simde__m256 &_g,
-            const simde__m256 &_b);
-  simde__m256 r, g, b;
-  const simde__m256 zero = simde_mm256_set1_ps(0.f);
-  const simde__m256 one = simde_mm256_set1_ps(01.f);
-};
-
-#else
-#endif
-
-struct Triangle;
-
-struct Tools {
-  static constexpr float PI = 3.14159265358979323846f;
-  static constexpr float PI_INV = 1.0f / PI;
-  static constexpr float epsilon = 1e-5f;
-
-  // Base case: min with two arguments
-  template <typename T> static T min(T a, T b) { return (a < b) ? a : b; }
-
-  // Recursive variadic template
-  template <typename T, typename... Args> static T min(T first, Args... args) {
-    return std::min(first, min(args...)); // Recursively compare
+// Transform a local direction to world space; n must be a unit normal.
+inline glm::vec3 localToWorld(const glm::vec3 &v, const glm::vec3 &n) {
+  constexpr float parallelEpsilon = 1e-3f;
+  glm::vec3 reference(0, 1, 0);
+  if (std::abs(n.y) > 1.f - parallelEpsilon) {
+    reference = glm::vec3(0, 0, 1);
   }
+  const glm::vec3 t = unit(glm::cross(reference, n));
+  const glm::vec3 b = glm::cross(n, t);
+  const glm::mat3 tbn(t, b, n); // GLM stores these axes as columns.
+  return tbn * v;
+}
 
-  // Base case: max with two arguments
-  template <typename T> static T max(T a, T b) { return (a > b) ? a : b; }
+inline glm::vec3 offsetOrigin(const glm::vec3 &p, const glm::vec3 &n,
+                              const glm::vec3 &dir) {
+  const float amount = 2e-5f * std::max(1.f, maxComponent(glm::abs(p)));
+  return p + n * (glm::dot(dir, n) >= 0 ? amount : -amount);
+}
 
-  // Recursive variadic template
-  template <typename T, typename... Args> static T max(T first, Args... args) {
-    return std::max(first, max(args...)); // Recursively compare
+inline float srgbToLinear(float x) {
+  return x <= .04045f ? x / 12.92f : std::pow((x + .055f) / 1.055f, 2.4f);
+}
+
+inline float linearToSrgb(float x) {
+  x = std::max(0.f, x);
+  return x <= .0031308f ? 12.92f * x : 1.055f * std::pow(x, 1.f / 2.4f) - .055f;
+}
+
+inline glm::mat4 composeTransform(const glm::vec3 &axis, float degrees,
+                                  const glm::vec3 &translation,
+                                  const glm::vec3 &scale) {
+  if (!finite(axis) || !finite(translation) || !finite(scale) ||
+      !std::isfinite(degrees) || glm::dot(axis, axis) < 1e-12f ||
+      glm::any(glm::lessThanEqual(glm::abs(scale), glm::vec3(1e-8f)))) {
+    throw std::invalid_argument("invalid model transform");
   }
+  return glm::translate(glm::mat4(1), translation) *
+         glm::rotate(glm::mat4(1), glm::radians(degrees), unit(axis)) *
+         glm::scale(glm::mat4(1), scale);
+}
 
-  static glm::vec3 to_vec3(const glm::vec4 &vec);
-
-  /**
-   * @brief Converts normalized color values (range [0, 1]) to RGB values (range
-   * [0, 255]).
-   *
-   * This function takes three float values representing normalized color
-   * components (red, green, blue), clamps them to ensure they are within the
-   * valid range of [0, 1], and scales them to the RGB range of [0, 255]. It
-   * returns the resulting RGB values as an Eigen::Vector3i.
-   *
-   * @param red The normalized red component (range [0, 1]).
-   * @param green The normalized green component (range [0, 1]).
-   * @param blue The normalized blue component (range [0, 1]).
-   *
-   * @return Eigen::Vector3i A vector containing the RGB values in the range [0,
-   * 255].
-   */
-  static glm::uvec3 normalizedToRGB(float red, float green, float blue);
-  static glm::uvec3 normalizedToRGB(const glm::vec3 &color);
-
-  static glm::vec3 interpolateNormal(float alpha, float beta, float gamma,
-                                     const glm::vec3 &normal1,
-                                     const glm::vec3 &normal2,
-                                     const glm::vec3 &normal3);
-
-#if defined(__x86_64__) || defined(_WIN64)
-  static NormalSIMD interpolateNormal(const __m256 &alpha, const __m256 &beta,
-                                      const __m256 &gamma,
-                                      const glm::vec3 &normal1,
-                                      const glm::vec3 &normal2,
-                                      const glm::vec3 &normal3);
-
-  static TexCoordSIMD
-  interpolateTexCoord(const __m256 &alpha, const __m256 &beta,
-                      const __m256 &gamma, const glm::vec2 &textCoord1,
-                      const glm::vec2 &textCoord2, const glm::vec2 &textCoord3);
-
-#elif defined(__arm__) || defined(__aarch64__)
-  static NormalSIMD
-  interpolateNormal(const simde__m256 &alpha, const simde__m256 &beta,
-                    const simde__m256 &gamma, const glm::vec3 &normal1,
-                    const glm::vec3 &normal2, const glm::vec3 &normal3);
-
-  static TexCoordSIMD
-  interpolateTexCoord(const simde__m256 &alpha, const simde__m256 &beta,
-                      const simde__m256 &gamma, const glm::vec2 &textCoord1,
-                      const glm::vec2 &textCoord2, const glm::vec2 &textCoord3);
-
-#else
-#endif
-
-  static glm::vec2 interpolateTexCoord(float alpha, float beta, float gamma,
-                                       const glm::vec2 &textCoord1,
-                                       const glm::vec2 &textCoord2,
-                                       const glm::vec2 &textCoord3);
-
-  static glm::vec3 calculateNormalWithWeight(const glm::vec3 &pa,
-                                             const glm::vec3 &pb,
-                                             const glm::vec3 &pc);
-
-  static glm::vec3 reflect(const glm::vec3& I, const glm::vec3& N);
-
-  static glm::vec3 refract(const glm::vec3& I, const glm::vec3& N, const float& ior);
-
-  static float fresnel(const glm::vec3 &rayDirection, const glm::vec3 &normal,
-                       const float &refractiveIndex);
-
-  static const float random_generator();
-
-  static void epsilonEqual(glm::vec3 &transformedNormal);
-
-  /*
-   * Mathematical Transformation Principle
-   * localRay = (x, y, z) => worldRay = xT+yB+zN
-   */
-  static glm::vec3 toWorld(const glm::vec3 &local, const glm::vec3 &N);
-
-  static bool isfinite(const glm::vec3 &v);
-
-  template <size_t Begin, size_t End, typename F> static void static_for(F f) {
-    if constexpr (Begin < End) {
-      std::integral_constant<size_t, Begin> compile_rt_int;
-      f(compile_rt_int);
-      static_for<Begin + 1, End, F>(f);
-    }
+inline float dielectricFresnel(float cosIncident, float etaI, float etaT) {
+  cosIncident = std::clamp(std::abs(cosIncident), 0.f, 1.f);
+  const float sinT2 =
+      (etaI * etaI / (etaT * etaT)) * (1 - cosIncident * cosIncident);
+  if (sinT2 >= 1) {
+    return 1;
   }
-
-  template <typename SimdType, typename ElementType = float>
-  constexpr static std::size_t num_elements_in_simd() {
-    if constexpr (std::is_same_v<SimdType, __m128>) {
-      return sizeof(__m128) / sizeof(ElementType);
-    }
-#if defined(__x86_64__) || defined(_WIN64)
-    else if constexpr (std::is_same_v<SimdType, __m256>) {
-      return sizeof(__m256) / sizeof(ElementType);
-    }
-#elif defined(__arm__) || defined(__aarch64__)
-    else if constexpr (std::is_same_v<SimdType, simde__m256>) {
-      return sizeof(simde__m256) / sizeof(ElementType);
-    }
-#else
-#endif
-    else {
-
-      static_assert(
-          "Unsupported SIMD type. Only __m128 and __m256 are supported.");
-      return 0; // Unreachable due to static_assert, but required for
-                // compilation.
-    }
-  }
-};
+  const float cosT = std::sqrt(1 - sinT2);
+  const float rs =
+      (etaI * cosIncident - etaT * cosT) / (etaI * cosIncident + etaT * cosT);
+  const float rp =
+      (etaT * cosIncident - etaI * cosT) / (etaT * cosIncident + etaI * cosT);
+  return .5f * (rs * rs + rp * rp);
+}
 } // namespace SoftRasterizer
-
-#endif //_TOOLS_HPP_
