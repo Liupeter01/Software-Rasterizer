@@ -1,237 +1,187 @@
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <Tools.hpp>
-#include <bvh/Bounds3.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <filesystem>
 #include <iostream>
+#include <limits>
 #include <loader/ObjLoader.hpp>
-#include <object/Material.hpp>
-#include <spdlog/spdlog.h>
+#include <map>
 #include <tiny_obj_loader.h>
-#include <unordered_map>
+#include <tuple>
 
-SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
-                                     const std::string &meshName,
-                                     const glm::mat4x4 &model)
-    : m_path(path), m_meshName(meshName), m_model(model) {}
+namespace {
+using SoftRasterizer::Material;
+using SoftRasterizer::MaterialType;
+using SoftRasterizer::TextureLoader;
 
-SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
-                                     const std::string &meshName,
-                                     const glm::vec3 &axis, const float angle,
-                                     const glm::vec3 &translation,
-                                     const glm::vec3 &scale)
-    : ObjLoader(path, meshName) {
-  this->updateModelMatrix(axis, angle, translation, scale);
-}
-
-SoftRasterizer::ObjLoader::~ObjLoader() {}
-
-void SoftRasterizer::ObjLoader::setObjFilePath(const std::string &path) {
-  m_path = path;
-}
-
-void SoftRasterizer::ObjLoader::updateModelMatrix(const glm::vec3 &axis,
-                                                  const float angle,
-                                                  const glm::vec3 &translation,
-                                                  const glm::vec3 &scale) {
-  auto T = glm::translate(glm::mat4(1.0f), translation);
-  auto R = glm::rotate(glm::mat4(1.0f), glm::radians(angle), axis);
-  auto S = glm::scale(glm::mat4(1.0f), scale);
-  m_model = T * R * S;
-}
-
-static SoftRasterizer::Material
-processMatrial(const std::vector<tinyobj::material_t> &_material) {
-
-  SoftRasterizer::Material m{};
-
-  for (std::size_t i = 0; i < _material.size(); ++i) {
-    tinyobj::material_t material = _material[i];
-
-    m.name = material.name;
-
-    // Ambient Texture Map
-    m.Ka = glm::vec3(material.ambient[0], material.ambient[1],
-                     material.ambient[2]);
-
-    //  Diffuse Texture Map
-    m.Kd = glm::vec3(material.diffuse[0], material.diffuse[1],
-                     material.diffuse[2]);
-
-    // Specular Color
-    m.Ks = glm::vec3(material.specular[0], material.specular[1],
-                     material.specular[2]);
-
-    m.illum = material.illum;
-    m.d = material.dissolve;
-
-    m.map_bump = material.bump_texname;
-    m.map_d = material.alpha_texname;
-    m.map_Ka = material.ambient_texname;
-    m.map_Kd = material.diffuse_texname;
-    m.map_Ks = material.specular_texname;
-    m.map_Ns = material.specular_highlight_texname;
+/*Convert MTL materials and share each texture within this model.*/
+std::vector<std::shared_ptr<Material>>
+loadMaterials(const std::vector<tinyobj::material_t> &objMaterials,
+              const std::filesystem::path &modelDirectory) {
+  std::vector<std::shared_ptr<Material>> materials;
+  std::map<std::string, std::shared_ptr<TextureLoader>> textures;
+  for (const auto &objMaterial : objMaterials) {
+    auto material = std::make_shared<Material>();
+    material->Kd = {objMaterial.diffuse[0], objMaterial.diffuse[1],
+                    objMaterial.diffuse[2]};
+    material->Ks = {objMaterial.specular[0], objMaterial.specular[1],
+                    objMaterial.specular[2]};
+    material->emission = {objMaterial.emission[0], objMaterial.emission[1],
+                          objMaterial.emission[2]};
+    material->ior = objMaterial.ior;
+    material->specularExponent = objMaterial.shininess;
+    if (objMaterial.illum == 5) {
+      material->type = MaterialType::REFLECTION;
+    }
+    if (objMaterial.illum == 4 || objMaterial.illum == 6 ||
+        objMaterial.illum == 7 || objMaterial.illum == 9) {
+      material->type = MaterialType::REFLECTION_AND_REFRACTION;
+    }
+    if (!objMaterial.diffuse_texname.empty()) {
+      auto file = (modelDirectory / objMaterial.diffuse_texname)
+                      .lexically_normal()
+                      .string();
+      auto &texture = textures[file];
+      if (!texture) {
+        texture = std::make_shared<TextureLoader>(file);
+      }
+      material->texture = texture;
+    }
+    materials.push_back(std::move(material));
   }
-  return m;
+  return materials;
 }
+} // namespace
 
-/*start processing with obj file and handle missing normal*/
-static std::unique_ptr<SoftRasterizer::Mesh>
-processingVertexData(const std::string &objName,
-                     const tinyobj::attrib_t &attrib,
-                     const std::vector<tinyobj::shape_t> &shapes,
-                     const std::vector<tinyobj::material_t> &materials) {
+SoftRasterizer::ObjLoader::ObjLoader(const std::string &path,
+                                     const glm::mat4 &modelMatrix)
+    : m_path(path), m_model(modelMatrix) {}
 
-  bool noNormal = true;
-  std::string meshname;
-  std::vector<uint32_t> indices;
-
-  /*which is going to export to other function*/
-  std::vector<SoftRasterizer::Vertex> vertices;
+/*Load every OBJ shape, retaining per-face materials and per-corner
+ * attributes.*/
+std::shared_ptr<SoftRasterizer::Mesh> SoftRasterizer::ObjLoader::load() const {
+  const auto modelDirectory = std::filesystem::path(m_path).parent_path();
+  tinyobj::ObjReaderConfig config;
+  config.triangulate = true;
+  config.mtl_search_path = modelDirectory.string();
+  tinyobj::ObjReader reader;
+  if (!reader.ParseFromFile(m_path, config)) {
+    throw std::runtime_error("Cannot load OBJ " + m_path + ": " +
+                             reader.Error());
+  }
+  if (!reader.Warning().empty()) {
+    std::cerr << "OBJ warning: " << reader.Warning() << '\n';
+  }
+  const auto &attrib = reader.GetAttrib();
+  /*Load materials before assembling indexed geometry.*/
+  auto materials = loadMaterials(reader.GetMaterials(), modelDirectory);
+  auto fallback = std::make_shared<Material>();
+  std::vector<Vertex> vertices;
   std::vector<glm::uvec3> faces;
-
-  // handle Vertex deduplication
-  std::unordered_map<SoftRasterizer::Vertex, uint32_t,
-                     std::hash<SoftRasterizer::Vertex>>
-      uniqueVertices = {};
-
-  // BoundingBox
-  SoftRasterizer::Bounds3 box;
-
-  // Loop over shapes
-  for (std::size_t s = 0; s < shapes.size(); s++) {
-    meshname = shapes[s].name;
-
-    spdlog::info("\n - Read Original Data From Wavefront Format Obj - \n"
-                 "\t| Shape[{0}].name = {1}\n"
-                 "\t| Size of shape[{0}] vertices: {2}\n"
-                 "\t| Size of shape[{0}].mesh.indices: {3}\n"
-                 "\t| Size of shape[{0}].mesh.num_faces: {4}",
-                 s, meshname.empty() ? "unknown" : meshname,
-                 attrib.vertices.size() / 3, shapes[s].mesh.indices.size(),
-                 shapes[s].mesh.num_face_vertices.size());
-
-    faces.resize(shapes[s].mesh.num_face_vertices.size());
-
-    for (const auto &idx : shapes[s].mesh.indices) {
-      SoftRasterizer::Vertex vertex;
-
-      vertex.position =
-          glm::vec3(attrib.vertices[3 * size_t(idx.vertex_index) + 0],
-                    attrib.vertices[3 * size_t(idx.vertex_index) + 1],
-                    attrib.vertices[3 * size_t(idx.vertex_index) + 2]);
-
-      // Calculating BoundingBox
-      box.min = glm::vec3(std::min(box.min.x, vertex.position.x),
-                          std::min(box.min.y, vertex.position.y),
-                          std::min(box.min.z, vertex.position.z));
-
-      box.max = glm::vec3(std::max(box.max.x, vertex.position.x),
-                          std::max(box.max.y, vertex.position.y),
-                          std::max(box.max.z, vertex.position.z));
-
-      vertex.color = glm::vec3(attrib.colors[3 * size_t(idx.vertex_index) + 0],
-                               attrib.colors[3 * size_t(idx.vertex_index) + 1],
-                               attrib.colors[3 * size_t(idx.vertex_index) + 2]);
-
-      // Check if `normal_index` is zero or positive. negative = no normal data
-      if (idx.normal_index >= 0) {
-        /*normal exist*/
-        noNormal = false;
-
-        vertex.normal = glm::normalize(
-            glm::vec3(attrib.normals[3 * size_t(idx.normal_index) + 0],
-                      attrib.normals[3 * size_t(idx.normal_index) + 1],
-                      attrib.normals[3 * size_t(idx.normal_index) + 2]));
+  std::vector<std::shared_ptr<Material>> faceMaterials;
+  // Missing normals use flat faces (smoothing group 0) or area-weighted
+  // smoothing groups.
+  using VertexKey = std::tuple<int, int, int, int, std::size_t>;
+  std::map<VertexKey, std::uint32_t> uniqueVertices;
+  std::map<std::pair<int, int>, glm::vec3> smoothNormals;
+  std::vector<std::pair<int, int>> smoothKeys;
+  std::vector<bool> suppliedNormals;
+  std::size_t faceIndex = 0;
+  /*Assemble every shape, reusing vertices with matching corner attributes.*/
+  for (const auto &shape : reader.GetShapes()) {
+    std::size_t offset = 0;
+    for (std::size_t shapeFaceIndex = 0;
+         shapeFaceIndex < shape.mesh.num_face_vertices.size();
+         ++shapeFaceIndex, ++faceIndex) {
+      const auto cornerCount = shape.mesh.num_face_vertices[shapeFaceIndex];
+      if (cornerCount != 3 || offset + 3 > shape.mesh.indices.size()) {
+        throw std::runtime_error("OBJ triangulation failed");
       }
-
-      // Check if `texcoord_index` is zero or positive. negative = no texcoord
-      // data
-      if (idx.texcoord_index >= 0) {
-        vertex.texCoord = glm::vec2(
-            attrib.texcoords[2 * size_t(idx.texcoord_index) + 0],
-            1.0f - attrib.texcoords[2 * size_t(idx.texcoord_index) + 1]);
+      const int smoothingGroup =
+          shapeFaceIndex < shape.mesh.smoothing_group_ids.size()
+              ? int(shape.mesh.smoothing_group_ids[shapeFaceIndex])
+              : 0;
+      glm::uvec3 face;
+      for (int corner = 0; corner < 3; ++corner) {
+        auto objIndex = shape.mesh.indices[offset + corner];
+        if (objIndex.vertex_index < 0 ||
+            std::size_t(objIndex.vertex_index) * 3 + 2 >=
+                attrib.vertices.size()) {
+          throw std::runtime_error("invalid OBJ vertex index");
+        }
+        VertexKey key{
+            objIndex.vertex_index, objIndex.normal_index,
+            objIndex.texcoord_index, smoothingGroup,
+            (objIndex.normal_index < 0 && smoothingGroup == 0) ? faceIndex : 0};
+        auto vertexIter = uniqueVertices.find(key);
+        if (vertexIter == uniqueVertices.end()) {
+          if (vertices.size() >= std::numeric_limits<std::uint32_t>::max()) {
+            throw std::runtime_error("OBJ too large");
+          }
+          Vertex vertex;
+          auto positionOffset = std::size_t(objIndex.vertex_index) * 3;
+          vertex.position = {attrib.vertices[positionOffset],
+                             attrib.vertices[positionOffset + 1],
+                             attrib.vertices[positionOffset + 2]};
+          if (positionOffset + 2 < attrib.colors.size()) {
+            vertex.color = {attrib.colors[positionOffset],
+                            attrib.colors[positionOffset + 1],
+                            attrib.colors[positionOffset + 2]};
+          }
+          if (objIndex.normal_index >= 0) {
+            auto normalOffset = std::size_t(objIndex.normal_index) * 3;
+            if (normalOffset + 2 >= attrib.normals.size()) {
+              throw std::runtime_error("invalid OBJ normal index");
+            }
+            vertex.normal = unit({attrib.normals[normalOffset],
+                                  attrib.normals[normalOffset + 1],
+                                  attrib.normals[normalOffset + 2]});
+          }
+          if (objIndex.texcoord_index >= 0) {
+            auto texCoordOffset = std::size_t(objIndex.texcoord_index) * 2;
+            if (texCoordOffset + 1 >= attrib.texcoords.size()) {
+              throw std::runtime_error("invalid OBJ UV index");
+            }
+            vertex.texCoord = {attrib.texcoords[texCoordOffset],
+                               attrib.texcoords[texCoordOffset + 1]};
+          }
+          auto index = static_cast<std::uint32_t>(vertices.size());
+          vertexIter = uniqueVertices.emplace(key, index).first;
+          vertices.push_back(vertex);
+          smoothKeys.emplace_back(objIndex.vertex_index, smoothingGroup);
+          suppliedNormals.push_back(objIndex.normal_index >= 0);
+        }
+        face[corner] = vertexIter->second;
       }
-
-      if (uniqueVertices.count(vertex) == 0) {
-        uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-        vertices.push_back(vertex);
+      offset += 3;
+      auto normal =
+          glm::cross(vertices[face.y].position - vertices[face.x].position,
+                     vertices[face.z].position - vertices[face.x].position);
+      for (int corner = 0; corner < 3; ++corner) {
+        if (smoothingGroup > 0) {
+          smoothNormals.try_emplace(smoothKeys[face[corner]], glm::vec3(0))
+              .first->second += normal;
+        } else if (!suppliedNormals[face[corner]]) {
+          vertices[face[corner]].normal = unit(normal);
+        }
       }
-      indices.push_back(uniqueVertices[vertex]);
+      faces.push_back(face);
+      int materialIndex = shapeFaceIndex < shape.mesh.material_ids.size()
+                              ? shape.mesh.material_ids[shapeFaceIndex]
+                              : -1;
+      faceMaterials.push_back(materialIndex >= 0 && std::size_t(materialIndex) <
+                                                        materials.size()
+                                  ? materials[materialIndex]
+                                  : fallback);
     }
   }
-  spdlog::info("Default Vertex Normal {}!", noNormal ? "Not Exist" : "Exist");
-  spdlog::info("Start to Transform Indices to Vertices and Calculating Normal "
-               "When it's Not Exist");
-
-  for (std::size_t i = 0; i < indices.size() / 3; i++) {
-    uint32_t a_pos = indices[3 * i + 0];
-    uint32_t b_pos = indices[3 * i + 1];
-    uint32_t c_pos = indices[3 * i + 2];
-
-    auto &A = vertices[a_pos];
-    auto &B = vertices[b_pos];
-    auto &C = vertices[c_pos];
-
-    faces[i] = glm::uvec3(a_pos, b_pos, c_pos);
-
-    /*no normal found*/
-    if (noNormal) {
-      A.normal = SoftRasterizer::Tools::calculateNormalWithWeight(
-          A.position, B.position, C.position);
-      B.normal = SoftRasterizer::Tools::calculateNormalWithWeight(
-          B.position, C.position, A.position);
-      C.normal = SoftRasterizer::Tools::calculateNormalWithWeight(
-          C.position, A.position, B.position);
+  /*Fill missing smooth normals after all contributing faces are known.*/
+  for (std::size_t vertexIndex = 0; vertexIndex < vertices.size();
+       ++vertexIndex) {
+    if (!suppliedNormals[vertexIndex] && smoothKeys[vertexIndex].second != 0) {
+      vertices[vertexIndex].normal =
+          unit(smoothNormals[smoothKeys[vertexIndex]]);
     }
   }
-
-  auto material = processMatrial(materials);
-  auto mesh = std::make_unique<SoftRasterizer::Mesh>(
-      objName.empty() ? meshname : objName, material, std::move(vertices),
-      std::move(faces),
-      /*BoundingBox for BVH init*/ std::move(box));
-
-  return std::move(mesh);
-}
-
-std::optional<std::unique_ptr<SoftRasterizer::Mesh>>
-SoftRasterizer::ObjLoader::startLoadingFromFile(const std::string &objName) {
-
-  tinyobj::attrib_t attrib;
-  std::vector<tinyobj::shape_t> shapes;
-  std::vector<tinyobj::material_t> materials;
-  std::string warn;
-  std::string err;
-
-  bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
-                              m_path.c_str());
-
-  if (!warn.empty()) {
-    spdlog::warn("[TinyObjReader]: Warning {}", warn);
-  }
-
-  if (!err.empty()) {
-    spdlog::error("[TinyObjReader]: Error Occured! {}", err);
-    throw std::runtime_error("LoadObj Error");
-  }
-
-  if (!ret) {
-    return std::nullopt;
-  }
-
-  /*convert tiny obj loader format to customalized format*/
-  std::unique_ptr<SoftRasterizer::Mesh> mesh =
-      processingVertexData(objName, attrib, shapes, materials);
-
-  spdlog::info("\n - After Transform to Customerlize Format - \n"
-               "\t| Mesh Name {}\n"
-               "\t| Size of vertices: {}\n"
-               "\t| Size of Faces: {}",
-               mesh->meshname, mesh->vertices.size(), mesh->faces.size());
-
+  auto mesh = std::make_shared<Mesh>(std::move(vertices), std::move(faces),
+                                     std::move(faceMaterials));
+  mesh->setModelMatrix(m_model);
   return mesh;
-}
-
-const glm::mat4x4 &SoftRasterizer::ObjLoader::getModelMatrix() {
-  return m_model;
 }
