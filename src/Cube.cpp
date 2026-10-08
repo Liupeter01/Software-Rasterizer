@@ -1,55 +1,30 @@
 #include <object/Cube.hpp>
 
-SoftRasterizer::Cube::Cube() : Object(std::make_shared<Material>(), nullptr) {}
-
-SoftRasterizer::Cube::~Cube() {}
-
-SoftRasterizer::Bounds3 SoftRasterizer::Cube::getBounds() { return {}; }
-
-bool SoftRasterizer::Cube::intersect(const Ray &ray) { return true; }
-
-bool SoftRasterizer::Cube::intersect(const Ray &ray, float &tNear) {
-  return true;
+static std::vector<SoftRasterizer::Vertex> cubeVertices() {
+  std::vector<SoftRasterizer::Vertex> vertices;
+  for (auto position : std::array<glm::vec3, 8>{{{-1, -1, -1},
+                                                 {1, -1, -1},
+                                                 {1, 1, -1},
+                                                 {-1, 1, -1},
+                                                 {-1, -1, 1},
+                                                 {1, -1, 1},
+                                                 {1, 1, 1},
+                                                 {-1, 1, 1}}}) {
+    vertices.emplace_back(0.5f * position);
+  }
+  return vertices;
 }
 
-SoftRasterizer::Intersection SoftRasterizer::Cube::getIntersect(Ray &ray) {
-  return {};
-}
-
-SoftRasterizer::Object::Properties SoftRasterizer::Cube::getSurfaceProperties(
-    const std::size_t faceIndex, const glm::vec3 &Point,
-    const glm::vec3 &viewDir, const glm::vec2 &uv) {
-  return {};
-}
-
-glm::vec3 SoftRasterizer::Cube::getDiffuseColor(const glm::vec2 &uv) {
-  return glm::vec3(0.5f);
-}
-
-std::tuple<SoftRasterizer::Intersection, float> SoftRasterizer::Cube::sample() {
-
-  float pdf = {1.f};
-  SoftRasterizer::Intersection intersection;
-  intersection.intersected = true;
-  intersection.obj = this;
-  intersection.emit = m_material->getEmission();
-
-  return {intersection, 1.0f / pdf};
-}
-
-const float SoftRasterizer::Cube::getArea() { return {}; }
-
-void SoftRasterizer::Cube::updatePosition(const glm::mat4x4 &Model,
-                                          const glm::mat4x4 &View,
-                                          const glm::mat4x4 &Projection,
-                                          const glm::mat4x4 &Ndc) {}
-
-void SoftRasterizer::Cube::bindShader2Mesh(std::shared_ptr<Shader> shader) {
-  m_shader.reset();
-  m_shader = shader;
-}
-
-void SoftRasterizer::Cube::setMaterial(std::shared_ptr<Material> material) {
-  m_material.reset();
-  m_material = material;
-}
+SoftRasterizer::Cube::Cube()
+    : Mesh(cubeVertices(), {{0, 2, 1},
+                            {0, 3, 2},
+                            {4, 5, 6},
+                            {4, 6, 7},
+                            {0, 1, 5},
+                            {0, 5, 4},
+                            {3, 7, 6},
+                            {3, 6, 2},
+                            {0, 4, 7},
+                            {0, 7, 3},
+                            {1, 2, 6},
+                            {1, 6, 5}}) {}
