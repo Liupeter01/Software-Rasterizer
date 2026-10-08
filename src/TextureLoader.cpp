@@ -1,33 +1,52 @@
+#include <Tools.hpp>
 #include <loader/TextureLoader.hpp>
+#include <memory>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
-SoftRasterizer::TextureLoader::TextureLoader(const std::string &path)
-    : m_path(path), m_texture(cv::imread(path)), m_width(0), m_height(0) {
-  if (m_texture.empty()) {
-    throw std::runtime_error("Cannot open file: " + path);
+SoftRasterizer::TextureLoader::TextureLoader(const std::string &path) {
+  int channels = 0;
+  std::unique_ptr<unsigned char, decltype(&stbi_image_free)> bytes(
+      stbi_load(path.c_str(), &m_width, &m_height, &channels, 3),
+      &stbi_image_free);
+  if (!bytes) {
+    throw std::runtime_error("Cannot decode texture " + path + ": " +
+                             stbi_failure_reason());
   }
-
-  // cv::cvtColor(m_texture, m_texture, cv::COLOR_RGB2BGR);
-  m_width = m_texture.cols;
-  m_height = m_texture.rows;
+  m_pixels.resize(std::size_t(m_width) * m_height);
+  for (std::size_t i = 0; i < m_pixels.size(); ++i) {
+    for (int c = 0; c < 3; ++c) {
+      m_pixels[i][c] = srgbToLinear(bytes.get()[3 * i + c] / 255.f);
+    }
+  }
 }
 
-glm::vec3 SoftRasterizer::TextureLoader::getTextureColor(const glm::vec2 &uv) {
-  // Clamp UV coordinates to ensure they are within [0, 1] range
-  glm::vec2 clamped_uv =
-      glm::clamp(uv, glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f));
-
-  // Convert UV coordinates to pixel indices
-  auto x = static_cast<int>(clamped_uv.x * m_width);
-  auto y = static_cast<int>(clamped_uv.y * m_height);
-
-  // Ensure indices are within valid bounds (0 <= x < m_width, 0 <= y <
-  // m_height)
-  if (x < 0 || x >= m_width || y < 0 || y >= m_height) {
-    return {}; // Return default value (black or transparent)
+SoftRasterizer::TextureLoader::TextureLoader(
+    int width, int height, std::vector<glm::vec3> linearPixels)
+    : m_width(width), m_height(height), m_pixels(std::move(linearPixels)) {
+  if (width <= 0 || height <= 0 ||
+      m_pixels.size() != std::size_t(width) * height) {
+    throw std::invalid_argument("invalid texture size");
   }
-
-  auto color = m_texture.at<cv::Vec3b>(y, x);
-  return glm::vec3(color[0] / 255.0f, color[1] / 255.0f, color[2] / 255.0f);
+  for (const auto &pixelColor : m_pixels) {
+    if (!finite(pixelColor)) {
+      throw std::invalid_argument("invalid texture pixel");
+    }
+  }
 }
 
-SoftRasterizer::TextureLoader::~TextureLoader() {}
+glm::vec3
+SoftRasterizer::TextureLoader::getTextureColor(const glm::vec2 &uv) const {
+  if (!std::isfinite(uv.x) || !std::isfinite(uv.y)) {
+    return {};
+  }
+  const float x = std::clamp(uv.x, 0.f, 1.f) * (m_width - 1),
+              y = (1 - std::clamp(uv.y, 0.f, 1.f)) * (m_height - 1);
+  int x0 = int(x), y0 = int(y), x1 = std::min(x0 + 1, m_width - 1),
+      y1 = std::min(y0 + 1, m_height - 1);
+  auto top = glm::mix(m_pixels[std::size_t(y0) * m_width + x0],
+                      m_pixels[std::size_t(y0) * m_width + x1], x - x0);
+  auto bottom = glm::mix(m_pixels[std::size_t(y1) * m_width + x0],
+                         m_pixels[std::size_t(y1) * m_width + x1], x - x0);
+  return glm::mix(top, bottom, y - y0);
+}
