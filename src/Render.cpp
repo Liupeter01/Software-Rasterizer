@@ -1,186 +1,83 @@
-﻿#include "oneapi/tbb/blocked_range.h"
-#include "oneapi/tbb/parallel_for.h"
-#include <Tools.hpp>
 #include <base/Render.hpp>
-#include <opencv2/opencv.hpp>
-#include <spdlog/spdlog.h>
-#include <tbb/parallel_for.h>
-#include <type_traits>
-
-SoftRasterizer::RenderingPipeline::RenderingPipeline()
-    : RenderingPipeline(800, 600) {}
-
-SoftRasterizer::RenderingPipeline::RenderingPipeline(const std::size_t width,
-                                                     const std::size_t height)
-    : m_width(width), m_height(height), m_channels(numbers) /*set to three*/
-      ,
-      m_frameBuffer(m_height, m_width, CV_32FC3) {
-
-  /*set channel ammount to three!*/
-  m_channels.resize(numbers);
-
-  /*resize std::vector of z-Buffer*/
-  m_zBuffer.resize(width * height);
-
-  /*init framebuffer*/
-  clear(SoftRasterizer::Buffers::Color | SoftRasterizer::Buffers::Depth);
-}
-
-SoftRasterizer::RenderingPipeline::~RenderingPipeline() {}
-
-void SoftRasterizer::RenderingPipeline::clearFrameBuffer() {
-  // #pragma omp parallel for
-  for (long long i = 0; i < numbers; ++i) {
-    m_channels[i] = cv::Mat::zeros(m_height, m_width, CV_32FC1);
+#include <fstream>
+#ifdef SOFT_RASTERIZER_OPENCV
+#include <opencv2/highgui.hpp>
+#endif
+SoftRasterizer::RenderingPipeline::RenderingPipeline(std::size_t width,
+                                                     std::size_t height)
+    : m_width(width), m_height(height) {
+  // Fixed-point coverage uses eight subpixel bits; bound arithmetic and
+  // allocations.
+  if (!width || !height || width > 16384 || height > 16384) {
+    throw std::invalid_argument("resolution must be in [1,16384]");
   }
-
-  m_frameBuffer = cv::Mat::zeros(m_height, m_width, CV_32FC3);
+  m_color.resize(width * height);
+  m_depth.resize(width * height);
+  clear();
 }
 
-void SoftRasterizer::RenderingPipeline::clearZDepth() {
-  std::for_each(m_zBuffer.begin(), m_zBuffer.end(), [](float &depth) {
-    depth = std::numeric_limits<float>::infinity();
-  });
-}
-
-void SoftRasterizer::RenderingPipeline::clear(SoftRasterizer::Buffers flags) {
-  if ((flags & SoftRasterizer::Buffers::Color) ==
-      SoftRasterizer::Buffers::Color) {
-    clearFrameBuffer();
+bool SoftRasterizer::RenderingPipeline::addScene(std::shared_ptr<Scene> scene) {
+  if (!scene ||
+      std::find(m_scenes.begin(), m_scenes.end(), scene) != m_scenes.end()) {
+    return false;
   }
-  if ((flags & SoftRasterizer::Buffers::Depth) ==
-      SoftRasterizer::Buffers::Depth) {
-    clearZDepth();
+  m_scenes.push_back(std::move(scene));
+  return true;
+}
+
+void SoftRasterizer::RenderingPipeline::clear(Buffers flags) {
+  if (static_cast<int>(flags) & static_cast<int>(Buffers::Color)) {
+    std::fill(m_color.begin(), m_color.end(), glm::vec3(0));
+  }
+  if (static_cast<int>(flags) & static_cast<int>(Buffers::Depth)) {
+    std::fill(m_depth.begin(), m_depth.end(),
+              std::numeric_limits<float>::infinity());
+  }
+}
+
+void SoftRasterizer::RenderingPipeline::save(const std::string &path,
+                                             float exposure) const {
+  if (!std::isfinite(exposure) || exposure <= 0) {
+    throw std::invalid_argument("invalid exposure");
+  }
+  std::ofstream outputFile(path, std::ios::binary);
+  if (!outputFile) {
+    throw std::runtime_error("Cannot write " + path);
+  }
+  outputFile << "P6\n" << m_width << ' ' << m_height << "\n255\n";
+  for (const auto &pixelColor : m_color) {
+    for (int c = 0; c < 3; ++c) {
+      float channelValue =
+          std::isfinite(pixelColor[c])
+              ? std::clamp(linearToSrgb(pixelColor[c] * exposure), 0.f, 1.f)
+              : 0;
+      outputFile.put(static_cast<char>(
+          static_cast<unsigned char>(std::lround(channelValue * 255))));
+    }
+  }
+  if (!outputFile) {
+    throw std::runtime_error("Failed to write " + path);
   }
 }
 
 void SoftRasterizer::RenderingPipeline::display(Primitive type) {
-  /*draw pictures according to the specific type*/
   draw(type);
-
-  cv::merge(m_channels, m_frameBuffer);
-  m_frameBuffer.convertTo(m_frameBuffer, CV_8UC3, 1.0f);
-  cv::imshow("SoftRasterizer", m_frameBuffer);
-}
-
-bool SoftRasterizer::RenderingPipeline::addScene(
-    std::shared_ptr<Scene> scene, std::optional<std::string> name) {
-  try {
-    if (scene == nullptr) {
-      return false;
-    }
-
-    /*Pre Generate Object* concurrent vector*/
-    scene->preGenerateBVH();
-
-    /*Start Building BVH*/
-    scene->buildBVHAccel();
-
-    if (name.has_value()) {
-      scene->m_sceneName = name.value();
-    }
-
-    /*Set Render's width and height info to scene*/
-    scene->setNDCMatrix(m_width, m_height);
-
-    if (m_scenes.find(scene->m_sceneName) != m_scenes.end()) {
-      spdlog::error("Add Scene Failed! Scene Already Exist");
-      return false;
-    }
-
-    m_scenes[scene->m_sceneName] = scene;
-  } catch (const std::exception &e) {
-    spdlog::error("Add Scene Failed! Reason: {}", e.what());
-    return false;
-  }
-  return true;
-}
-
-inline void
-SoftRasterizer::RenderingPipeline::writeZBuffer(const long long start_pos,
-                                                const float depth) {
-  m_zBuffer[start_pos] = depth;
-}
-
-inline const float
-SoftRasterizer::RenderingPipeline::readZBuffer(const long long x,
-                                               const long long y) {
-  return m_zBuffer[x + y * m_width];
-}
-
-/* Bresenham algorithm*/
-void SoftRasterizer::RenderingPipeline::drawLine(const glm::vec3 &p0,
-                                                 const glm::vec3 &p1,
-                                                 const glm::uvec3 &color) {
-
-  auto x1 = p0.x;
-  auto y1 = p0.y;
-  auto x2 = p1.x;
-  auto y2 = p1.y;
-
-  int x, y, dx, dy, dx1, dy1, px, py, xe, ye, i;
-
-  dx = x2 - x1;
-  dy = y2 - y1;
-  dx1 = fabs(dx);
-  dy1 = fabs(dy);
-  px = 2 * dy1 - dx1;
-  py = 2 * dx1 - dy1;
-
-  if (dy1 <= dx1) {
-    if (dx >= 0) {
-      x = x1;
-      y = y1;
-      xe = x2;
-    } else {
-      x = x2;
-      y = y2;
-      xe = x1;
-    }
-
-    writePixel(x, y, color);
-
-    for (i = 0; x < xe; i++) {
-      x = x + 1;
-      if (px < 0) {
-        px = px + 2 * dy1;
-      } else {
-        if ((dx < 0 && dy < 0) || (dx > 0 && dy > 0)) {
-          y = y + 1;
-        } else {
-          y = y - 1;
-        }
-        px = px + 2 * (dy1 - dx1);
+#ifdef SOFT_RASTERIZER_OPENCV
+  cv::Mat image(int(m_height), int(m_width), CV_8UC3);
+  for (std::size_t y = 0; y < m_height; ++y) {
+    for (std::size_t x = 0; x < m_width; ++x) {
+      for (int c = 0; c < 3; ++c) {
+        image.at<cv::Vec3b>(int(y), int(x))[2 - c] =
+            static_cast<unsigned char>(std::lround(
+                255 * std::clamp(linearToSrgb(m_color[y * m_width + x][c]), 0.f,
+                                 1.f)));
       }
-      writePixel(x, y, color);
-    }
-  } else {
-    if (dy >= 0) {
-      x = x1;
-      y = y1;
-      ye = y2;
-    } else {
-      x = x2;
-      y = y2;
-      ye = y1;
-    }
-
-    writePixel(x, y, color);
-
-    for (i = 0; y < ye; i++) {
-      y = y + 1;
-      if (py <= 0) {
-        py = py + 2 * dx1;
-      } else {
-        if ((dx < 0 && dy < 0) || (dx > 0 && dy > 0)) {
-          x = x + 1;
-        } else {
-          x = x - 1;
-        }
-        py = py + 2 * (dx1 - dy1);
-      }
-
-      writePixel(x, y, color);
     }
   }
+  cv::imshow("Software Rasterizer", image);
+  cv::waitKey(0);
+#else
+  throw std::runtime_error("Display needs SOFT_RASTERIZER_ENABLE_GUI; use "
+                           "save() for headless rendering");
+#endif
 }
