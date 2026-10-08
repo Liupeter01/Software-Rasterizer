@@ -1,32 +1,25 @@
 #pragma once
-#ifndef _INTERSECTION_HPP_
-#define _INTERSECTION_HPP_
-#include <glm/glm.hpp>
+#include <memory>
+#include <ray/Ray.hpp>
 
 namespace SoftRasterizer {
-
-/*declaration*/
-struct Object;
+class Object;
 struct Material;
 
 struct Intersection {
-  Intersection()
-      : intersected(false), coords(glm::vec3(0.f)), normal(glm::vec3(0.f)),
-        uv(glm::vec2(0.f)), index(0),
-        intersect_time(std::numeric_limits<double>::max()), color(1.0f),
-        emit(glm::vec3(0.f)), obj(nullptr), material(nullptr) {}
-
-  std::size_t index;
-  bool intersected;
-  double intersect_time;
-  glm::vec3 coords;
-  glm::vec3 normal;
-  glm::vec3 color;
-  glm::vec2 uv;
-  glm::vec3 emit;
-  Object *obj;
+  bool intersected = false, frontFace = true;
+  float intersect_time = std::numeric_limits<float>::infinity();
+  glm::vec3 coords{0}, normal{0, 1, 0}, geometricNormal{0, 1, 0};
+  glm::vec2 uv{0};
+  glm::vec3 color{1};
   std::shared_ptr<Material> material;
+  const Object *obj = nullptr;
+};
+
+struct SurfaceSample {
+  glm::vec3 position{0}, normal{0, 1, 0};
+  glm::vec2 uv{0};
+  std::shared_ptr<Material> material;
+  float pdfArea = 0;
 };
 } // namespace SoftRasterizer
-
-#endif //_INTERSECTION_HPP_
