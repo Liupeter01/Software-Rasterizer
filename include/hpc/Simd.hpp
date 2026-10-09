@@ -1,21 +1,8 @@
 #pragma once
-#ifndef _SIMD_HPP_
-#define _SIMD_HPP_
-#include <cmath>
-#include <iostream>
+// SIMDe selects native AVX when enabled and NEON/portable implementations
+// otherwise.
+#include <simde/x86/avx2.h>
 
-#if defined(__x86_64__) || defined(_WIN64)
-#include <immintrin.h>
-#include <xmmintrin.h >
-
-#elif defined(__arm__) || defined(__aarch64__)
-#include <arm/neon.h>
-#include <sse2neon.h>
-#include <x86/avx.h>
-#include <x86/fma.h>
-#include <x86/svml.h>
-
-#else
-#endif
-
-#endif // _SIMD_HPP_
+namespace SoftRasterizer {
+using Float8 = simde__m256;
+}

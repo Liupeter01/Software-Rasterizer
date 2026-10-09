@@ -1,236 +1,101 @@
 #pragma once
-#ifndef _SCENE_HPP_
-#define _SCENE_HPP_
-#include <atomic>
 #include <bvh/BVHAcceleration.hpp>
-#include <future>
-#include <hpc/Simd.hpp>
+#include <light/Light.hpp>
 #include <loader/ObjLoader.hpp>
+#include <map>
 #include <optional>
-#include <random> //generate random number
-#include <shader/Shader.hpp>
-#include <tbb/concurrent_vector.h>
-#include <tuple>
-#include <unordered_map>
+#include <scene/Camera.hpp>
 
 namespace SoftRasterizer {
-class Triangle;
-class RenderingPipeline;
-class TraditionalRasterizer;
-class RayTracing;
-class PathTracing;
-
 class Scene {
-  friend class TraditionalRasterizer;
-  friend class RayTracing;
-  friend class RenderingPipeline;
-  friend class PathTracing;
-
 public:
-  using ObjTuple = std::tuple<std::shared_ptr<Shader>,
-                              tbb::concurrent_vector<SoftRasterizer::Triangle>>;
-  using ObjFuture = std::future<ObjTuple>;
+  explicit Scene(std::string sceneName = "Scene",
+                 const glm::vec3 &eye = {0, 0, 3},
+                 const glm::vec3 &center = {0, 0, 0},
+                 const glm::vec3 &up = {0, 1, 0},
+                 const glm::vec3 &backgroundColor = {0, 0, 0});
 
-public:
-  Scene(const std::string &sceneName, const glm::vec3 &eye,
-        const glm::vec3 &center, const glm::vec3 &up,
-        glm::vec3 m_backgroundColor = glm::vec3(0.f),
-        const std::size_t maxdepth = 5, const float rr = 0.8f);
-
-  virtual ~Scene();
-
-public:
-  const glm::vec3 &loadEyeVec() const { return m_eye; }
-
-  /*set MVP*/
-  bool setModelMatrix(const std::string &meshName, const glm::vec3 &axis,
-                      const float angle, const glm::vec3 &translation,
-                      const glm::vec3 &scale);
-
+  /*Set camera view and projection; geometry remains in world space.*/
   void setViewMatrix(const glm::vec3 &eye, const glm::vec3 &center,
                      const glm::vec3 &up);
+  void setProjectionMatrix(const float fovy, const float zNear,
+                           const float zFar);
 
-  void setProjectionMatrix(float fovy, float zNear, float zFar);
+  const Camera &getCamera() const {
+    return m_camera;
+  }
 
-  /*load ObjLoader object to load wavefront obj file*/
-  bool addGraphicObj(const std::string &path, const std::string &meshName);
-  bool addGraphicObj(const std::string &path, const std::string &meshName,
-                     const glm::vec3 &axis, const float angle,
-                     const glm::vec3 &translation, const glm::vec3 &scale);
+  glm::vec3 backgroundColor() const {
+    return m_backgroundColor;
+  }
 
-  bool addGraphicObj(std::unique_ptr<Object> object,
-                     const std::string &objectName);
+  template <class T>
+  bool addGraphicObj(std::unique_ptr<T> object, const std::string &name) {
+    return addGraphicObj(std::shared_ptr<Object>(std::move(object)), name);
+  }
 
-  bool startLoadingMesh(const std::string &meshName);
-
+  bool addGraphicObj(std::shared_ptr<Object> object, const std::string &name);
+  bool addGraphicObj(const std::string &path, const std::string &name,
+                     const glm::vec3 &axis = {0, 1, 0}, float degrees = 0,
+                     const glm::vec3 &translation = {0, 0, 0},
+                     const glm::vec3 &scale = {1, 1, 1});
+  /*Load once and register the mesh; prepare() clears the loaders.*/
+  bool startLoadingMesh(const std::string &name);
   std::optional<std::shared_ptr<Object>>
-  getMeshObj(const std::string &meshName);
-
-  bool addShader(const std::string &shaderName, const std::string &texturePath,
+  getMeshObj(const std::string &name) const;
+  bool setModelMatrix(const std::string &name, const glm::vec3 &axis,
+                      float degrees, const glm::vec3 &translation,
+                      const glm::vec3 &scale);
+  bool addShader(const std::string &name, const std::string &texture,
                  SHADERS_TYPE type);
+  bool bindShader2Mesh(const std::string &object, const std::string &shader);
+  void addLight(const std::string &name, std::shared_ptr<light_struct> light);
+  /*Prepare geometry and lights before rendering. Do not mutate during draw().*/
+  void prepare();
 
-  bool addShader(const std::string &shaderName,
-                 std::shared_ptr<TextureLoader> text, SHADERS_TYPE type);
-
-  bool bindShader2Mesh(const std::string &meshName,
-                       const std::string &shaderName);
-
-  void addLight(std::string name, std::shared_ptr<light_struct> light);
-  void
-  addLights(std::vector<std::pair<std::string, std::shared_ptr<light_struct>>>
-                lights);
-
-  void cameraLight(bool status);
-  void cameraLight(const glm::vec3 &intensity);
-
-  /*Generating BVH Structure*/
   void buildBVHAccel();
 
-  /*Remove BVH Structure*/
-  void clearBVHAccel();
+  Intersection intersect(const Ray &ray) const {
+    return m_bvh.getIntersection(ray);
+  }
 
-  // Path Tracing
-  glm::vec3 pathTracing(Ray &ray);
+  bool occluded(const Ray &ray) const {
+    return m_bvh.occluded(ray);
+  }
 
-protected:
-  void updatePosition();
+  SurfaceSample sampleLight(Sampler &rng) const;
 
-  /*For Rasterizer, Not Ray Tracing*/
-  tbb::concurrent_vector<SoftRasterizer::Scene::ObjTuple> loadTriangleStream();
-  std::vector<SoftRasterizer::light_struct> loadLights();
+  const std::vector<RasterTriangle> &triangles() const {
+    return m_rasterTriangles;
+  }
 
-private:
-  /*NDC Matrix Function is prepare for renderpipeline class!*/
-  void setNDCMatrix(const std::size_t width, const std::size_t height);
-
-  /* Generate Pointers to Triangles and load it to BVH Structure*/
-  void preGenerateBVH();
-
-  // emit ray from eye to pixel and trace the scene to find the nearest object
-  // intersected by the ray
-  Intersection traceScene(Ray &ray);
-
-  // Uniformly sample the light by area size(wrong)
-  [[nodiscard]] std::tuple<Intersection, float> sampleLight();
-
-  // sample the light by sphere angle and generate glm::vec3 direction
-  [[nodiscard]] std::tuple<glm::dvec3, double>
-  sampleLight(const glm::vec3 &shadingPoint);
-
-  // sample the light by sphere angle and centerlized on center
-  [[nodiscard]] std::tuple<glm::dvec3, double>
-  sampleLightOnCenter(const glm::vec3 &shadingPoint);
-
-  // Whitted Style Ray Tracing
-  glm::vec3 whittedRayTracing(Ray &ray, int depth, const std::size_t sample);
-
-  glm::vec3 pathTracingShading(const Intersection &shadeObjIntersection,
-                               const glm::vec3 &wo, int maxRecursionDepth = 5,
-                               int currentDepth = 0);
-
-  // Calculate Points Direct light
-  glm::vec3 pathTracingDirectLight(const Intersection &shadeObjIntersection,
-                                   const glm::vec3 &wo);
-
-  // Calculate Point From Indirect Light
-  glm::vec3 pathTracingIndirectLight(const Intersection &shadeObjIntersection,
-                                     const glm::vec3 &wo,
-                                     const std::size_t maxRecursionDepth =
-                                         std::thread::hardware_concurrency() /
-                                         2,
-                                     std::size_t currentDepth = 0);
+  const auto &pointLights() const {
+    return m_lights;
+  }
 
 private:
-  /*Russian Roulette*/
-  float p_rr;
+  void updateLightDistribution();
 
-  /*Scene Configuration*/
-  std::string m_sceneName;
-  const std::size_t m_maxDepth;
-  glm::vec3 m_backgroundColor;
-  Bounds3 m_boundingBox;
-
-  /*
-   * Instead of using numberic_limits, we increase it appropriately
-   * To avoid floating-point precision errors
-   * Small offset to prevent self-intersection artifacts
-   * Ensures that reflection and refraction rays start slightly away from the
-   * surface to avoid numerical precision issues when tracing subsequent rays.
-   */
-  const float m_epsilon = 1e-5f;
-
-  /*display resolution*/
-  std::size_t m_width, m_height;
-  float m_aspectRatio;
-
-  /*Camera Light Status*/
-  std::shared_ptr<light_struct> m_cameraLight;
-
-  /*Matrix View*/
-  glm::vec3 m_eye, m_center, m_up;
-  glm::mat4 m_view;
-
-  /*Matrix Projection*/
-  // near and far clipping planes
-  float m_fovy, m_near = 0.1f, m_far = 100.0f;
-
-  // controls the stretching/compression of the  & shifts the range
-  float scale, offset;
-
-#if defined(__x86_64__) || defined(_WIN64)
-  __m256 scale_simd;
-  __m256 offset_simd;
-
-  const __m256 zero = _mm256_set1_ps(0.0f);
-  const __m256 one = _mm256_set1_ps(1.0f);
-
-  /*decribe inf distance in z buffer*/
-  const __m256 inf = _mm256_set1_ps(std::numeric_limits<float>::infinity());
-
-#elif defined(__arm__) || defined(__aarch64__)
-  simde__m256 scale_simd;
-  simde__m256 offset_simd;
-
-  const simde__m256 zero = simde_mm256_set1_ps(0.0f);
-  const simde__m256 one = simde_mm256_set1_ps(1.0f);
-
-  /*decribe inf distance in z buffer*/
-  const simde__m256 inf =
-      simde_mm256_set1_ps(std::numeric_limits<float>::infinity());
-
-#else
-#endif
-
-  glm::mat4 m_projection;
-
-  /*Transform normalized coordinates into screen space coordinates*/
-  glm::mat4 m_ndcToScreenMatrix;
-
-  /*BVH Acceleration Structure*/
-  std::unique_ptr<BVHAcceleration> m_bvh;
-
-  /*We Prepare this for loading fragment_shader_payload parallelly!*/
-  std::vector<ObjFuture> m_future;
-
-  /*store all shaders in current scene*/
-  std::unordered_map<std::string, std::shared_ptr<Shader>> m_shaders;
-
-  // creating the scene (adding objects and lights)
-  std::unordered_map<std::string, std::shared_ptr<light_struct>> m_lights;
-
-  struct ObjInfo {
-    std::optional<std::unique_ptr<ObjLoader>> loader;
-    std::unique_ptr<Object> mesh;
+private:
+  /*Objects and resources loaded by name, as in the original scene interface.*/
+  struct ObjData {
+    std::shared_ptr<Object> mesh;
+    std::uint64_t preparedRevision = 0;
   };
 
-  /*All Loaded Objects, including Triangle, Sphere, Mesh, Cube*/
-  std::unordered_map<std::string, ObjInfo> m_loadedObjs;
-
-  /*Pointers of All Loaded Objects, Used for Creating BVH*/
-  tbb::concurrent_vector<std::shared_ptr<Object>> m_exportedObjs;
-
-  oneapi::tbb::affinity_partitioner ap;
+  std::map<std::string, ObjData> m_loadedObjs;
+  std::map<std::string, std::unique_ptr<ObjLoader>> m_objLoaders;
+  std::map<std::string, std::shared_ptr<Shader>> m_shaders;
+  std::map<std::string, std::shared_ptr<light_struct>> m_lights;
+  /*World-space acceleration and cached raster triangle stream.*/
+  BVHAcceleration m_bvh;
+  std::vector<std::shared_ptr<Object>> m_primitives, m_emissiveObjs;
+  std::vector<float> m_lightCdf;
+  std::vector<RasterTriangle> m_rasterTriangles;
+  /*Camera and scene settings.*/
+  bool m_geometryDirty = true;
+  float m_lightArea = 0;
+  Camera m_camera;
+  glm::vec3 m_backgroundColor{0};
 };
 } // namespace SoftRasterizer
-
-#endif //_SCENE_HPP_
