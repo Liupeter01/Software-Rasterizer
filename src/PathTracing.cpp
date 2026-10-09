@@ -1,10 +1,7 @@
-#include <algorithm> // Add this include for std::clamp
-#include <base/Render.hpp>
+#include <hpc/Parallel.hpp>
 #include <render/PathTracing.hpp>
-#include <spdlog/spdlog.h>
-#include <tbb/blocked_range2d.h>
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_reduce.h>
+
+namespace Parallel = SoftRasterizer::Parallel;
 
 SoftRasterizer::PathTracing::PathTracing(const std::size_t width,
                                          const std::size_t height,
@@ -13,84 +10,204 @@ SoftRasterizer::PathTracing::PathTracing(const std::size_t width,
   setSPP(spp);
 }
 
-// Sample Per Pixel
+// Samples Per Pixel
 void SoftRasterizer::PathTracing::setSPP(const std::size_t spp) {
-  sample = spp;
+  if (!spp) {
+    throw std::invalid_argument("SPP must be positive");
+  }
+  m_settings.samplesPerPixel = spp;
+}
+
+void SoftRasterizer::PathTracing::configure(
+    const PathTracingSettings &settings) {
+  if (!settings.samplesPerPixel || !settings.maxDepth ||
+      settings.maxDepth > 1024 ||
+      !std::isfinite(settings.survivalProbability) ||
+      settings.survivalProbability <= 0 || settings.survivalProbability > 1) {
+    throw std::invalid_argument("invalid path tracing settings");
+  }
+  m_settings = settings;
+}
+
+/*Calculate the direct contribution from area lights and point lights.*/
+void SoftRasterizer::PathTracing::pathTracingDirectLight(
+    const Scene &scene, const Intersection &shadeObjIntersection,
+    const glm::vec3 &throughput, Sampler &sampler, glm::vec3 &radiance) const {
+  const auto &material = *shadeObjIntersection.material;
+
+  const auto albedo =
+      material.albedo(shadeObjIntersection.uv) * shadeObjIntersection.color;
+  pathTracingAreaLight(scene, shadeObjIntersection, albedo, throughput, sampler,
+                       radiance);
+  pathTracingPointLights(scene, shadeObjIntersection, albedo, throughput,
+                         radiance);
+}
+
+/*Sample one area-light point, test visibility and apply its area PDF.*/
+void SoftRasterizer::PathTracing::pathTracingAreaLight(
+    const Scene &scene, const Intersection &shadeObjIntersection,
+    const glm::vec3 &albedo, const glm::vec3 &throughput, Sampler &sampler,
+    glm::vec3 &radiance) const {
+  auto lightSample = scene.sampleLight(sampler);
+  if (!(lightSample.pdfArea > 0)) {
+    return;
+  }
+  auto lightDirection = lightSample.position - shadeObjIntersection.coords;
+  float distanceSquared = glm::dot(lightDirection, lightDirection);
+  if (!(distanceSquared > 1e-12f)) {
+    return;
+  }
+  auto wi = lightDirection / std::sqrt(distanceSquared);
+  float objectCosine = std::max(0.f, glm::dot(shadeObjIntersection.normal, wi));
+  float lightCosine = std::max(0.f, glm::dot(lightSample.normal, -wi));
+  if (objectCosine <= 0 || lightCosine <= 0) {
+    return;
+  }
+  auto start = offsetOrigin(shadeObjIntersection.coords,
+                            shadeObjIntersection.geometricNormal, wi);
+  auto end = offsetOrigin(lightSample.position, lightSample.normal, -wi);
+  if (!isLightVisible(scene, start, end)) {
+    return;
+  }
+  radiance +=
+      throughput * albedo * (1 / Pi) * lightSample.material->emission *
+      (objectCosine * lightCosine / (distanceSquared * lightSample.pdfArea));
+}
+
+/*Visit point lights; no surface sampling or area PDF is needed.*/
+void SoftRasterizer::PathTracing::pathTracingPointLights(
+    const Scene &scene, const Intersection &shadeObjIntersection,
+    const glm::vec3 &albedo, const glm::vec3 &throughput,
+    glm::vec3 &radiance) const {
+  for (const auto &[name, pointLight] : scene.pointLights()) {
+    auto lightDirection = pointLight->position - shadeObjIntersection.coords;
+    float distanceSquared = glm::dot(lightDirection, lightDirection);
+    if (distanceSquared <= 1e-12f) {
+      continue;
+    }
+    auto wi = lightDirection / std::sqrt(distanceSquared);
+    float objectCosine =
+        std::max(0.f, glm::dot(shadeObjIntersection.normal, wi));
+    if (objectCosine <= 0) {
+      continue;
+    }
+    auto start = offsetOrigin(shadeObjIntersection.coords,
+                              shadeObjIntersection.geometricNormal, wi);
+    if (isLightVisible(scene, start, pointLight->position)) {
+      radiance += throughput * albedo * (1 / Pi) * pointLight->intensity *
+                  (objectCosine / distanceSquared);
+    }
+  }
+}
+
+bool SoftRasterizer::PathTracing::isLightVisible(const Scene &scene,
+                                                 const glm::vec3 &start,
+                                                 const glm::vec3 &end) {
+  auto shadow = end - start;
+  float shadowDistance = glm::length(shadow);
+  // normalize gives a unit direction; tMax still needs the segment length.
+  // Objects beyond the light must not count as occluders.
+  return shadowDistance > 0 &&
+         !scene.occluded(Ray(start, glm::normalize(shadow), 0, shadowDistance));
+}
+
+glm::vec3
+SoftRasterizer::PathTracing::pathTracingShading(const Scene &scene, Ray ray,
+                                                Sampler &sampler) const {
+  glm::vec3 radiance(0), throughput(1);
+  bool previousDelta = true;
+  /*Trace the path in world space; camera projection is only used for primary
+   * rays.*/
+  for (unsigned currentDepth = 0; currentDepth < m_settings.maxDepth;
+       ++currentDepth) {
+    auto shadeObjIntersection = scene.intersect(ray);
+    if (!shadeObjIntersection.intersected) {
+      radiance += throughput * scene.backgroundColor();
+      break;
+    }
+    /*Emission after a camera or delta event. Diffuse connections use NEE.*/
+    const auto &material = *shadeObjIntersection.material;
+    const bool deltaMaterial = material.isDelta();
+    if (previousDelta && shadeObjIntersection.frontFace) {
+      radiance += throughput * material.emission;
+    }
+    /*Calculate direct light.*/
+    if (!deltaMaterial) {
+      pathTracingDirectLight(scene, shadeObjIntersection, throughput, sampler,
+                             radiance);
+    }
+    if (currentDepth + 1 == m_settings.maxDepth) {
+      break;
+    }
+    // Delta interfaces use the geometric boundary normal to keep medium
+    // transitions consistent.
+    /*Sample the indirect ray and update its throughput.*/
+    auto boundaryNormal = shadeObjIntersection.frontFace
+                              ? shadeObjIntersection.geometricNormal
+                              : -shadeObjIntersection.geometricNormal;
+    auto samplingNormal =
+        deltaMaterial ? boundaryNormal : shadeObjIntersection.normal;
+    auto bsdf = material.sample(ray.direction, samplingNormal,
+                                shadeObjIntersection.frontFace,
+                                shadeObjIntersection.uv, sampler);
+    // Prevent interpolated shading normals from sending reflective paths
+    // through the surface.
+    float hemisphere = glm::dot(bsdf.direction, boundaryNormal);
+    if ((!bsdf.transmitted && hemisphere <= 0) ||
+        (bsdf.transmitted && hemisphere >= 0)) {
+      break;
+    }
+    throughput *= bsdf.weight * shadeObjIntersection.color;
+    if (!finite(throughput) || maxComponent(throughput) <= 0) {
+      break;
+    }
+    previousDelta = bsdf.delta;
+    /*Russian Roulette: compensate surviving paths by their probability.*/
+    if (currentDepth + 1 >= m_settings.rrDepth) {
+      if (sampler.next() >= m_settings.survivalProbability) {
+        break;
+      }
+      throughput /= m_settings.survivalProbability;
+    }
+    ray =
+        Ray(offsetOrigin(shadeObjIntersection.coords,
+                         shadeObjIntersection.geometricNormal, bsdf.direction),
+            bsdf.direction);
+  }
+  return radiance;
 }
 
 void SoftRasterizer::PathTracing::draw(Primitive type) {
-  if ((type != SoftRasterizer::Primitive::LINES) &&
-      (type != SoftRasterizer::Primitive::TRIANGLES)) {
-    spdlog::error("Primitive Type is not supported!");
-    throw std::runtime_error("Primitive Type is not supported!");
+  if (type != Primitive::TRIANGLES) {
+    throw std::invalid_argument("PT does not support wireframes");
   }
-
-  float aspect_ratio = m_width / static_cast<float>(m_height);
-
-  for (auto &[SceneName, SceneObj] : m_scenes) {
-    /*
-     * Update Triangle Position Because Of NDC_MVP Change
-     * We only need to update each triangle by using shared_ptr pointers
-     */
-    SceneObj->updatePosition();
-
-    const glm::vec3 eye = SceneObj->loadEyeVec();
-
-    float scale = std::tan(glm::radians(SceneObj->m_fovy * 0.5));
-
-    // Start Time
-    auto start_time = std::chrono::high_resolution_clock::now();
-
-    oneapi::tbb::parallel_for(
-        oneapi::tbb::blocked_range2d<std::size_t>(0, m_height, 16, 0, m_width,
-                                                  16), // 16x16 Block
-        [&](const oneapi::tbb::blocked_range2d<std::size_t> &range) {
-          for (std::size_t ry = range.rows().begin(); ry < range.rows().end();
-               ++ry) {
-            for (std::size_t rx = range.cols().begin(); rx < range.cols().end();
-                 ++rx) {
-
-              float x = (2 * (rx + 0.5f) / static_cast<float>(m_width) - 1) *
-                        aspect_ratio * scale;
-              float y = (1.f - 2 * (ry + 0.5f) / static_cast<float>(m_height)) *
-                        scale;
-
-              try {
-                Ray ray(eye, glm::normalize(glm::vec3(x, y, 0) - eye));
-
-                // Use parallel_reduce for efficient accumulation
-                glm::vec3 color = oneapi::tbb::parallel_reduce(
-                    oneapi::tbb::blocked_range<std::size_t>(0, sample),
-                    glm::vec3(0.f),
-                    [&](const oneapi::tbb::blocked_range<std::size_t> &r,
-                        glm::vec3 partialColor) -> glm::vec3 {
-                      for (std::size_t i = r.begin(); i < r.end(); ++i) {
-                        partialColor += SceneObj->pathTracing(ray);
-                      }
-                      return partialColor;
-                    },
-                    std::plus<glm::vec3>() // Reduce with addition
-                    ,
-                    oneapi::tbb::auto_partitioner()
-                    /*Consume lots of memory!!!! If you are going to use
-                       affinity_partitioner (ap)*/
-                );
-
-                writePixel(rx, ry,
-                           Tools::normalizedToRGB(color / glm::vec3(sample)));
-
-              } catch (const std::exception &e) {
-                spdlog::error("RayTracing System Error! Message: {}", e.what());
-              }
-            }
-          }
-        },
-        ap);
-
-    // End Time
-    auto end_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end_time - start_time;
-    spdlog::info("Path tracing took {:.3f} seconds for scene: {}",
-                 elapsed.count(), SceneName);
+  if (m_scenes.size() > 1) {
+    throw std::invalid_argument("PT renders one scene at a time");
   }
+  clear();
+  if (m_scenes.empty()) {
+    return;
+  }
+  /*Prepare the geometry and scene BVH before emitting rays.*/
+  auto &SceneObj = *m_scenes.front();
+  SceneObj.prepare();
+  /*Each pixel owns its sample streams and writes its final average once.*/
+  Parallel::parallelFor(std::size_t(0), m_height, [&](std::size_t ry) {
+    for (std::size_t rx = 0; rx < m_width; ++rx) {
+      glm::dvec3 partialColor(0);
+      const auto pixelIndex = ry * m_width + rx;
+      for (std::size_t sampleIndex = 0;
+           sampleIndex < m_settings.samplesPerPixel; ++sampleIndex) {
+        Sampler sampler(m_settings.seed, pixelIndex, sampleIndex);
+        float jitterX = sampler.next(), jitterY = sampler.next();
+        partialColor += glm::dvec3(pathTracingShading(
+            SceneObj,
+            SceneObj.getCamera().generateRay(
+                float(rx) + jitterX, float(ry) + jitterY, m_width, m_height),
+            sampler));
+      }
+      m_color[pixelIndex] =
+          glm::vec3(partialColor / double(m_settings.samplesPerPixel));
+    }
+  });
 }
