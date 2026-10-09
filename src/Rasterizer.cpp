@@ -261,7 +261,8 @@ bool SoftRasterizer::TraditionalRasterizer::calculatePixelCoverage(
     const ScreenTriangle &triangle, int x, int y, Primitive type,
     glm::vec3 &screenWeights) {
   // One sample at the original pixel center: (x + 0.5, y + 0.5) * scale.
-  // increase accuracy by using subpixel coordinates, then divide by SubpixelScale^2.
+  // increase accuracy by using subpixel coordinates, then divide by
+  // SubpixelScale^2.
   auto pixelX = std::int64_t(x) * SubpixelScale + SubpixelScale / 2,
        pixelY = std::int64_t(y) * SubpixelScale + SubpixelScale / 2;
   // Subtriangle/whole-triangle area ratios give screen barycentrics.
@@ -272,8 +273,7 @@ bool SoftRasterizer::TraditionalRasterizer::calculatePixelCoverage(
       signedDoubleArea(triangle.vertices[2], triangle.vertices[0], pixelX,
                        pixelY),
       signedDoubleArea(triangle.vertices[0], triangle.vertices[1], pixelX,
-                       pixelY)
-  };
+                       pixelY)};
 
   bool inside = true, wire = false;
   for (int j = 0; j < 3; ++j) {
