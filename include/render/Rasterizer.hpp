@@ -109,8 +109,9 @@ private:
 private:
   // Chosen fixed-point precision, not a mandatory rasterization standard.
   // Each axis has 256 coordinate steps per pixel (8 fractional bits).
-  // Store round(pixelPosition * 256): resolution and sample count stay the same.
-  // This stabilizes integer edge tests; it is not MSAA or extra rendered pixels.
+  // Store round(pixelPosition * 256): resolution and sample count stay the
+  // same. This stabilizes integer edge tests; it is not MSAA or extra rendered
+  // pixels.
   static constexpr std::int64_t SubpixelScale = 256;
   // Keep products in signedDoubleArea within the int64_t range.
   static constexpr std::int64_t MaxSubpixelCoordinate = 1LL << 29;
