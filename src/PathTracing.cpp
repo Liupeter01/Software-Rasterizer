@@ -58,9 +58,21 @@ void SoftRasterizer::PathTracing::pathTracingAreaLight(
     return;
   }
   auto wi = lightDirection / std::sqrt(distanceSquared);
-  float objectCosine = std::max(0.f, glm::dot(shadeObjIntersection.normal, wi));
+
+  const glm::vec3 orientedGeometricNormal = shadeObjIntersection.frontFace
+                                                  ? shadeObjIntersection.geometricNormal
+                                                  : -shadeObjIntersection.geometricNormal);
+
+  const float objectCosine = glm::dot(shadeObjIntersection.normal, wi);
+
+  const float geometricCosine = glm::dot(orientedGeometricNormal, wi);
+
+  if (objectCosine <= 0 || geometricCosine <= 0) {
+    return;
+  }
+
   float lightCosine = std::max(0.f, glm::dot(lightSample.normal, -wi));
-  if (objectCosine <= 0 || lightCosine <= 0) {
+  if (lightCosine <= 0) {
     return;
   }
   auto start = offsetOrigin(shadeObjIntersection.coords,
@@ -93,14 +105,27 @@ void SoftRasterizer::PathTracing::pathTracingPointLights(
     if (objectCosine <= 0) {
       continue;
     }
-    auto start = offsetOrigin(shadeObjIntersection.coords,
-                              shadeObjIntersection.geometricNormal, wi);
-    if (isLightVisible(scene, start, pointLight->position)) {
-      const auto fr = albedo / Pi;
-      const auto incidentIrradiance =
-          pointLight->intensity * (objectCosine / distanceSquared);
-      radiance += throughput * fr * incidentIrradiance;
-    }
+
+  const glm::vec3 orientedGeometricNormal = shadeObjIntersection.frontFace
+                                                  ? shadeObjIntersection.geometricNormal
+                                                  : -shadeObjIntersection.geometricNormal);
+
+  const float shadingCosine = glm::dot(shadeObjIntersection.normal, wi);
+
+  const float geometricCosine = glm::dot(orientedGeometricNormal, wi);
+
+  if (shadingCosine <= 0 || geometricCosine <= 0) {
+    continue;
+  }
+
+  auto start = offsetOrigin(shadeObjIntersection.coords,
+                            shadeObjIntersection.geometricNormal, wi);
+  if (isLightVisible(scene, start, pointLight->position)) {
+    const auto fr = albedo / Pi;
+    const auto incidentIrradiance =
+        pointLight->intensity * (objectCosine / distanceSquared);
+    radiance += throughput * fr * incidentIrradiance;
+  }
   }
 }
 
