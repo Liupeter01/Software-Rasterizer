@@ -1,177 +1,186 @@
-#include "glm/fwd.hpp"
-#include "object/Material.hpp"
-#include <light/SphereLight.hpp>
-#include <memory>
+#include <chrono>
+#include <iostream>
 #include <object/Sphere.hpp>
-#include <opencv2/opencv.hpp>
 #include <render/PathTracing.hpp>
 #include <render/Rasterizer.hpp>
-#include <render/RayTracing.hpp>
-#include <scene/Scene.hpp>
+using namespace SoftRasterizer;
 
-int main() {
-  int key = 0;
-  float degree = 0.0f;
+namespace {
+std::uint64_t integer(const std::string &value) {
+  if (value.empty() ||
+      value.find_first_not_of("0123456789") != std::string::npos) {
+    throw std::invalid_argument("expected an unsigned integer: " + value);
+  }
+  return std::stoull(value);
+}
 
-  // Create Ray Tracing Main Class
-  auto render = std::make_shared<SoftRasterizer::RayTracing>(1024, 1024, 1);
+std::shared_ptr<Material> createDiffuseMaterial(glm::vec3 color) {
+  auto material = std::make_shared<Material>();
+  material->Kd = color;
+  return material;
+}
 
-  // Create A Scene
-  auto scene = std::make_shared<SoftRasterizer::Scene>(
-      "TestScene",
-      /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
-      /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
-      /*up=*/glm::vec3(0.0f, 1.0f, 0.0f),
-      /*background color*/ glm::vec3(0.235294, 0.67451, 0.843137));
-
-  /*Modify spot's Material Properties*/
-  std::shared_ptr<SoftRasterizer::Material> crate =
-      std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material> spot =
-      std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material> diffuse =
-      std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material> light =
-      std::make_shared<SoftRasterizer::Material>();
-  std::shared_ptr<SoftRasterizer::Material> reflectrefract =
-      std::make_shared<SoftRasterizer::Material>();
-
-  diffuse->type = crate->type = spot->type =
-      SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  diffuse->Ka = crate->Ka = spot->Ka = glm::vec3(0.005f);
-  diffuse->Kd = crate->Kd = spot->Kd = glm::vec3(1.f);
-  diffuse->Ks = crate->Ks = spot->Ks = glm::vec3(0.7937f);
-  crate->specularExponent = 150.f; // no specular
-  diffuse->specularExponent = spot->specularExponent = 150.f;
-
-  /*Only self-illumination object gets emission*/
-  light->type = SoftRasterizer::MaterialType::DIFFUSE_AND_GLOSSY;
-  light->Kd = glm::vec3(1.0f);
-  light->emission = glm::vec3(1.f); // and also intensity of the light
-
-  /*Set REFLECTION_AND_REFRACTION Material*/
-  reflectrefract->type =
-      SoftRasterizer::MaterialType::REFLECTION_AND_REFRACTION;
-  reflectrefract->ior = 1.49f; /*Air to Glass*/
-
-  /*Set Diffuse Color*/
-  auto diffuse_sphere = std::make_unique<SoftRasterizer::Sphere>(
-      /*center=*/glm::vec3(0.f),
-      /*radius=*/1.0f);
-
-  /*Set Refrflect Sphere Object*/
-  auto refrflect_sphere = std::make_unique<SoftRasterizer::Sphere>(
-      /*center=*/glm::vec3(0.f),
-      /*radius=*/1.0f);
-
-  /*Add Light To Scene*/
-  auto spherelight = std::make_unique<SoftRasterizer::SphereLight>(
-      /*pos=*/glm::vec3(0.f),
-      /*intense=*/glm::vec3(1.f),
-      /*radius*/ 5.f);
-
-  scene->addGraphicObj(std::move(refrflect_sphere), "refrflect");
-  scene->addGraphicObj(std::move(diffuse_sphere), "diffuse");
-  scene->addGraphicObj(std::move(spherelight), "spherelight");
-
-  /*Add a spot object*/
-  scene->addGraphicObj(
-      CONFIG_HOME "examples/models/spot/spot_triangulated_good.obj", "spot",
-      glm::vec3(0, 1, 0), 0.f, glm::vec3(0.f), glm::vec3(0.3f));
-  scene->addGraphicObj(CONFIG_HOME "examples/models/Crate/Crate1.obj", "Crate",
-                       glm::vec3(0.f, 1.f, 0.f), 0.f, glm::vec3(0.0f),
-                       glm::vec3(0.2f));
-
-  scene->startLoadingMesh("spot");
-  scene->startLoadingMesh("Crate");
-
-  if (auto spotOpt = scene->getMeshObj("spot"); spotOpt)
-    (*spotOpt)->setMaterial(spot);
-  if (auto CrateOpt = scene->getMeshObj("Crate"); CrateOpt)
-    (*CrateOpt)->setMaterial(crate);
-  if (auto refrflectOpt = scene->getMeshObj("refrflect"); refrflectOpt)
-    (*refrflectOpt)->setMaterial(reflectrefract);
-  if (auto diffuseOpt = scene->getMeshObj("diffuse"); diffuseOpt)
-    (*diffuseOpt)->setMaterial(diffuse);
-  if (auto sperelightOpt = scene->getMeshObj("spherelight"); sperelightOpt)
-    (*sperelightOpt)->setMaterial(light);
-
-  /*Add a texture shader for spot object!*/
-  scene->addShader("spot_shader",
-                   CONFIG_HOME "examples/models/spot/spot_texture.png",
-                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
-  scene->addShader("crate_shader",
-                   CONFIG_HOME "examples/models/Crate/Crate1.png",
-                   SoftRasterizer::SHADERS_TYPE::TEXTURE);
-
-  scene->bindShader2Mesh("spot", "spot_shader");
-  scene->bindShader2Mesh("Crate", "crate_shader");
-
-  /*Register Scene To Render Main Frame*/
-  render->addScene(scene);
-
-  while (key != 27) {
-
-    /*clear both shading and depth!*/
-    render->clear(SoftRasterizer::Buffers::Color |
-                  SoftRasterizer::Buffers::Depth);
-
-    /*Model Matrix*/
-    scene->setModelMatrix(
-        "spot",
-        /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-        /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.28f, 0.1f, 0.20f),
-        /*scale=*/glm::vec3(0.2f));
-
-    scene->setModelMatrix(
-        "Crate",
-        /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-        /*degree=+ for Counterclockwise;- for Clockwise*/ degree,
-        /*transform=*/glm::vec3(0.28f, -0.13f, 0.15f),
-        /*scale=*/glm::vec3(0.1f));
-
-    scene->setModelMatrix("refrflect",
-                          /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-                          /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
-                          /*transform=*/glm::vec3(0.f, 0.0f, 0.15f),
-                          /*scale=*/glm::vec3(0.2f));
-
-    scene->setModelMatrix("diffuse",
-                          /*axis=*/glm::vec3(0.f, 1.f, 0.f),
-                          /*degree=+ for Counterclockwise;- for Clockwise*/ 0,
-                          /*transform=*/glm::vec3(-0.25f, 0.1f, 0.15f),
-                          /*scale=*/glm::vec3(0.1f));
-
-    scene->setModelMatrix("spherelight", glm::vec3(0, 1, 0), 0,
-                          glm::vec3(0.f, 0.3, -0.7f), glm::vec3(0.3f));
-
-    /*View Matrix*/
-    scene->setViewMatrix(
-        /*eye=*/glm::vec3(0.0f, 0.0f, -0.9f),
-        /*center=*/glm::vec3(0.0f, 0.0f, 0.0f),
-        /*up=*/glm::vec3(0.0f, 1.0f, 0.0f));
-
-    /*Projection Matrix*/
-    scene->setProjectionMatrix(
-        /*fov=*/45.0f,
-        /*near=*/0.1f,
-        /*far=*/100.0f);
-
-    render->display(SoftRasterizer::Primitive::TRIANGLES);
-
-    key = cv::waitKey(0);
-    if (key == 'a' || key == 'A') {
-      degree += 10.0f;
-    } else if (key == 'd' || key == 'D') {
-      degree -= 10.0f;
-    }
-
-    /*reset the degree*/
-    auto delta = degree - 360.f;
-    if (delta >= -0.00000001f && delta <= 0.00000001f) {
-      degree = 0.0f;
+std::shared_ptr<Mesh> createQuadMesh(glm::vec3 vertexA, glm::vec3 vertexB,
+                                     glm::vec3 vertexC, glm::vec3 vertexD,
+                                     glm::vec3 normal,
+                                     std::shared_ptr<Material> material) {
+  std::vector<Vertex> vertices{{vertexA, normal, {0, 0}},
+                               {vertexB, normal, {1, 0}},
+                               {vertexC, normal, {1, 1}},
+                               {vertexD, normal, {0, 1}}};
+  std::vector<glm::uvec3> faces{{0, 1, 2}, {0, 2, 3}};
+  if (glm::dot(glm::cross(vertexB - vertexA, vertexC - vertexA), normal) < 0) {
+    for (auto &face : faces) {
+      std::swap(face.y, face.z);
     }
   }
-  return 0;
+  auto mesh = std::make_shared<Mesh>(vertices, faces);
+  mesh->setMaterial(material);
+  return mesh;
+}
+
+/*Set up the room, area emitter, mirror and glass used by both pipelines.*/
+std::shared_ptr<Scene> createDemoScene() {
+  auto scene =
+      std::make_shared<Scene>("Room", glm::vec3(0, 1, 6), glm::vec3(0, 1, -1));
+  auto white = createDiffuseMaterial(glm::vec3(0.73f));
+  scene->addGraphicObj(createQuadMesh({-2, -1, 1}, {2, -1, 1}, {2, -1, -3},
+                                      {-2, -1, -3}, {0, 1, 0}, white),
+                       "floor");
+  scene->addGraphicObj(createQuadMesh({-2, 3, 1}, {2, 3, 1}, {2, 3, -3},
+                                      {-2, 3, -3}, {0, -1, 0}, white),
+                       "ceiling");
+  scene->addGraphicObj(createQuadMesh({-2, -1, -3}, {2, -1, -3}, {2, 3, -3},
+                                      {-2, 3, -3}, {0, 0, 1}, white),
+                       "back");
+  scene->addGraphicObj(
+      createQuadMesh({-2, -1, 1}, {-2, -1, -3}, {-2, 3, -3}, {-2, 3, 1},
+                     {1, 0, 0}, createDiffuseMaterial({0.65, 0.08, 0.06})),
+      "left");
+  scene->addGraphicObj(createQuadMesh({2, -1, 1}, {2, -1, -3}, {2, 3, -3},
+                                      {2, 3, 1}, {-1, 0, 0},
+                                      createDiffuseMaterial({0.07, 0.5, 0.12})),
+                       "right");
+  auto lightMaterial = createDiffuseMaterial(glm::vec3(0));
+  lightMaterial->emission = glm::vec3(9);
+  scene->addGraphicObj(createQuadMesh({-0.65, 2.98, -0.2}, {0.65, 2.98, -0.2},
+                                      {0.65, 2.98, -1.5}, {-0.65, 2.98, -1.5},
+                                      {0, -1, 0}, lightMaterial),
+                       "light");
+  auto mirrorSphere =
+      std::make_shared<Sphere>(glm::vec3(-0.9, -0.2, -1.6), 0.8f);
+  auto mirrorMaterial = std::make_shared<Material>(MaterialType::REFLECTION);
+  mirrorMaterial->Kd = glm::vec3(0.95f);
+  mirrorSphere->setMaterial(mirrorMaterial);
+  scene->addGraphicObj(mirrorSphere, "mirror");
+  auto glassSphere =
+      std::make_shared<Sphere>(glm::vec3(0.9, -0.25, -0.8), 0.75f);
+  auto glassMaterial =
+      std::make_shared<Material>(MaterialType::REFLECTION_AND_REFRACTION);
+  glassMaterial->Kd = glm::vec3(1);
+  glassSphere->setMaterial(glassMaterial);
+  scene->addGraphicObj(glassSphere, "glass");
+  return scene;
+}
+} // namespace
+
+int main(int argc, char **argv) {
+  try {
+    std::string mode = "raster", output = "render.ppm", obj;
+    std::size_t width = 512, height = 512, spp = 64;
+    std::uint64_t seed = 1;
+    bool scalar = false, wire = false, gui = false;
+    for (int i = 1; i < argc; ++i) {
+      std::string arg = argv[i];
+      auto value = [&]() {
+        if (i + 1 >= argc) {
+          throw std::invalid_argument("missing value for " + arg);
+        }
+        return std::string(argv[++i]);
+      };
+      if (arg == "--mode") {
+        mode = value();
+      } else if (arg == "--output") {
+        output = value();
+      } else if (arg == "--obj") {
+        obj = value();
+      } else if (arg == "--width") {
+        width = integer(value());
+      } else if (arg == "--height") {
+        height = integer(value());
+      } else if (arg == "--spp") {
+        spp = integer(value());
+      } else if (arg == "--seed") {
+        seed = integer(value());
+      } else if (arg == "--scalar") {
+        scalar = true;
+      } else if (arg == "--wireframe") {
+        wire = true;
+      } else if (arg == "--gui") {
+        gui = true;
+      } else if (arg == "--help") {
+        std::cout << "Software-Rasterizer [--mode raster|pt] [--width N "
+                     "--height N] [--spp N --seed N]\n  [--obj file.obj] "
+                     "[--output file.ppm] [--scalar] [--wireframe] [--gui]\n";
+        return 0;
+      } else {
+        throw std::invalid_argument("unknown argument: " + arg);
+      }
+    }
+    /*Load a model or use the built-in room.*/
+    auto scene = obj.empty() ? createDemoScene() : std::make_shared<Scene>();
+    if (!obj.empty()) {
+      auto mesh = ObjLoader(obj).load();
+      scene->addGraphicObj(mesh, "model");
+      auto box = mesh->getBounds();
+      if (box.empty()) {
+        throw std::invalid_argument("OBJ has no geometry");
+      }
+      auto center = box.centroid();
+      float size = std::max(0.01f, maxComponent(box.diagonal()));
+      scene->setViewMatrix(center + glm::vec3(0, 0, 2 * size), center,
+                           {0, 1, 0});
+      scene->setProjectionMatrix(45, size * 0.001f, size * 20);
+      scene->addLight("key", std::make_shared<light_struct>(
+                                 center + glm::vec3(size, size, size),
+                                 glm::vec3(8 * size * size)));
+    } else if (mode == "raster") {
+      scene->addLight("key", std::make_shared<light_struct>(
+                                 glm::vec3(0, 2.5, -0.5), glm::vec3(30)));
+    }
+    /*Choose the rendering pipeline, then render and save one frame.*/
+    std::unique_ptr<RenderingPipeline> renderer;
+    if (mode == "raster") {
+      auto renderPipeline =
+          std::make_unique<TraditionalRasterizer>(width, height);
+      renderPipeline->setSIMD(!scalar);
+      renderer = std::move(renderPipeline);
+    } else if (mode == "pt") {
+      auto renderPipeline = std::make_unique<PathTracing>(width, height);
+      PathTracingSettings settings;
+      settings.samplesPerPixel = spp;
+      settings.seed = seed;
+      renderPipeline->configure(settings);
+      renderer = std::move(renderPipeline);
+    } else {
+      throw std::invalid_argument("mode must be raster or pt");
+    }
+    renderer->addScene(scene);
+    auto start = std::chrono::steady_clock::now();
+    auto primitive = wire ? Primitive::LINES : Primitive::TRIANGLES;
+    if (gui) {
+      renderer->display(primitive);
+    } else {
+      renderer->draw(primitive);
+    }
+    renderer->save(output);
+    auto seconds =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - start)
+            .count();
+    std::cout << mode << " " << width << "x" << height << " saved to " << output
+              << " in " << seconds << " s\n";
+  } catch (const std::exception &error) {
+    std::cerr << "Error: " << error.what() << '\n';
+    return 1;
+  }
 }
