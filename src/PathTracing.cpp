@@ -165,11 +165,13 @@ SoftRasterizer::PathTracing::pathTracingShading(const Scene &scene, Ray ray,
       break;
     }
     if (bsdf.delta) {
-      // Delta events use a discrete probability, with cosine already integrated.
+      // Delta events use a discrete probability, with cosine already
+      // integrated.
       throughput *=
           bsdf.deltaCoefficient / bsdf.pdf * shadeObjIntersection.color;
     } else {
-      // The next hit supplies Li; this bounce contributes fr * cos(theta) / pdf.
+      // The next hit supplies Li; this bounce contributes fr * cos(theta) /
+      // pdf.
       const float cosine =
           std::max(0.f, glm::dot(samplingNormal, bsdf.direction));
       throughput *= bsdf.fr * cosine / bsdf.pdf * shadeObjIntersection.color;
