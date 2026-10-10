@@ -5,11 +5,20 @@ SoftRasterizer::Material::sample(const glm::vec3 &incoming,
                                  const glm::vec3 &normal, bool frontFace,
                                  const glm::vec2 &uv, Sampler &rng) const {
   const auto tint = albedo(uv);
+  BsdfSample bsdf;
   if (type == MaterialType::DIFFUSE_AND_GLOSSY) {
-    return {rng.cosineHemisphere(normal), tint, false, false};
+    bsdf.direction = rng.cosineHemisphere(normal);
+    bsdf.fr = tint / Pi;
+    const float cosine = std::max(0.f, glm::dot(normal, bsdf.direction));
+    bsdf.pdf = cosine / Pi;
+    return bsdf;
   }
+  bsdf.delta = true;
   if (type == MaterialType::REFLECTION) {
-    return {unit(glm::reflect(incoming, normal)), tint, true, false};
+    bsdf.direction = unit(glm::reflect(incoming, normal));
+    bsdf.deltaCoefficient = tint;
+    bsdf.pdf = 1;
+    return bsdf;
   }
   if (!std::isfinite(ior) || ior <= 0) {
     throw std::invalid_argument("invalid dielectric IOR");
@@ -20,12 +29,20 @@ SoftRasterizer::Material::sample(const glm::vec3 &incoming,
   const float fresnel = dielectricFresnel(-glm::dot(incoming, normal),
                                           incidentIOR, transmittedIOR);
   if (rng.next() < fresnel) {
-    return {unit(glm::reflect(incoming, normal)), tint, true, false};
+    bsdf.direction = unit(glm::reflect(incoming, normal));
+    bsdf.deltaCoefficient = tint * fresnel;
+    bsdf.pdf = fresnel;
+    return bsdf;
   }
   auto direction = glm::refract(incoming, normal, eta);
   if (glm::dot(direction, direction) < 1e-12f) {
-    return {unit(glm::reflect(incoming, normal)), tint, true, false};
+    // A failed refraction sample has no valid event PDF; do not invent one.
+    return {};
   }
   // Radiance transport across a dielectric interface includes eta^2.
-  return {unit(direction), tint * (eta * eta), true, true};
+  bsdf.direction = unit(direction);
+  bsdf.deltaCoefficient = tint * (1 - fresnel) * (eta * eta);
+  bsdf.pdf = 1 - fresnel;
+  bsdf.transmitted = true;
+  return bsdf;
 }

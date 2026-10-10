@@ -15,7 +15,11 @@ enum class MaterialType {
 };
 
 struct BsdfSample {
-  glm::vec3 direction{0}, weight{0};
+  glm::vec3 direction{0}, fr{0};
+  // Integrated delta-event response, not an ordinary continuous BRDF.
+  glm::vec3 deltaCoefficient{0};
+  // Non-delta: solid-angle PDF. Delta: probability of the chosen event.
+  float pdf = 0;
   bool delta = false, transmitted = false;
 };
 
