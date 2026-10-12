@@ -58,9 +58,21 @@ void SoftRasterizer::PathTracing::pathTracingAreaLight(
     return;
   }
   auto wi = lightDirection / std::sqrt(distanceSquared);
-  float objectCosine = std::max(0.f, glm::dot(shadeObjIntersection.normal, wi));
+
+  const glm::vec3 orientedGeometricNormal = shadeObjIntersection.frontFace
+                                                  ? shadeObjIntersection.geometricNormal
+                                                  : -shadeObjIntersection.geometricNormal);
+
+  const float objectCosine = glm::dot(shadeObjIntersection.normal, wi);
+
+  const float geometricCosine = glm::dot(orientedGeometricNormal, wi);
+
+  if (objectCosine <= 0 || geometricCosine <= 0) {
+    return;
+  }
+
   float lightCosine = std::max(0.f, glm::dot(lightSample.normal, -wi));
-  if (objectCosine <= 0 || lightCosine <= 0) {
+  if (lightCosine <= 0) {
     return;
   }
   auto start = offsetOrigin(shadeObjIntersection.coords,
@@ -69,8 +81,10 @@ void SoftRasterizer::PathTracing::pathTracingAreaLight(
   if (!isLightVisible(scene, start, end)) {
     return;
   }
+  const auto fr = albedo / Pi;
+  const auto Li = lightSample.material->emission;
   radiance +=
-      throughput * albedo * (1 / Pi) * lightSample.material->emission *
+      throughput * Li * fr *
       (objectCosine * lightCosine / (distanceSquared * lightSample.pdfArea));
 }
 
@@ -91,12 +105,27 @@ void SoftRasterizer::PathTracing::pathTracingPointLights(
     if (objectCosine <= 0) {
       continue;
     }
-    auto start = offsetOrigin(shadeObjIntersection.coords,
-                              shadeObjIntersection.geometricNormal, wi);
-    if (isLightVisible(scene, start, pointLight->position)) {
-      radiance += throughput * albedo * (1 / Pi) * pointLight->intensity *
-                  (objectCosine / distanceSquared);
-    }
+
+  const glm::vec3 orientedGeometricNormal = shadeObjIntersection.frontFace
+                                                  ? shadeObjIntersection.geometricNormal
+                                                  : -shadeObjIntersection.geometricNormal);
+
+  const float shadingCosine = glm::dot(shadeObjIntersection.normal, wi);
+
+  const float geometricCosine = glm::dot(orientedGeometricNormal, wi);
+
+  if (shadingCosine <= 0 || geometricCosine <= 0) {
+    continue;
+  }
+
+  auto start = offsetOrigin(shadeObjIntersection.coords,
+                            shadeObjIntersection.geometricNormal, wi);
+  if (isLightVisible(scene, start, pointLight->position)) {
+    const auto fr = albedo / Pi;
+    const auto incidentIrradiance =
+        pointLight->intensity * (objectCosine / distanceSquared);
+    radiance += throughput * fr * incidentIrradiance;
+  }
   }
 }
 
@@ -150,6 +179,9 @@ SoftRasterizer::PathTracing::pathTracingShading(const Scene &scene, Ray ray,
     auto bsdf = material.sample(ray.direction, samplingNormal,
                                 shadeObjIntersection.frontFace,
                                 shadeObjIntersection.uv, sampler);
+    if (!finite(bsdf.direction) || !std::isfinite(bsdf.pdf) || bsdf.pdf <= 0) {
+      break;
+    }
     // Prevent interpolated shading normals from sending reflective paths
     // through the surface.
     float hemisphere = glm::dot(bsdf.direction, boundaryNormal);
@@ -157,7 +189,18 @@ SoftRasterizer::PathTracing::pathTracingShading(const Scene &scene, Ray ray,
         (bsdf.transmitted && hemisphere >= 0)) {
       break;
     }
-    throughput *= bsdf.weight * shadeObjIntersection.color;
+    if (bsdf.delta) {
+      // Delta events use a discrete probability, with cosine already
+      // integrated.
+      throughput *=
+          bsdf.deltaCoefficient / bsdf.pdf * shadeObjIntersection.color;
+    } else {
+      // The next hit supplies Li; this bounce contributes fr * cos(theta) /
+      // pdf.
+      const float cosine =
+          std::max(0.f, glm::dot(samplingNormal, bsdf.direction));
+      throughput *= bsdf.fr * cosine / bsdf.pdf * shadeObjIntersection.color;
+    }
     if (!finite(throughput) || maxComponent(throughput) <= 0) {
       break;
     }

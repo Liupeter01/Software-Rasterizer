@@ -1,88 +1,122 @@
 #pragma once
-#ifndef _RASTERIZER_HPP_
-#define _RASTERIZER_HPP_
 #include <base/Render.hpp>
 
 namespace SoftRasterizer {
+
 // Traditional Rasterizer
 class TraditionalRasterizer : public RenderingPipeline {
 public:
-  TraditionalRasterizer() : RenderingPipeline() {}
-  TraditionalRasterizer(const std::size_t width, const std::size_t height)
-      : RenderingPipeline(width, height) {}
-
-public:
-  void draw(Primitive type) override;
+  explicit TraditionalRasterizer(const std::size_t width = 800,
+                                 const std::size_t height = 600);
+  void setSIMD(const bool enabled);
+  void setBackfaceCulling(const bool enabled);
+  void draw(Primitive type = Primitive::TRIANGLES) override;
 
 private:
-  /*Only Draw Line*/
-  void rasterizeWireframe(const SoftRasterizer::Triangle &triangle);
+  enum class FrustumPlane { Left, Right, Bottom, Top, Near, Far };
 
-  inline static bool insideTriangle(const std::size_t x_pos,
-                                    const std::size_t y_pos,
-                                    const SoftRasterizer::Triangle &triangle);
+  /*Clip coordinates are temporary; world attributes remain unchanged.*/
+  struct ClipVertex {
+    glm::vec4 clip; // (x, y, z, w) after projection, before perspective divide.
+    Vertex world;
+  };
 
-  static inline std::tuple<float, float, float>
-  barycentric(const std::size_t x_pos, const std::size_t y_pos,
-              const SoftRasterizer::Triangle &triangle);
+  struct ScreenVertex {
+    std::int64_t x, y; // Screen coordinates in subpixel units.
+    float inverseW, z; // 1/clip.w and NDC depth clip.z/clip.w.
+    Vertex world;
+  };
 
-  /**
-   * @brief Calculates the barycentric coordinates (alpha, beta, gamma) for a
-   * given point (x_pos, y_pos) with respect to a triangle. Also checks if the
-   * point is inside the triangle using the `insideTriangle` function and
-   * applies the result as a mask to ensure the coordinates are only valid for
-   * points inside the triangle.
-   *
-   * @param x_pos SIMD register containing x positions of points.
-   * @param y_pos SIMD register containing y positions of points.
-   * @param triangle The triangle whose barycentric coordinates are to be
-   * calculated.
-   * @return A tuple of three simde__m256 values representing the barycentric
-   * coordinates (alpha, beta, gamma) for the point (x_pos, y_pos). The
-   * coordinates are zeroed out for points outside the triangle using a mask.
-   */
-#if defined(__x86_64__) || defined(_WIN64)
-  static inline std::tuple<__m256, __m256, __m256>
-  barycentric(const __m256 &x_pos, const __m256 &y_pos,
-              const SoftRasterizer::Triangle &triangle);
+  struct ScreenTriangle {
+    std::array<ScreenVertex, 3> vertices;
+    std::int64_t doubleArea; // Positive after winding normalization; no /2.
+    // Wireframe only: twice-area units per pixel of distance from an edge.
+    std::array<float, 3> wireframeDistanceScale;
+    int startX, startY, endX, endY;
+    bool frontFace;
+    std::shared_ptr<Material> material;
+    std::shared_ptr<Shader> shader;
+  };
 
-#elif defined(__arm__) || defined(__aarch64__)
-  static inline std::tuple<simde__m256, simde__m256, simde__m256>
-  barycentric(const simde__m256 &x_pos, const simde__m256 &y_pos,
-              const SoftRasterizer::Triangle &triangle);
+  /*Clip-space plane expression before /w: >= 0 is inside, < 0 is outside.*/
+  static float evaluateFrustumPlane(const glm::vec4 &point, FrustumPlane plane);
+  /*Cull only if all three vertices are outside the same frustum plane.*/
+  static bool frustumCulling(const std::array<ClipVertex, 3> &triangle);
 
-#else
-#endif
-  /*Rasterize a triangle*/
-  inline void
-  rasterizeBatchAVX2(const int startx, const int endx, const int y,
-                     const std::vector<SoftRasterizer::light_struct> &lists,
-                     std::shared_ptr<SoftRasterizer::Shader> shader,
-                     const SoftRasterizer::Triangle &packed,
-                     const glm::vec3 &eye);
+  /*Perspective divide, viewport mapping and screen triangle setup.*/
+  static bool projectToScreen(const ClipVertex &vertex, int width, int height,
+                              ScreenVertex &screenVertex);
+  static bool normalizeTriangleWinding(ScreenTriangle &triangle,
+                                       bool cullBackfaces);
+  static void prepareTriangleEdges(ScreenTriangle &triangle, Primitive type);
+  static bool calculateTrianglePixelBounds(ScreenTriangle &triangle, int width,
+                                           int height);
+  static bool
+  prepareScreenTriangle(const std::array<ClipVertex, 3> &clipVertices,
+                        const RasterTriangle &source, int width, int height,
+                        bool cullBackfaces, Primitive type,
+                        ScreenTriangle &triangle);
 
-  template <typename _simd>
-  inline void processFragByAVX2(
-      const int x, const int y, const _simd &z0, const _simd &z1,
-      const _simd &z2, const std::vector<SoftRasterizer::light_struct> &lists,
-      std::shared_ptr<SoftRasterizer::Shader> shader,
-      const SoftRasterizer::Triangle &packed, const glm::vec3 &eye);
+  /*Signed 2*area(A,B,P); its sign also tells which side of AB contains P.*/
+  static std::int64_t signedDoubleArea(const ScreenVertex &a,
+                                       const ScreenVertex &b, std::int64_t x,
+                                       std::int64_t y);
 
-  inline void
-  rasterizeBatchScalar(const int startx, const int endx, const int y,
-                       const std::vector<SoftRasterizer::light_struct> &lists,
-                       std::shared_ptr<SoftRasterizer::Shader> shader,
-                       const SoftRasterizer::Triangle &scalar,
-                       const glm::vec3 &eye);
+  /*Cull, project and keep one screen triangle per original triangle.*/
+  static std::vector<ScreenTriangle>
+  prepareScreenTriangles(const Scene &scene, int width, int height,
+                         bool cullBackfaces, Primitive type);
 
-  inline void processFragByScalar(
-      const int startx, const int x, const int y, const float old_z,
-      const float z0, const float z1, const float z2, float *__restrict z,
-      float *__restrict r, float *__restrict g, float *__restrict b,
-      const std::vector<SoftRasterizer::light_struct> &lists,
-      std::shared_ptr<SoftRasterizer::Shader> shader,
-      const SoftRasterizer::Triangle &scalar, const glm::vec3 &eye);
+  /*Assign triangles to tiles; each task owns a disjoint pixel region.*/
+  static std::vector<std::vector<std::size_t>>
+  binTrianglesIntoTiles(const std::vector<ScreenTriangle> &triangles,
+                        int tileColumns, int tileRows);
+  void rasterizeScreenTriangles(const Scene &scene,
+                                const std::vector<ScreenTriangle> &triangles,
+                                Primitive type);
+
+  /*Test coverage and depth, then shade pixels inside the current tile.*/
+  static bool calculatePixelCoverage(const ScreenTriangle &triangle, int x,
+                                     int y, Primitive type,
+                                     glm::vec3 &screenWeights);
+  void rasterizeTriangleInTile(const Scene &scene,
+                               const ScreenTriangle &triangle, const int tileX,
+                               const int tileY, Primitive type);
+  void shadePixelBatch(const Scene &scene, const ScreenTriangle &triangle,
+                       int x, int y, const float (&perspectiveWeights)[3][8],
+                       const float (&depths)[8], const bool (&covered)[8],
+                       int batchSize);
+  /*Screen barycentric input -> depth and perspective-correct weights output.*/
+  static void interpolateDepthAndWeightsSIMD(const ScreenTriangle &triangle,
+                                             float (&barycentric)[3][8],
+                                             float (&depths)[8]);
+  static void interpolateDepthAndWeightsScalar(const ScreenTriangle &triangle,
+                                               float (&barycentric)[3][8],
+                                               float (&depths)[8],
+                                               const int batchSize);
+
+  /*Perspective weights interpolate world-space fragment attributes.*/
+  static Vertex interpolateFragment(const ScreenTriangle &triangle,
+                                    const glm::vec3 &perspectiveWeights);
+  static glm::vec3 shadeBlinnPhong(const Scene &scene,
+                                   const ScreenTriangle &triangle,
+                                   const Vertex &fragment,
+                                   const glm::vec3 &albedo);
+  static glm::vec3 shadeFragment(const Scene &scene,
+                                 const ScreenTriangle &triangle,
+                                 const glm::vec3 &perspectiveWeights);
+
+private:
+  // Chosen fixed-point precision, not a mandatory rasterization standard.
+  // Each axis has 256 coordinate steps per pixel (8 fractional bits).
+  // Store round(pixelPosition * 256): resolution and sample count stay the
+  // same. This stabilizes integer edge tests; it is not MSAA or extra rendered
+  // pixels.
+  static constexpr std::int64_t SubpixelScale = 256;
+  // Keep products in signedDoubleArea within the int64_t range.
+  static constexpr std::int64_t MaxSubpixelCoordinate = 1LL << 29;
+  static constexpr int TileSize = 32;
+  bool m_useSIMD = true;
+  bool m_cullBackfaces = false;
 };
 } // namespace SoftRasterizer
-
-#endif //_RASTERIZER_HPP_
