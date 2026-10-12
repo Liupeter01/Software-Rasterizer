@@ -15,8 +15,8 @@ TEST(PathTracing, DielectricSamplesKeepFresnelCoefficientsAndProbabilities) {
   for (std::size_t i = 0; i < 4096; ++i) {
     SCOPED_TRACE("sample " + std::to_string(i));
     Sampler sampler(71, 0, i);
-    const auto sample = material->sample({0, 0, -1}, {0, 0, 1}, true,
-                                         {}, sampler);
+    const auto sample =
+        material->sample({0, 0, -1}, {0, 0, 1}, true, {}, sampler);
     ASSERT_TRUE(sample.delta);
     expectNear(sample.fr, glm::vec3(0));
     expectNear(sample.solidAnglePdf, 0);

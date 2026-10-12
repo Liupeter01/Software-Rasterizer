@@ -9,8 +9,8 @@ TEST(PathTracing, MirrorSampleSeparatesContinuousAndDiscreteMeasures) {
   auto material = mat({.8f, .6f, .3f});
   material->type = MaterialType::Mirror;
   Sampler sampler(11);
-  const auto sample = material->sample({.6f, 0, -.8f}, {0, 0, 1}, true,
-                                       {}, sampler);
+  const auto sample =
+      material->sample({.6f, 0, -.8f}, {0, 0, 1}, true, {}, sampler);
   EXPECT_TRUE(sample.delta);
   EXPECT_FALSE(sample.transmitted);
   expectNear(sample.direction, {.6f, 0, .8f});

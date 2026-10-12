@@ -15,8 +15,9 @@ TEST(PathTracing, MirrorAndDielectricFresnelTransport) {
   pt.configure(settings(64, 3));
   pt.addScene(s);
   pt.draw();
-  for (auto p : pt.pixels())
+  for (auto p : pt.pixels()) {
     expectNear(p, {.32, .16, .08});
+  }
   auto glassScene = cameraScene(.01f);
   auto glass = std::make_shared<Sphere>(glm::vec3(0, 0, -2), .5f);
   auto g = mat();

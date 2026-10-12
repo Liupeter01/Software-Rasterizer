@@ -13,8 +13,9 @@ TEST(PathTracing, DiffuseIndirectRadianceIncludesVertexColor) {
                                {{10, -10, -2}, {0, 0, 1}},
                                {{10, 10, -2}, {0, 0, 1}},
                                {{-10, 10, -2}, {0, 0, 1}}};
-  for (auto &vertex : vertices)
+  for (auto &vertex : vertices) {
     vertex.color = vertexColor;
+  }
   auto receiver = std::make_shared<Mesh>(
       vertices, std::vector<glm::uvec3>{{0, 1, 2}, {0, 2, 3}});
   receiver->setMaterial(material);
@@ -24,15 +25,17 @@ TEST(PathTracing, DiffuseIndirectRadianceIncludesVertexColor) {
   pt.configure(config);
   pt.addScene(scene);
   pt.draw();
-  for (const auto pixel : pt.pixels())
+  for (const auto pixel : pt.pixels()) {
     expectNear(pixel, glm::vec3(0)); // No light until the next ray sees Li.
+  }
 
   config.maxDepth = 2;
   pt.configure(config);
   pt.draw();
   const auto expected = material->Kd * vertexColor * background;
-  for (const auto pixel : pt.pixels())
+  for (const auto pixel : pt.pixels()) {
     expectNear(pixel, expected);
+  }
 }
 
 } // namespace
