@@ -15,11 +15,18 @@ enum class MaterialType {
 };
 
 struct BsdfSample {
-  glm::vec3 direction{0}, fr{0};
+  glm::vec3 direction{0};
+  // Ordinary finite BRDF density; zero when the sample is a delta event.
+  glm::vec3 fr{0};
   // Integrated delta-event response, not an ordinary continuous BRDF.
   glm::vec3 deltaCoefficient{0};
-  // Non-delta: solid-angle PDF. Delta: probability of the chosen event.
-  float pdf = 0;
+  // PDF of a continuous sampled direction with respect to solid angle
+  // (sr^-1). Its value follows the sampler; cosine sampling uses cos(theta)/pi
+  // and is not a uniform hemisphere distribution.
+  float solidAnglePdf = 0;
+  // Dimensionless probability mass of the selected delta branch. It is 1 for
+  // a deterministic mirror/TIR event, and F or 1-F for dielectric branches.
+  float deltaEventProbability = 0;
   bool delta = false, transmitted = false;
 };
 
