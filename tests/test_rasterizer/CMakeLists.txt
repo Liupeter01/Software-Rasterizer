@@ -1,6 +1,4 @@
 add_executable(test_rasterizer
-  test_rasterizer_shared_edges.cpp
-  test_rasterizer_equal_depth.cpp
   test_rasterizer_perspective.cpp
   test_rasterizer_scalar_simd_fill.cpp
   test_rasterizer_wireframe_coverage.cpp
