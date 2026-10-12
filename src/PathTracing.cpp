@@ -59,15 +59,11 @@ void SoftRasterizer::PathTracing::pathTracingAreaLight(
   }
   auto wi = lightDirection / std::sqrt(distanceSquared);
 
-  const glm::vec3 orientedGeometricNormal = shadeObjIntersection.frontFace
-                                                  ? shadeObjIntersection.geometricNormal
-                                                  : -shadeObjIntersection.geometricNormal);
-
-  const float objectCosine = glm::dot(shadeObjIntersection.normal, wi);
-
-  const float geometricCosine = glm::dot(orientedGeometricNormal, wi);
-
-  if (objectCosine <= 0 || geometricCosine <= 0) {
+  const auto geometricNormal = shadeObjIntersection.frontFace
+                                   ? shadeObjIntersection.geometricNormal
+                                   : -shadeObjIntersection.geometricNormal;
+  const float objectCosine = glm::dot(geometricNormal, wi);
+  if (objectCosine <= 0) {
     return;
   }
 
@@ -100,32 +96,21 @@ void SoftRasterizer::PathTracing::pathTracingPointLights(
       continue;
     }
     auto wi = lightDirection / std::sqrt(distanceSquared);
-    float objectCosine =
-        std::max(0.f, glm::dot(shadeObjIntersection.normal, wi));
+    const auto geometricNormal = shadeObjIntersection.frontFace
+                                     ? shadeObjIntersection.geometricNormal
+                                     : -shadeObjIntersection.geometricNormal;
+    const float objectCosine = glm::dot(geometricNormal, wi);
     if (objectCosine <= 0) {
       continue;
     }
-
-  const glm::vec3 orientedGeometricNormal = shadeObjIntersection.frontFace
-                                                  ? shadeObjIntersection.geometricNormal
-                                                  : -shadeObjIntersection.geometricNormal);
-
-  const float shadingCosine = glm::dot(shadeObjIntersection.normal, wi);
-
-  const float geometricCosine = glm::dot(orientedGeometricNormal, wi);
-
-  if (shadingCosine <= 0 || geometricCosine <= 0) {
-    continue;
-  }
-
-  auto start = offsetOrigin(shadeObjIntersection.coords,
-                            shadeObjIntersection.geometricNormal, wi);
-  if (isLightVisible(scene, start, pointLight->position)) {
-    const auto fr = albedo / Pi;
-    const auto incidentIrradiance =
-        pointLight->intensity * (objectCosine / distanceSquared);
-    radiance += throughput * fr * incidentIrradiance;
-  }
+    auto start = offsetOrigin(shadeObjIntersection.coords,
+                              shadeObjIntersection.geometricNormal, wi);
+    if (isLightVisible(scene, start, pointLight->position)) {
+      const auto fr = albedo / Pi;
+      const auto incidentIrradiance =
+          pointLight->intensity * (objectCosine / distanceSquared);
+      radiance += throughput * fr * incidentIrradiance;
+    }
   }
 }
 
@@ -179,7 +164,7 @@ SoftRasterizer::PathTracing::pathTracingShading(const Scene &scene, Ray ray,
     auto bsdf = material.sample(ray.direction, samplingNormal,
                                 shadeObjIntersection.frontFace,
                                 shadeObjIntersection.uv, sampler);
-    if (!finite(bsdf.direction) || !std::isfinite(bsdf.pdf) || bsdf.pdf <= 0) {
+    if (!finite(bsdf.direction)) {
       break;
     }
     // Prevent interpolated shading normals from sending reflective paths
@@ -190,16 +175,24 @@ SoftRasterizer::PathTracing::pathTracingShading(const Scene &scene, Ray ray,
       break;
     }
     if (bsdf.delta) {
-      // Delta events use a discrete probability, with cosine already
-      // integrated.
-      throughput *=
-          bsdf.deltaCoefficient / bsdf.pdf * shadeObjIntersection.color;
+      // A delta event has probability mass rather than a solid-angle PDF.
+      // Its coefficient already contains the integrated directional response.
+      if (!std::isfinite(bsdf.deltaEventProbability) ||
+          bsdf.deltaEventProbability <= 0) {
+        break;
+      }
+      throughput *= bsdf.deltaCoefficient / bsdf.deltaEventProbability *
+                    shadeObjIntersection.color;
     } else {
-      // The next hit supplies Li; this bounce contributes fr * cos(theta) /
-      // pdf.
+      // The next hit supplies Li; this bounce contributes
+      // fr * cos(theta) / solidAnglePdf.
+      if (!std::isfinite(bsdf.solidAnglePdf) || bsdf.solidAnglePdf <= 0) {
+        break;
+      }
       const float cosine =
           std::max(0.f, glm::dot(samplingNormal, bsdf.direction));
-      throughput *= bsdf.fr * cosine / bsdf.pdf * shadeObjIntersection.color;
+      throughput *= bsdf.fr * cosine / bsdf.solidAnglePdf *
+                    shadeObjIntersection.color;
     }
     if (!finite(throughput) || maxComponent(throughput) <= 0) {
       break;
