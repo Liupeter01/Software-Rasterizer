@@ -18,7 +18,8 @@ TEST(PathTracing, TotalInternalReflectionHasOneCertainEvent) {
     EXPECT_FALSE(sample.transmitted);
     expectNear(sample.direction, {.8f, 0, .6f});
     expectNear(sample.fr, glm::vec3(0));
-    expectNear(sample.pdf, 1);
+    expectNear(sample.solidAnglePdf, 0);
+    expectNear(sample.deltaEventProbability, 1);
     expectNear(sample.deltaCoefficient, material->Kd);
   }
 }
