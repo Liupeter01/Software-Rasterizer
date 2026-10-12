@@ -8,10 +8,9 @@ namespace {
 
 TEST(Rasterizer, TriangleWithVertexOnCameraPlaneIsSkipped) {
   auto scene = cameraScene(75, .1f, 4);
-  scene->addGraphicObj(
-      triangle({Vertex({0, .8f, 0}), Vertex({-2, -.8f, -2}),
-                Vertex({2, -.8f, -2})}),
-      "camera plane");
+  scene->addGraphicObj(triangle({Vertex({0, .8f, 0}), Vertex({-2, -.8f, -2}),
+                                 Vertex({2, -.8f, -2})}),
+                       "camera plane");
 
   TraditionalRasterizer rasterizer(71, 53);
   rasterizer.addScene(scene);

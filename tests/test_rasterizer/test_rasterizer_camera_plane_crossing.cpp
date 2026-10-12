@@ -8,10 +8,9 @@ namespace {
 
 TEST(Rasterizer, TriangleCrossingCameraPlaneIsSkipped) {
   auto scene = cameraScene(75, .1f, 4);
-  scene->addGraphicObj(
-      triangle({Vertex({0, .8f, .4f}), Vertex({-2, -.8f, -2}),
-                Vertex({2, -.8f, -2})}),
-      "camera plane crossing");
+  scene->addGraphicObj(triangle({Vertex({0, .8f, .4f}), Vertex({-2, -.8f, -2}),
+                                 Vertex({2, -.8f, -2})}),
+                       "camera plane crossing");
 
   TraditionalRasterizer rasterizer(71, 53);
   rasterizer.addScene(scene);

@@ -10,15 +10,13 @@ struct SlantedTriangleScene {
 
 inline SlantedTriangleScene slantedTexturedTriangle() {
   auto texture = std::make_shared<TextureLoader>(
-      2, 2,
-      std::vector<glm::vec3>{{0, 1, 0}, {1, 1, 0}, {0, 0, 0}, {1, 0, 0}});
+      2, 2, std::vector<glm::vec3>{{0, 1, 0}, {1, 1, 0}, {0, 0, 0}, {1, 0, 0}});
   auto material = TestHelpers::mat();
   material->texture = texture;
-  auto triangle = TestHelpers::triangle(
-      {Vertex({-1, -1, -1}, {}, {0, 0}),
-       Vertex({1, -1, -4}, {}, {1, 0}),
-       Vertex({0, 1, -2}, {}, {.5f, 1})},
-      material);
+  auto triangle = TestHelpers::triangle({Vertex({-1, -1, -1}, {}, {0, 0}),
+                                         Vertex({1, -1, -4}, {}, {1, 0}),
+                                         Vertex({0, 1, -2}, {}, {.5f, 1})},
+                                        material);
   TestHelpers::unlit(triangle);
   auto scene = TestHelpers::cameraScene(70);
   scene->addGraphicObj(triangle, "slanted");

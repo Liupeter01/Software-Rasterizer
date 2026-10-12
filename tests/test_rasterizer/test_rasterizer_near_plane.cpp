@@ -8,9 +8,8 @@ namespace {
 
 TEST(Rasterizer, NearPlaneOverlapKeepsVisiblePixelsAndValidDepth) {
   auto scene = cameraScene(75, .1f, 4);
-  auto nearTriangle =
-      triangle({Vertex({0, .8f, -.02f}), Vertex({-2, -.8f, -2}),
-                Vertex({2, -.8f, -2})});
+  auto nearTriangle = triangle(
+      {Vertex({0, .8f, -.02f}), Vertex({-2, -.8f, -2}), Vertex({2, -.8f, -2})});
   unlit(nearTriangle);
   scene->addGraphicObj(nearTriangle, "near");
 

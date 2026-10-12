@@ -8,9 +8,8 @@ namespace {
 
 std::shared_ptr<Scene> viewportSpanningScene() {
   auto scene = cameraScene(75, .1f, 4);
-  auto largeTriangle = triangle({Vertex({-10, -10, -1}),
-                                 Vertex({10, -10, -1}),
-                                 Vertex({0, 10, -1})});
+  auto largeTriangle = triangle(
+      {Vertex({-10, -10, -1}), Vertex({10, -10, -1}), Vertex({0, 10, -1})});
   unlit(largeTriangle);
   scene->addGraphicObj(largeTriangle, "spanning");
   return scene;
